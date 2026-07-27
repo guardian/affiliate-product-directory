@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'quarterly'
+    ignore:
+      # The version of AWS CDK libraries must match those from @guardian/cdk.
+      # We'd never be able to update them here independently, so just ignore them.
+      - dependency-name: "aws-cdk"
+      - dependency-name: "aws-cdk-lib"
+      - dependency-name: "constructs"
+
+    groups:
+      aws-sdk:
+        patterns:
+          - "@aws-sdk/*"
+
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'quarterly'

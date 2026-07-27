@@ -1,0 +1,68 @@
+# Find full documentation here https://docs.github.com/en/actions/learn-github-actions/workflow-syntax-for-github-actions
+name: CI
+
+on:
+  pull_request:
+
+  # Manual invocation.
+  workflow_dispatch:
+
+  push:
+    branches:
+      - main
+
+# Ensure we only ever have one build running at a time.
+# If we push twice in quick succession, the first build will be stopped once the second starts.
+# This avoids any race conditions.
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  CI:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+      # These permissions are required by guardian/actions-riff-raff...
+      id-token: write # ...to exchange an OIDC JWT ID token for AWS credentials
+      pull-requests: write #...to comment on PRs
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Synth CDK
+        run: npm -w cdk run synth
+
+      # See https://github.com/guardian/actions-riff-raff
+      - name: Upload to riff-raff
+        uses: guardian/actions-riff-raff@v4
+        with:
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          roleArn: ${{ secrets.GU_RIFF_RAFF_ROLE_ARN }}
+          projectName: frontend::affiliate-product-directory
+          configPath: packages/cdk/cdk.out/riff-raff.yaml
+          contentDirectories: |
+            cdk.out:
+              - packages/cdk/cdk.out
+            affiliate-product-directory-lambda:
+              - packages/lambda/dist/affiliate-product-directory-lambda.zip
