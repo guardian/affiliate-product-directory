@@ -32,6 +32,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          aws-region: eu-west-1
+          role-to-assume: ${{ secrets.GU_RIFF_RAFF_ROLE_ARN }}
+
+      - run: aws s3 cp README.md s3://riffraff-artifact/frontend::affiliate-product-directory/README.md
+
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
@@ -53,16 +60,16 @@ jobs:
       - name: Synth CDK
         run: npm -w cdk run synth
 
-      # See https://github.com/guardian/actions-riff-raff
-      - name: Upload to riff-raff
-        uses: guardian/actions-riff-raff@v4
-        with:
-          githubToken: ${{ secrets.GITHUB_TOKEN }}
-          roleArn: ${{ secrets.GU_RIFF_RAFF_ROLE_ARN }}
-          projectName: frontend::affiliate-product-directory
-          configPath: packages/cdk/cdk.out/riff-raff.yaml
-          contentDirectories: |
-            cdk.out:
-              - packages/cdk/cdk.out
-            affiliate-product-directory-lambda:
-              - packages/lambda/dist/affiliate-product-directory-lambda.zip
+      # # See https://github.com/guardian/actions-riff-raff
+      # - name: Upload to riff-raff
+      #   uses: guardian/actions-riff-raff@v4
+      #   with:
+      #     githubToken: ${{ secrets.GITHUB_TOKEN }}
+      #     roleArn: ${{ secrets.GU_RIFF_RAFF_ROLE_ARN }}
+      #     projectName: frontend::affiliate-product-directory
+      #     configPath: packages/cdk/cdk.out/riff-raff.yaml
+      #     contentDirectories: |
+      #       cdk.out:
+      #         - packages/cdk/cdk.out
+      #       affiliate-product-directory-lambda:
+      #         - packages/lambda/dist/affiliate-product-directory-lambda.zip
