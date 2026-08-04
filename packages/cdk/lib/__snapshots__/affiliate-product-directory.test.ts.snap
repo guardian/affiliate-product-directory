@@ -6,7 +6,6 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
     "gu:cdk:constructs": [
       "GuDistributionBucketParameter",
       "GuLambdaFunction",
-      "GuApiGatewayWithLambdaByPath",
       "GuDynamoTable",
       "GuDynamoTable",
       "GuDynamoDBReadPolicy",
@@ -16,30 +15,6 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
     ],
     "gu:cdk:version": "TEST",
   },
-  "Outputs": {
-    "RestApiEndpoint0551178A": {
-      "Value": {
-        "Fn::Join": [
-          "",
-          [
-            "https://",
-            {
-              "Ref": "RestApi0C43BF4B",
-            },
-            ".execute-api.eu-west-1.",
-            {
-              "Ref": "AWS::URLSuffix",
-            },
-            "/",
-            {
-              "Ref": "RestApiDeploymentStageprod3855DE66",
-            },
-            "/",
-          ],
-        ],
-      },
-    },
-  },
   "Parameters": {
     "DistributionBucketName": {
       "Default": "/account/services/artifact.bucket",
@@ -48,225 +23,6 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
     },
   },
   "Resources": {
-    "AffiliateProductDirectoryLambdaBDB61A32": {
-      "DependsOn": [
-        "AffiliateProductDirectoryLambdaServiceRoleDefaultPolicyDD8A60E6",
-        "AffiliateProductDirectoryLambdaServiceRoleF94BF8C8",
-      ],
-      "Properties": {
-        "Architectures": [
-          "arm64",
-        ],
-        "Code": {
-          "S3Bucket": {
-            "Ref": "DistributionBucketName",
-          },
-          "S3Key": "frontend/CODE/affiliate-product-directory-lambda/affiliate-product-directory-lambda.zip",
-        },
-        "Environment": {
-          "Variables": {
-            "APP": "affiliate-product-directory-lambda",
-            "STACK": "frontend",
-            "STAGE": "CODE",
-          },
-        },
-        "Handler": "index.main",
-        "LoggingConfig": {
-          "LogFormat": "JSON",
-        },
-        "MemorySize": 512,
-        "Role": {
-          "Fn::GetAtt": [
-            "AffiliateProductDirectoryLambdaServiceRoleF94BF8C8",
-            "Arn",
-          ],
-        },
-        "Runtime": "nodejs22.x",
-        "Tags": [
-          {
-            "Key": "App",
-            "Value": "affiliate-product-directory-lambda",
-          },
-          {
-            "Key": "gu:cdk:version",
-            "Value": "TEST",
-          },
-          {
-            "Key": "gu:repo",
-            "Value": "guardian/affiliate-product-directory",
-          },
-          {
-            "Key": "Stack",
-            "Value": "frontend",
-          },
-          {
-            "Key": "Stage",
-            "Value": "CODE",
-          },
-        ],
-        "Timeout": 30,
-      },
-      "Type": "AWS::Lambda::Function",
-    },
-    "AffiliateProductDirectoryLambdaServiceRoleDefaultPolicyDD8A60E6": {
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": [
-                "s3:GetObject*",
-                "s3:GetBucket*",
-                "s3:List*",
-              ],
-              "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:",
-                      {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":s3:::",
-                      {
-                        "Ref": "DistributionBucketName",
-                      },
-                    ],
-                  ],
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:",
-                      {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":s3:::",
-                      {
-                        "Ref": "DistributionBucketName",
-                      },
-                      "/frontend/CODE/affiliate-product-directory-lambda/affiliate-product-directory-lambda.zip",
-                    ],
-                  ],
-                },
-              ],
-            },
-            {
-              "Action": "ssm:GetParametersByPath",
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::Join": [
-                  "",
-                  [
-                    "arn:aws:ssm:eu-west-1:",
-                    {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/CODE/frontend/affiliate-product-directory-lambda",
-                  ],
-                ],
-              },
-            },
-            {
-              "Action": [
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-              ],
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::Join": [
-                  "",
-                  [
-                    "arn:aws:ssm:eu-west-1:",
-                    {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/CODE/frontend/affiliate-product-directory-lambda/*",
-                  ],
-                ],
-              },
-            },
-            {
-              "Action": [
-                "sqs:SendMessage",
-                "sqs:GetQueueAttributes",
-                "sqs:GetQueueUrl",
-              ],
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "ProductPricingUpdateQueue59D9EE3D",
-                  "Arn",
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "AffiliateProductDirectoryLambdaServiceRoleDefaultPolicyDD8A60E6",
-        "Roles": [
-          {
-            "Ref": "AffiliateProductDirectoryLambdaServiceRoleF94BF8C8",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "AffiliateProductDirectoryLambdaServiceRoleF94BF8C8": {
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "lambda.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "ManagedPolicyArns": [
-          {
-            "Fn::Join": [
-              "",
-              [
-                "arn:",
-                {
-                  "Ref": "AWS::Partition",
-                },
-                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-              ],
-            ],
-          },
-        ],
-        "Tags": [
-          {
-            "Key": "App",
-            "Value": "affiliate-product-directory-lambda",
-          },
-          {
-            "Key": "gu:cdk:version",
-            "Value": "TEST",
-          },
-          {
-            "Key": "gu:repo",
-            "Value": "guardian/affiliate-product-directory",
-          },
-          {
-            "Key": "Stack",
-            "Value": "frontend",
-          },
-          {
-            "Key": "Stage",
-            "Value": "CODE",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Role",
-    },
     "ProductArticleDynamoReadPolicy02131EC2": {
       "Properties": {
         "PolicyDocument": {
@@ -320,7 +76,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         "PolicyName": "ProductArticleDynamoReadPolicy02131EC2",
         "Roles": [
           {
-            "Ref": "AffiliateProductDirectoryLambdaServiceRoleF94BF8C8",
+            "Ref": "ProductPriceUpdateLambdaServiceRole34386223",
           },
         ],
       },
@@ -378,7 +134,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         "PolicyName": "ProductArticleDynamoWritePolicyD79B45C3",
         "Roles": [
           {
-            "Ref": "AffiliateProductDirectoryLambdaServiceRoleF94BF8C8",
+            "Ref": "ProductPriceUpdateLambdaServiceRole34386223",
           },
         ],
       },
@@ -480,6 +236,225 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       "Type": "AWS::DynamoDB::Table",
       "UpdateReplacePolicy": "Retain",
     },
+    "ProductPriceUpdateLambda911BBAB1": {
+      "DependsOn": [
+        "ProductPriceUpdateLambdaServiceRoleDefaultPolicy583E597B",
+        "ProductPriceUpdateLambdaServiceRole34386223",
+      ],
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Ref": "DistributionBucketName",
+          },
+          "S3Key": "frontend/CODE/product-price-update-lambda/product-price-update-lambda.zip",
+        },
+        "Environment": {
+          "Variables": {
+            "APP": "product-price-update-lambda",
+            "STACK": "frontend",
+            "STAGE": "CODE",
+          },
+        },
+        "Handler": "index.main",
+        "LoggingConfig": {
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
+        "Role": {
+          "Fn::GetAtt": [
+            "ProductPriceUpdateLambdaServiceRole34386223",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs22.x",
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "product-price-update-lambda",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "CODE",
+          },
+        ],
+        "Timeout": 30,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "ProductPriceUpdateLambdaServiceRole34386223": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "product-price-update-lambda",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "CODE",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "ProductPriceUpdateLambdaServiceRoleDefaultPolicy583E597B": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::",
+                      {
+                        "Ref": "DistributionBucketName",
+                      },
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::",
+                      {
+                        "Ref": "DistributionBucketName",
+                      },
+                      "/frontend/CODE/product-price-update-lambda/product-price-update-lambda.zip",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "ssm:GetParametersByPath",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:ssm:eu-west-1:",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":parameter/CODE/frontend/product-price-update-lambda",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "ssm:GetParameters",
+                "ssm:GetParameter",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:ssm:eu-west-1:",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":parameter/CODE/frontend/product-price-update-lambda/*",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "sqs:SendMessage",
+                "sqs:GetQueueAttributes",
+                "sqs:GetQueueUrl",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "ProductPricingUpdateQueue59D9EE3D",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "ProductPriceUpdateLambdaServiceRoleDefaultPolicy583E597B",
+        "Roles": [
+          {
+            "Ref": "ProductPriceUpdateLambdaServiceRole34386223",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
     "ProductPricingDynamoReadPolicy0B5F7C05": {
       "Properties": {
         "PolicyDocument": {
@@ -533,7 +508,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         "PolicyName": "ProductPricingDynamoReadPolicy0B5F7C05",
         "Roles": [
           {
-            "Ref": "AffiliateProductDirectoryLambdaServiceRoleF94BF8C8",
+            "Ref": "ProductPriceUpdateLambdaServiceRole34386223",
           },
         ],
       },
@@ -591,7 +566,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         "PolicyName": "ProductPricingDynamoWritePolicyB97A72A7",
         "Roles": [
           {
-            "Ref": "AffiliateProductDirectoryLambdaServiceRoleF94BF8C8",
+            "Ref": "ProductPriceUpdateLambdaServiceRole34386223",
           },
         ],
       },
@@ -622,280 +597,6 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       },
       "Type": "AWS::SQS::Queue",
       "UpdateReplacePolicy": "Delete",
-    },
-    "RestApi0C43BF4B": {
-      "Properties": {
-        "Name": "frontend-CODE-affiliate-product-directory",
-        "Tags": [
-          {
-            "Key": "gu:cdk:version",
-            "Value": "TEST",
-          },
-          {
-            "Key": "gu:repo",
-            "Value": "guardian/affiliate-product-directory",
-          },
-          {
-            "Key": "Stack",
-            "Value": "frontend",
-          },
-          {
-            "Key": "Stage",
-            "Value": "CODE",
-          },
-        ],
-      },
-      "Type": "AWS::ApiGateway::RestApi",
-    },
-    "RestApiAccount7C83CF5A": {
-      "DeletionPolicy": "Retain",
-      "DependsOn": [
-        "RestApi0C43BF4B",
-      ],
-      "Properties": {
-        "CloudWatchRoleArn": {
-          "Fn::GetAtt": [
-            "RestApiCloudWatchRoleE3ED6605",
-            "Arn",
-          ],
-        },
-      },
-      "Type": "AWS::ApiGateway::Account",
-      "UpdateReplacePolicy": "Retain",
-    },
-    "RestApiCloudWatchRoleE3ED6605": {
-      "DeletionPolicy": "Retain",
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "apigateway.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "ManagedPolicyArns": [
-          {
-            "Fn::Join": [
-              "",
-              [
-                "arn:",
-                {
-                  "Ref": "AWS::Partition",
-                },
-                ":iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs",
-              ],
-            ],
-          },
-        ],
-        "Tags": [
-          {
-            "Key": "gu:cdk:version",
-            "Value": "TEST",
-          },
-          {
-            "Key": "gu:repo",
-            "Value": "guardian/affiliate-product-directory",
-          },
-          {
-            "Key": "Stack",
-            "Value": "frontend",
-          },
-          {
-            "Key": "Stage",
-            "Value": "CODE",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Role",
-      "UpdateReplacePolicy": "Retain",
-    },
-    "RestApiDeployment180EC50372e9cabbfa91d85040b5d66982ebc02d": {
-      "DependsOn": [
-        "RestApiproductPricingproductMerchantUrlGET5B78BAFB",
-        "RestApiproductPricingproductMerchantUrl099F1F91",
-        "RestApiproductPricing7F1DD86B",
-      ],
-      "Metadata": {
-        "aws:cdk:do-not-refactor": true,
-      },
-      "Properties": {
-        "Description": "Automatically created by the RestApi construct",
-        "RestApiId": {
-          "Ref": "RestApi0C43BF4B",
-        },
-      },
-      "Type": "AWS::ApiGateway::Deployment",
-    },
-    "RestApiDeploymentStageprod3855DE66": {
-      "DependsOn": [
-        "RestApiAccount7C83CF5A",
-      ],
-      "Properties": {
-        "DeploymentId": {
-          "Ref": "RestApiDeployment180EC50372e9cabbfa91d85040b5d66982ebc02d",
-        },
-        "RestApiId": {
-          "Ref": "RestApi0C43BF4B",
-        },
-        "StageName": "prod",
-        "Tags": [
-          {
-            "Key": "gu:cdk:version",
-            "Value": "TEST",
-          },
-          {
-            "Key": "gu:repo",
-            "Value": "guardian/affiliate-product-directory",
-          },
-          {
-            "Key": "Stack",
-            "Value": "frontend",
-          },
-          {
-            "Key": "Stage",
-            "Value": "CODE",
-          },
-        ],
-      },
-      "Type": "AWS::ApiGateway::Stage",
-    },
-    "RestApiproductPricing7F1DD86B": {
-      "Properties": {
-        "ParentId": {
-          "Fn::GetAtt": [
-            "RestApi0C43BF4B",
-            "RootResourceId",
-          ],
-        },
-        "PathPart": "productPricing",
-        "RestApiId": {
-          "Ref": "RestApi0C43BF4B",
-        },
-      },
-      "Type": "AWS::ApiGateway::Resource",
-    },
-    "RestApiproductPricingproductMerchantUrl099F1F91": {
-      "Properties": {
-        "ParentId": {
-          "Ref": "RestApiproductPricing7F1DD86B",
-        },
-        "PathPart": "{productMerchantUrl}",
-        "RestApiId": {
-          "Ref": "RestApi0C43BF4B",
-        },
-      },
-      "Type": "AWS::ApiGateway::Resource",
-    },
-    "RestApiproductPricingproductMerchantUrlGET5B78BAFB": {
-      "Properties": {
-        "AuthorizationType": "NONE",
-        "HttpMethod": "GET",
-        "Integration": {
-          "IntegrationHttpMethod": "POST",
-          "Type": "AWS_PROXY",
-          "Uri": {
-            "Fn::Join": [
-              "",
-              [
-                "arn:",
-                {
-                  "Ref": "AWS::Partition",
-                },
-                ":apigateway:eu-west-1:lambda:path/2015-03-31/functions/",
-                {
-                  "Fn::GetAtt": [
-                    "AffiliateProductDirectoryLambdaBDB61A32",
-                    "Arn",
-                  ],
-                },
-                "/invocations",
-              ],
-            ],
-          },
-        },
-        "ResourceId": {
-          "Ref": "RestApiproductPricingproductMerchantUrl099F1F91",
-        },
-        "RestApiId": {
-          "Ref": "RestApi0C43BF4B",
-        },
-      },
-      "Type": "AWS::ApiGateway::Method",
-    },
-    "RestApiproductPricingproductMerchantUrlGETApiPermissionAffiliateProductDirectoryLambdaRestApi5469D1F7GETproductPricingproductMerchantUrl0DFF72FE": {
-      "Properties": {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": {
-          "Fn::GetAtt": [
-            "AffiliateProductDirectoryLambdaBDB61A32",
-            "Arn",
-          ],
-        },
-        "Principal": "apigateway.amazonaws.com",
-        "SourceArn": {
-          "Fn::Join": [
-            "",
-            [
-              "arn:",
-              {
-                "Ref": "AWS::Partition",
-              },
-              ":execute-api:eu-west-1:",
-              {
-                "Ref": "AWS::AccountId",
-              },
-              ":",
-              {
-                "Ref": "RestApi0C43BF4B",
-              },
-              "/",
-              {
-                "Ref": "RestApiDeploymentStageprod3855DE66",
-              },
-              "/GET/productPricing/*",
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::Lambda::Permission",
-    },
-    "RestApiproductPricingproductMerchantUrlGETApiPermissionTestAffiliateProductDirectoryLambdaRestApi5469D1F7GETproductPricingproductMerchantUrl3937FB5A": {
-      "Properties": {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": {
-          "Fn::GetAtt": [
-            "AffiliateProductDirectoryLambdaBDB61A32",
-            "Arn",
-          ],
-        },
-        "Principal": "apigateway.amazonaws.com",
-        "SourceArn": {
-          "Fn::Join": [
-            "",
-            [
-              "arn:",
-              {
-                "Ref": "AWS::Partition",
-              },
-              ":execute-api:eu-west-1:",
-              {
-                "Ref": "AWS::AccountId",
-              },
-              ":",
-              {
-                "Ref": "RestApi0C43BF4B",
-              },
-              "/test-invoke-stage/GET/productPricing/*",
-            ],
-          ],
-        },
-      },
-      "Type": "AWS::Lambda::Permission",
     },
   },
 }

@@ -1,4 +1,3 @@
-import { GuApiGatewayWithLambdaByPath } from '@guardian/cdk';
 import type { GuStackProps } from '@guardian/cdk/lib/constructs/core';
 import { GuStack } from '@guardian/cdk/lib/constructs/core';
 import { GuDynamoTable } from '@guardian/cdk/lib/constructs/dynamodb/index';
@@ -25,19 +24,19 @@ export class AffiliateProductDirectory extends GuStack {
 		 *
 		 * @see The `__snapshots__` directory for more.
 		 */
-		const lambda = new GuLambdaFunction(
+		const priceUpdateLambda = new GuLambdaFunction(
 			this,
-			'AffiliateProductDirectoryLambda',
+			'ProductPriceUpdateLambda',
 			{
 				/**
 				 * This becomes the value of the APP tag on provisioned resources.
 				 */
-				app: 'affiliate-product-directory-lambda',
+				app: 'product-price-update-lambda',
 
 				/**
 				 * This is the name of artifact in S3.
 				 */
-				fileName: 'affiliate-product-directory-lambda.zip',
+				fileName: 'product-price-update-lambda.zip',
 
 				/**
 				 * The format of this is `<filename>.<exported function>`.
@@ -63,28 +62,6 @@ export class AffiliateProductDirectory extends GuStack {
 				architecture: Architecture.ARM_64,
 			},
 		);
-
-		// Wire up the API
-		new GuApiGatewayWithLambdaByPath(this, {
-			app: appName,
-			targets: [
-				{
-					path: 'productPricing/{productMerchantUrl}',
-					httpMethod: 'GET',
-					lambda: lambda,
-				},
-			],
-			monitoringConfiguration: {
-				//TODO
-				// Create an alarm
-				noMonitoring: true,
-				// eg
-				// snsTopicName: 'my-topic-for-cloudwatch-alerts',
-				// http5xxAlarm: {
-				// 	tolerated5xxPercentage: 1,
-				// },
-			},
-		});
 
 		const productPricingTable = new GuDynamoTable(
 			this,
@@ -150,10 +127,18 @@ export class AffiliateProductDirectory extends GuStack {
 			},
 		);
 
-		lambda.role?.attachInlinePolicy(productPricingDynamoDBReadPolicy);
-		lambda.role?.attachInlinePolicy(productPricingDynamoDBWritePolicy);
-		lambda.role?.attachInlinePolicy(productArticleDynamoDBReadPolicy);
-		lambda.role?.attachInlinePolicy(productArticleDynamoDBWritePolicy);
+		priceUpdateLambda.role?.attachInlinePolicy(
+			productPricingDynamoDBReadPolicy,
+		);
+		priceUpdateLambda.role?.attachInlinePolicy(
+			productPricingDynamoDBWritePolicy,
+		);
+		priceUpdateLambda.role?.attachInlinePolicy(
+			productArticleDynamoDBReadPolicy,
+		);
+		priceUpdateLambda.role?.attachInlinePolicy(
+			productArticleDynamoDBWritePolicy,
+		);
 
 		const updatedPriceQueue = new Queue(this, 'ProductPricingUpdateQueue', {
 			queueName: `${appName}-pricing-update-${this.stage}`,
@@ -164,6 +149,6 @@ export class AffiliateProductDirectory extends GuStack {
 			// 	maxReceiveCount: 3,
 			// },
 		});
-		updatedPriceQueue.grantSendMessages(lambda);
+		updatedPriceQueue.grantSendMessages(priceUpdateLambda);
 	}
 }

@@ -1,5 +1,5 @@
 {
-	"name": "lambda",
+	"name": "product-price-update-lambda",
 	"version": "0.0.0",
 	"type": "module",
 	"scripts": {
@@ -7,7 +7,7 @@
 		"start": "tsx --env-file=.env src/run-locally.ts",
 		"prebuild": "rm -rf dist",
 		"build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outdir=dist",
-		"postbuild": "cd dist && zip -r affiliate-product-directory-lambda.zip ."
+		"postbuild": "cd dist && zip -r product-price-update-lambda.zip ."
 	},
 	"devDependencies": {
 		"esbuild": "0.27.3"

@@ -64,5 +64,5 @@ jobs:
           contentDirectories: |
             cdk.out:
               - packages/cdk/cdk.out
-            affiliate-product-directory-lambda:
-              - packages/lambda/dist/affiliate-product-directory-lambda.zip
+            product-price-update-lambda:
+              - packages/product-price-update-lambda/dist/product-price-update-lambda.zip
