@@ -95,6 +95,14 @@ export class AffiliateProductDirectory extends GuStack {
 			},
 		);
 
+		productArticleTable.addGlobalSecondaryIndex({
+			indexName: 'articleUrl-index',
+			partitionKey: {
+				name: 'articleUrl',
+				type: AttributeType.STRING,
+			},
+		});
+
 		const productPricingDynamoDBReadPolicy = new GuDynamoDBReadPolicy(
 			this,
 			'ProductPricingDynamoReadPolicy',

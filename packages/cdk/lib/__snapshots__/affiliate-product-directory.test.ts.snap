@@ -199,6 +199,20 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         ],
         "BillingMode": "PAY_PER_REQUEST",
         "DeletionProtectionEnabled": true,
+        "GlobalSecondaryIndexes": [
+          {
+            "IndexName": "articleUrl-index",
+            "KeySchema": [
+              {
+                "AttributeName": "articleUrl",
+                "KeyType": "HASH",
+              },
+            ],
+            "Projection": {
+              "ProjectionType": "ALL",
+            },
+          },
+        ],
         "KeySchema": [
           {
             "AttributeName": "productMerchantUrl",
