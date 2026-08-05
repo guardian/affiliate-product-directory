@@ -6,9 +6,8 @@ import {
 	GuDynamoDBWritePolicy,
 } from '@guardian/cdk/lib/constructs/iam';
 import { GuLambdaFunction } from '@guardian/cdk/lib/constructs/lambda';
-import { type App, aws_events_targets } from 'aws-cdk-lib';
+import { type App } from 'aws-cdk-lib';
 import { AttributeType, BillingMode } from 'aws-cdk-lib/aws-dynamodb';
-import { EventBus, Rule } from 'aws-cdk-lib/aws-events';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
 
@@ -159,30 +158,5 @@ export class AffiliateProductDirectory extends GuStack {
 			// },
 		});
 		updatedPriceQueue.grantSendMessages(priceUpdateLambda);
-
-		const crierEventBus = EventBus.fromEventBusName(
-			this,
-			'CrierEventBus',
-			`crier-eventbus-content-api-crier-v2-${this.stage}`,
-		);
-
-		new Rule(this, 'CrierConnection', {
-			eventBus: crierEventBus,
-			description: `Connect product-price-updater ${this.stage} to Crier`,
-			eventPattern: {
-				source: ['crier'],
-				detail: {
-					// do we need a new channel?
-					channels: ['open'],
-				},
-			},
-			targets: [
-				new aws_events_targets.LambdaFunction(priceUpdateLambda, {
-					//deadLetterQueue: responderDLQ,
-					//maxEventAge: Duration.minutes(30),
-					//retryAttempts: 5,
-				}),
-			],
-		});
 	}
 }
