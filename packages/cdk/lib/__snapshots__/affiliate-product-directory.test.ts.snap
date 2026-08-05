@@ -44,8 +44,8 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
     },
     "CrierConnectionE7D24320": {
       "Properties": {
-        "Description": "Connect product-price-updater CODE to Crier",
-        "EventBusName": "crier-eventbus-content-api-crier-v2-CODE",
+        "Description": "Connect product-price-updater TEST to Crier",
+        "EventBusName": "crier-eventbus-content-api-crier-v2-TEST",
         "EventPattern": {
           "detail": {
             "channels": [
@@ -72,7 +72,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
           },
           {
             "Key": "Stage",
-            "Value": "CODE",
+            "Value": "TEST",
           },
         ],
         "Targets": [
@@ -223,7 +223,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
             "KeyType": "HASH",
           },
         ],
-        "TableName": "affiliate-product-directory-pricing-CODE",
+        "TableName": "affiliate-product-directory-pricing-TEST",
         "Tags": [
           {
             "Key": "devx-backup-enabled",
@@ -243,7 +243,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
           },
           {
             "Key": "Stage",
-            "Value": "CODE",
+            "Value": "TEST",
           },
         ],
       },
@@ -289,7 +289,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
             "KeyType": "RANGE",
           },
         ],
-        "TableName": "affiliate-product-directory-product-article-CODE",
+        "TableName": "affiliate-product-directory-product-article-TEST",
         "Tags": [
           {
             "Key": "devx-backup-enabled",
@@ -309,7 +309,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
           },
           {
             "Key": "Stage",
-            "Value": "CODE",
+            "Value": "TEST",
           },
         ],
       },
@@ -329,13 +329,13 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
           "S3Bucket": {
             "Ref": "DistributionBucketName",
           },
-          "S3Key": "frontend/CODE/product-price-update-lambda/product-price-update-lambda.zip",
+          "S3Key": "frontend/TEST/product-price-update-lambda/product-price-update-lambda.zip",
         },
         "Environment": {
           "Variables": {
             "APP": "product-price-update-lambda",
             "STACK": "frontend",
-            "STAGE": "CODE",
+            "STAGE": "TEST",
           },
         },
         "Handler": "index.main",
@@ -369,7 +369,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
           },
           {
             "Key": "Stage",
-            "Value": "CODE",
+            "Value": "TEST",
           },
         ],
         "Timeout": 30,
@@ -423,7 +423,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
           },
           {
             "Key": "Stage",
-            "Value": "CODE",
+            "Value": "TEST",
           },
         ],
       },
@@ -468,7 +468,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
                       {
                         "Ref": "DistributionBucketName",
                       },
-                      "/frontend/CODE/product-price-update-lambda/product-price-update-lambda.zip",
+                      "/frontend/TEST/product-price-update-lambda/product-price-update-lambda.zip",
                     ],
                   ],
                 },
@@ -485,7 +485,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
                     {
                       "Ref": "AWS::AccountId",
                     },
-                    ":parameter/CODE/frontend/product-price-update-lambda",
+                    ":parameter/TEST/frontend/product-price-update-lambda",
                   ],
                 ],
               },
@@ -504,7 +504,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
                     {
                       "Ref": "AWS::AccountId",
                     },
-                    ":parameter/CODE/frontend/product-price-update-lambda/*",
+                    ":parameter/TEST/frontend/product-price-update-lambda/*",
                   ],
                 ],
               },
@@ -655,7 +655,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
     "ProductPricingUpdateQueue59D9EE3D": {
       "DeletionPolicy": "Delete",
       "Properties": {
-        "QueueName": "affiliate-product-directory-pricing-update-CODE",
+        "QueueName": "affiliate-product-directory-pricing-update-TEST",
         "Tags": [
           {
             "Key": "gu:cdk:version",
@@ -671,7 +671,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
           },
           {
             "Key": "Stage",
-            "Value": "CODE",
+            "Value": "TEST",
           },
         ],
       },

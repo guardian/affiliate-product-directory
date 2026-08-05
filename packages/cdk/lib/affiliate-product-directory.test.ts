@@ -10,7 +10,7 @@ describe('The AffiliateProductDirectoryLambda stack', () => {
 			'AffiliateProductDirectoryLambda',
 			{
 				stack: 'frontend',
-				stage: 'CODE',
+				stage: 'TEST',
 				env: {
 					region: 'eu-west-1',
 				},
