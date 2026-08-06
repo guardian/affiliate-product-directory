@@ -1,15 +1,15 @@
 import { App } from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
-import { AffiliateProductDirectoryLambda } from './affiliate-product-directory-lambda';
+import { AffiliateProductDirectory } from './affiliate-product-directory';
 
 describe('The AffiliateProductDirectoryLambda stack', () => {
 	it('matches the snapshot', () => {
 		const app = new App();
-		const stack = new AffiliateProductDirectoryLambda(
+		const stack = new AffiliateProductDirectory(
 			app,
 			'AffiliateProductDirectoryLambda',
 			{
-				stack: 'playground',
+				stack: 'frontend',
 				stage: 'TEST',
 				env: {
 					region: 'eu-west-1',

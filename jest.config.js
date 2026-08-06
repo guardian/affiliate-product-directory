@@ -29,7 +29,7 @@ export default {
 			transform: {
 				'^.+\\.tsx?$': 'ts-jest',
 			},
-			testMatch: ['<rootDir>/packages/lambda/**/*.test.ts'],
+			testMatch: ['<rootDir>/packages/*lambda/**/*.test.ts'],
 		},
 	],
 };

@@ -1,7 +1,6 @@
 import 'source-map-support/register';
 import { GuRoot } from '@guardian/cdk/lib/constructs/root';
-import { AffiliateProductDirectoryLambda } from '../lib/affiliate-product-directory-lambda';
-
+import { AffiliateProductDirectory } from '../lib/affiliate-product-directory';
 /**
  * GuRootExperimental will generate a `riff-raff.yaml` configuration file to deploy this project with Riff-Raff.
  *
@@ -9,9 +8,32 @@ import { AffiliateProductDirectoryLambda } from '../lib/affiliate-product-direct
  */
 const app = new GuRoot();
 
-new AffiliateProductDirectoryLambda(
+new AffiliateProductDirectory(
 	app,
-	'AffiliateProductDirectoryLambda-PROD',
+	// 'AffiliateProductDirectoryLambda-PROD',
+	// {
+	// 	/**
+	// 	 * This becomes the value of the STACK tag on provisioned resources.
+	// 	 *
+	// 	 * It is also used by Riff-Raff to determine the AWS account to deploy into.
+	// 	 *
+	// 	 * @see https://riffraff.gutools.co.uk/deployinfo/data?key=credentials%3Aaws-cfn-role
+	// 	 */
+	// 	stack: 'frontend',
+
+	// 	/**
+	// 	 * This becomes the value of the STAGE tag on provisioned resources.
+	// 	 */
+	// 	stage: 'PROD',
+
+	// 	env: {
+	// 		/**
+	// 		 * Which AWS region should this service be deployed into?
+	// 		 */
+	// 		region: 'eu-west-1',
+	// 	},
+	// },
+	'AffiliateProductDirectoryLambda-CODE',
 	{
 		/**
 		 * This becomes the value of the STACK tag on provisioned resources.
@@ -20,12 +42,12 @@ new AffiliateProductDirectoryLambda(
 		 *
 		 * @see https://riffraff.gutools.co.uk/deployinfo/data?key=credentials%3Aaws-cfn-role
 		 */
-		stack: 'playground',
+		stack: 'frontend',
 
 		/**
 		 * This becomes the value of the STAGE tag on provisioned resources.
 		 */
-		stage: 'PROD',
+		stage: 'CODE',
 
 		env: {
 			/**
