@@ -1,6 +1,7 @@
 import 'source-map-support/register';
 import { GuRoot } from '@guardian/cdk/lib/constructs/root';
 import { AffiliateProductDirectory } from '../lib/affiliate-product-directory';
+import { FrontendAccountEventbridgeConnection } from '../lib/capi-side-eventbridge-config';
 /**
  * GuRootExperimental will generate a `riff-raff.yaml` configuration file to deploy this project with Riff-Raff.
  *
@@ -43,17 +44,19 @@ new AffiliateProductDirectory(
 		 * @see https://riffraff.gutools.co.uk/deployinfo/data?key=credentials%3Aaws-cfn-role
 		 */
 		stack: 'frontend',
-
-		/**
-		 * This becomes the value of the STAGE tag on provisioned resources.
-		 */
 		stage: 'CODE',
-
 		env: {
-			/**
-			 * Which AWS region should this service be deployed into?
-			 */
 			region: 'eu-west-1',
 		},
+	},
+);
+new FrontendAccountEventbridgeConnection(
+	app,
+	'FrontendAccountEventbridgeConnection-euwest-1-CODE',
+	{
+		stack: 'content-api',
+		stage: 'CODE',
+		env: { region: 'eu-west-1' },
+		app: 'frontend-crier-infra',
 	},
 );
