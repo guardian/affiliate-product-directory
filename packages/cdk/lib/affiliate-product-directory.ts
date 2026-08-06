@@ -64,6 +64,18 @@ export class AffiliateProductDirectory extends GuStack {
 			},
 		);
 
+		const directoryUpdateLambda = new GuLambdaFunction(
+			this,
+			'ProductDirectoryUpdateLambda',
+			{
+				app: 'product-directory-update-lambda',
+				fileName: 'product-directory-update-lambda.zip',
+				handler: 'index.main',
+				runtime: Runtime.NODEJS_22_X,
+				architecture: Architecture.ARM_64,
+			},
+		);
+
 		const productPricingTable = new GuDynamoTable(
 			this,
 			'ProductDirectoryPricingTable',
@@ -142,10 +154,17 @@ export class AffiliateProductDirectory extends GuStack {
 		priceUpdateLambda.role?.attachInlinePolicy(
 			productPricingDynamoDBWritePolicy,
 		);
-		priceUpdateLambda.role?.attachInlinePolicy(
+
+		directoryUpdateLambda.role?.attachInlinePolicy(
+			productPricingDynamoDBReadPolicy,
+		);
+		directoryUpdateLambda.role?.attachInlinePolicy(
+			productPricingDynamoDBWritePolicy,
+		);
+		directoryUpdateLambda.role?.attachInlinePolicy(
 			productArticleDynamoDBReadPolicy,
 		);
-		priceUpdateLambda.role?.attachInlinePolicy(
+		directoryUpdateLambda.role?.attachInlinePolicy(
 			productArticleDynamoDBWritePolicy,
 		);
 
@@ -168,9 +187,10 @@ export class AffiliateProductDirectory extends GuStack {
 
 		new Rule(this, 'CrierConnection', {
 			eventBus: crierEventBus,
-			description: `Connect product-price-updater ${this.stage} to Crier`,
+			description: `Connect product-directory-update-lambda ${this.stage} to Crier`,
+			eventPattern: { source: ['crier'] },
 			targets: [
-				new aws_events_targets.LambdaFunction(priceUpdateLambda, {
+				new aws_events_targets.LambdaFunction(directoryUpdateLambda, {
 					// ToDo: do we want a DLQ?
 				}),
 			],

@@ -27,6 +27,7 @@ export class FrontendAccountEventbridgeConnection extends GuStack {
 		new Rule(this, 'FrontendBusConnection', {
 			eventBus: sourceEventBus,
 			description: `Relay Crier events to the Frontend account event bus ${this.stage}`,
+			eventPattern: { source: ['crier'] },
 			targets: [
 				new aws_events_targets.EventBus(targetEventBus), //this requires a Role to be created, but the docs say it'll be done automatically if we ignore...
 			],
