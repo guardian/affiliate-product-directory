@@ -9,7 +9,7 @@ export function handleContentUpdate({ content }: { content: Content }) {
 		} //no point processing live-blogs etc.
 
 		const productsFound = extractAllProductsFromArticle(content);
-
+		console.log(`to be implemented ${productsFound.length}`);
 		// ToDo: process the products
 	} catch (err) {
 		//log out what actually caused the breakage
