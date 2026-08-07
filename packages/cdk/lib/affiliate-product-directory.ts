@@ -188,7 +188,14 @@ export class AffiliateProductDirectory extends GuStack {
 		new Rule(this, 'CrierConnection', {
 			eventBus: crierEventBus,
 			description: `Connect product-directory-update-lambda ${this.stage} to Crier`,
-			eventPattern: { source: ['crier'] },
+			eventPattern: {
+				source: ['crier'],
+				detailType: [
+					'content-update',
+					'content-delete',
+					'content-retrievableupdate',
+				],
+			},
 			targets: [
 				new aws_events_targets.LambdaFunction(directoryUpdateLambda, {
 					// ToDo: do we want a DLQ?

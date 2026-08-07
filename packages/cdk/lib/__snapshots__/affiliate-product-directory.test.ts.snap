@@ -48,6 +48,11 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         "Description": "Connect product-directory-update-lambda TEST to Crier",
         "EventBusName": "crier-eventbus-content-api-crier-v2-TEST",
         "EventPattern": {
+          "detail-type": [
+            "content-update",
+            "content-delete",
+            "content-retrievableupdate",
+          ],
           "source": [
             "crier",
           ],
