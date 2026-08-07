@@ -9,7 +9,12 @@
 		"build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outdir=dist",
 		"postbuild": "cd dist && zip -r product-price-update-lambda.zip ."
 	},
+	"dependencies": {
+		"aws-lambda": "^1.0.7",
+		"@guardian/content-api-models": "47.0.0"
+	},
 	"devDependencies": {
+		"@types/aws-lambda": "^8.10.125",
 		"esbuild": "0.27.3"
 	}
 }
