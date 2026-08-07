@@ -92,8 +92,11 @@ function processRecord({ eventDetail }: { eventDetail: CrierEventDetail }) {
 }
 
 function handleContentUpdateByCapiUrl({
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- not yet implemented
 	contentType,
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- not yet implemented
 	capiUrl,
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- not yet implemented
 	internalRevision,
 }: {
 	contentType?: ContentType;
@@ -103,6 +106,7 @@ function handleContentUpdateByCapiUrl({
 	throw new Error('Function not implemented.');
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- not yet implemented
 function handleDeletedContent(deletedContent: DeletedContent) {
 	throw new Error('Function not implemented.');
 }
