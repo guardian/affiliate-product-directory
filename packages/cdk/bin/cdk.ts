@@ -48,6 +48,7 @@ new AffiliateProductDirectory(
 		env: {
 			region: 'eu-west-1',
 		},
+		app: 'affiliate-product-directory',
 	},
 );
 new FrontendAccountEventbridgeConnection(

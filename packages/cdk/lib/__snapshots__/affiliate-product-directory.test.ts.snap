@@ -19,7 +19,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
   },
   "Parameters": {
     "CapiAcctParam": {
-      "Default": "/TEST/frontend/undefined/capiAccountNumber",
+      "Default": "/TEST/frontend/affiliate-product-directory/capiAccountNumber",
       "Type": "AWS::SSM::Parameter::Value<String>",
     },
     "DistributionBucketName": {
@@ -64,6 +64,10 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         },
         "State": "ENABLED",
         "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-product-directory",
+          },
           {
             "Key": "gu:cdk:version",
             "Value": "TEST",
@@ -179,6 +183,10 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         },
         "Tags": [
           {
+            "Key": "App",
+            "Value": "affiliate-product-directory",
+          },
+          {
             "Key": "gu:cdk:version",
             "Value": "TEST",
           },
@@ -210,6 +218,10 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         },
         "Name": "publication-events-TEST",
         "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-product-directory",
+          },
           {
             "Key": "gu:cdk:version",
             "Value": "TEST",
@@ -272,6 +284,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       "Properties": {
         "Name": "/TEST/frontend/frontend-shared-infra/crier-event-bus",
         "Tags": {
+          "App": "affiliate-product-directory",
           "Stack": "frontend",
           "Stage": "TEST",
           "gu:cdk:version": "TEST",
@@ -421,6 +434,10 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         "TableName": "affiliate-product-directory-pricing-TEST",
         "Tags": [
           {
+            "Key": "App",
+            "Value": "affiliate-product-directory",
+          },
+          {
             "Key": "devx-backup-enabled",
             "Value": "true",
           },
@@ -486,6 +503,10 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         ],
         "TableName": "affiliate-product-directory-product-article-TEST",
         "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-product-directory",
+          },
           {
             "Key": "devx-backup-enabled",
             "Value": "true",
@@ -1063,6 +1084,10 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       "Properties": {
         "QueueName": "affiliate-product-directory-pricing-update-TEST",
         "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-product-directory",
+          },
           {
             "Key": "gu:cdk:version",
             "Value": "TEST",
