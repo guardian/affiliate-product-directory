@@ -13,10 +13,15 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       "GuDynamoDBWritePolicy",
       "GuDynamoDBReadPolicy",
       "GuDynamoDBWritePolicy",
+      "GuParameter",
     ],
     "gu:cdk:version": "TEST",
   },
   "Parameters": {
+    "CapiAcctParam": {
+      "Default": "/TEST/frontend/undefined/capiAccountNumber",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
     "DistributionBucketName": {
       "Default": "/account/services/artifact.bucket",
       "Description": "SSM parameter containing the S3 bucket name holding distribution artifacts",
@@ -89,6 +94,195 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         ],
       },
       "Type": "AWS::Events::Rule",
+    },
+    "CrierEncKey4E7431B0": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "KeyPolicy": {
+          "Statement": [
+            {
+              "Action": "kms:*",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":iam::",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":root",
+                    ],
+                  ],
+                },
+              },
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "kms:Decrypt",
+                "kms:GenerateDataKey",
+                "kms:DescribeKey",
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceAccount": {
+                    "Ref": "AWS::AccountId",
+                  },
+                  "aws:SourceArn": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":events:eu-west-1:",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":event-bus/publication-events-TEST",
+                      ],
+                    ],
+                  },
+                  "kms:EncryptionContext:aws:events:event-bus:arn": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":events:eu-west-1:",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":event-bus/publication-events-TEST",
+                      ],
+                    ],
+                  },
+                },
+              },
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "events.amazonaws.com",
+              },
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Tags": [
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+      },
+      "Type": "AWS::KMS::Key",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "CrierEventsA6BB2CDA": {
+      "Properties": {
+        "Description": "Picks up events from Content API (crier) LIVE TEST and makes them available to Frontend",
+        "KmsKeyIdentifier": {
+          "Fn::GetAtt": [
+            "CrierEncKey4E7431B0",
+            "Arn",
+          ],
+        },
+        "Name": "publication-events-TEST",
+        "Tags": [
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+      },
+      "Type": "AWS::Events::EventBus",
+    },
+    "CrierEventscdkCdkBasedAccountAllowTESTD9F73361": {
+      "Properties": {
+        "EventBusName": {
+          "Ref": "CrierEventsA6BB2CDA",
+        },
+        "Statement": {
+          "Action": "events:PutEvents",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": {
+              "Fn::Join": [
+                "",
+                [
+                  "arn:",
+                  {
+                    "Ref": "AWS::Partition",
+                  },
+                  ":iam::",
+                  {
+                    "Ref": "CapiAcctParam",
+                  },
+                  ":root",
+                ],
+              ],
+            },
+          },
+          "Resource": {
+            "Fn::GetAtt": [
+              "CrierEventsA6BB2CDA",
+              "Arn",
+            ],
+          },
+          "Sid": "cdk-CdkBasedAccountAllowTEST",
+        },
+        "StatementId": "cdk-CdkBasedAccountAllowTEST",
+      },
+      "Type": "AWS::Events::EventBusPolicy",
+    },
+    "CrierOutputBusNameB2477B2A": {
+      "Properties": {
+        "Name": "/TEST/frontend/frontend-shared-infra/crier-event-bus",
+        "Tags": {
+          "Stack": "frontend",
+          "Stage": "TEST",
+          "gu:cdk:version": "TEST",
+          "gu:repo": "guardian/affiliate-product-directory",
+        },
+        "Type": "String",
+        "Value": {
+          "Ref": "CrierEventsA6BB2CDA",
+        },
+      },
+      "Type": "AWS::SSM::Parameter",
     },
     "ProductArticleDynamoReadPolicy02131EC2": {
       "Properties": {

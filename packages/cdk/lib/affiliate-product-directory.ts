@@ -11,6 +11,7 @@ import { AttributeType, BillingMode } from 'aws-cdk-lib/aws-dynamodb';
 import { EventBus, Rule } from 'aws-cdk-lib/aws-events';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
+import { CrierEventbridge } from './crier-eventbridge';
 
 export class AffiliateProductDirectory extends GuStack {
 	constructor(scope: App, id: string, props: GuStackProps) {
@@ -178,6 +179,8 @@ export class AffiliateProductDirectory extends GuStack {
 			// },
 		});
 		updatedPriceQueue.grantSendMessages(priceUpdateLambda);
+
+		new CrierEventbridge(this, 'Crier');
 
 		const crierEventBus = EventBus.fromEventBusName(
 			this,
