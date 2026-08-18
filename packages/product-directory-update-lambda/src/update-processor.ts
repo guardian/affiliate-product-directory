@@ -8,7 +8,6 @@ export function handleContentUpdate({ content }: { content: Content }) {
 			return;
 		} //no point processing live-blogs etc.
 
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars -- not yet implemented
 		const productsFound = extractAllProductsFromArticle(content);
 		console.log(`to be implemented ${productsFound.length}`);
 		// ToDo: process the products
