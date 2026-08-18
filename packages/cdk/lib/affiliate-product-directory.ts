@@ -6,8 +6,9 @@ import {
 	GuDynamoDBWritePolicy,
 } from '@guardian/cdk/lib/constructs/iam';
 import { GuLambdaFunction } from '@guardian/cdk/lib/constructs/lambda';
-import { type App } from 'aws-cdk-lib';
+import { type App, aws_events_targets } from 'aws-cdk-lib';
 import { AttributeType, BillingMode } from 'aws-cdk-lib/aws-dynamodb';
+import { EventBus, Rule } from 'aws-cdk-lib/aws-events';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { CrierEventbridge } from './crier-eventbridge';
@@ -181,28 +182,28 @@ export class AffiliateProductDirectory extends GuStack {
 
 		new CrierEventbridge(this, 'Crier');
 
-		// const crierEventBus = EventBus.fromEventBusName(
-		// 	this,
-		// 	'CrierEventBus',
-		// 	`crier-eventbus-content-api-crier-v2-${this.stage}`,
-		// );
+		const crierEventBus = EventBus.fromEventBusName(
+			this,
+			'CrierEventBus',
+			`crier-eventbus-content-api-crier-v2-${this.stage}`,
+		);
 
-		// new Rule(this, 'CrierConnection', {
-		// 	eventBus: crierEventBus,
-		// 	description: `Connect product-directory-update-lambda ${this.stage} to Crier`,
-		// 	eventPattern: {
-		// 		source: ['crier'],
-		// 		detailType: [
-		// 			'content-update',
-		// 			'content-delete',
-		// 			'content-retrievableupdate',
-		// 		],
-		// 	},
-		// 	targets: [
-		// 		new aws_events_targets.LambdaFunction(directoryUpdateLambda, {
-		// 			// ToDo: do we want a DLQ?
-		// 		}),
-		// 	],
-		// });
+		new Rule(this, 'CrierConnection', {
+			eventBus: crierEventBus,
+			description: `Connect product-directory-update-lambda ${this.stage} to Crier`,
+			eventPattern: {
+				source: ['crier'],
+				detailType: [
+					'content-update',
+					'content-delete',
+					'content-retrievableupdate',
+				],
+			},
+			targets: [
+				new aws_events_targets.LambdaFunction(directoryUpdateLambda, {
+					// ToDo: do we want a DLQ?
+				}),
+			],
+		});
 	}
 }

@@ -29,6 +29,76 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
     },
   },
   "Resources": {
+    "CrierConnectionAllowEventRuleAffiliateProductDirectoryLambdaProductDirectoryUpdateLambdaDE4E02F3FB48C0C0": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ProductDirectoryUpdateLambda0434899A",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "CrierConnectionE7D24320",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "CrierConnectionE7D24320": {
+      "Properties": {
+        "Description": "Connect product-directory-update-lambda TEST to Crier",
+        "EventBusName": "crier-eventbus-content-api-crier-v2-TEST",
+        "EventPattern": {
+          "detail-type": [
+            "content-update",
+            "content-delete",
+            "content-retrievableupdate",
+          ],
+          "source": [
+            "crier",
+          ],
+        },
+        "State": "ENABLED",
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-product-directory",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "ProductDirectoryUpdateLambda0434899A",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
     "CrierEncKey4E7431B0": {
       "DeletionPolicy": "Retain",
       "Properties": {
