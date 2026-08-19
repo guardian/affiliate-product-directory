@@ -10,7 +10,13 @@ const reporters = process.env.GITHUB_ACTIONS
 	? [['github-actions', { silent: false }], 'summary']
 	: ['default'];
 
-// eslint-disable-next-line import/no-default-export -- TODO
+const esmTsTransform = [
+	'ts-jest',
+	{
+		useESM: true,
+	},
+];
+
 export default {
 	reporters,
 	verbose: true,
@@ -26,8 +32,12 @@ export default {
 		},
 		{
 			displayName: 'lambda',
+			extensionsToTreatAsEsm: ['.ts'],
 			transform: {
-				'^.+\\.tsx?$': 'ts-jest',
+				'^.+\\.tsx?$': esmTsTransform,
+			},
+			moduleNameMapper: {
+				'^(\\.{1,2}/.*)\\.js$': '$1',
 			},
 			testMatch: ['<rootDir>/packages/*lambda/**/*.test.ts'],
 		},
