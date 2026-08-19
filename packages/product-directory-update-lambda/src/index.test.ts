@@ -1,4 +1,4 @@
-import { main } from './index';
+import { jest } from '@jest/globals';
 
 describe('The lambda', () => {
 	beforeAll(() => {
@@ -8,6 +8,13 @@ describe('The lambda', () => {
 	});
 
 	it('should return a greeting', async () => {
+		jest.unstable_mockModule('./deserialize', () => ({
+			deserializeEvent: jest.fn(),
+			deserializeItemResponse: jest.fn(),
+			deserialzeTagsResponse: jest.fn(),
+		}));
+
+		const { main } = await import('./index');
 		const response = await main();
 		expect(response).toContain(
 			'Hello from product-price-update-lambda in TEST! The time is ',

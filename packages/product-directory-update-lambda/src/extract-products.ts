@@ -22,6 +22,8 @@ export function extractAllProductsFromArticle(content: Content) {
 			extractProductButtons(content, bodyBlock),
 		);
 		//ToDo: get the nested product buttons from the product element main content
+		void bodyBlockProductElements;
+		void bodyProductButtons;
 
 		return [];
 	} else {
