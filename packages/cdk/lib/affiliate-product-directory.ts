@@ -14,6 +14,7 @@ import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { CrierEventbridge } from './crier-eventbridge';
 
 export class AffiliateProductDirectory extends GuStack {
+	publicationEventBusArn: string;
 	constructor(scope: App, id: string, props: GuStackProps) {
 		super(scope, id, props);
 		const { stage } = this;
@@ -180,7 +181,8 @@ export class AffiliateProductDirectory extends GuStack {
 		});
 		updatedPriceQueue.grantSendMessages(priceUpdateLambda);
 
-		new CrierEventbridge(this, 'Crier');
+		const crierEventBridge = new CrierEventbridge(this, 'Crier');
+		this.publicationEventBusArn = crierEventBridge.publicationEventBusArn;
 
 		const eventBusParam = new GuParameter(this, 'EventBus', {
 			fromSSM: true,

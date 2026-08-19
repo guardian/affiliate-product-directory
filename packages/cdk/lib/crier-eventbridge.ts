@@ -7,6 +7,7 @@ import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 
 export class CrierEventbridge extends Construct {
+	publicationEventBusArn: string;
 	constructor(scope: GuStack, name: string) {
 		super(scope, name);
 
@@ -23,6 +24,7 @@ export class CrierEventbridge extends Construct {
 			eventBusName: `publication-events-${scope.stage}`,
 			description: `Picks up events from Content API (crier) LIVE ${scope.stage} and makes them available to Frontend`,
 		});
+		this.publicationEventBusArn = bus.eventBusArn;
 
 		bus.addToResourcePolicy(
 			new PolicyStatement({

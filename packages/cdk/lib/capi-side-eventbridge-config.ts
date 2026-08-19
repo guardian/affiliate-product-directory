@@ -1,18 +1,23 @@
-import { GuParameter, GuStack } from '@guardian/cdk/lib/constructs/core';
+import { GuStack } from '@guardian/cdk/lib/constructs/core';
 import type { GuStackProps } from '@guardian/cdk/lib/constructs/core';
 import { aws_events_targets } from 'aws-cdk-lib';
 import type { App } from 'aws-cdk-lib';
 import { EventBus, Rule } from 'aws-cdk-lib/aws-events';
 
 export class FrontendAccountEventbridgeConnection extends GuStack {
-	constructor(scope: App, name: string, props: GuStackProps) {
+	constructor(
+		scope: App,
+		name: string,
+		props: GuStackProps,
+		publicationEventBusArn: string,
+	) {
 		super(scope, name, props);
 
-		//This needs to be manually configured by the related crier-eventbridge stack in Frontend account
-		const targetEventBusParam = new GuParameter(this, 'FrontendEBParam', {
-			fromSSM: true,
-			default: `/${this.stage}/${this.stack}/${this.app}/frontend-eventbus-arn`,
-		});
+		// //This needs to be manually configured by the related crier-eventbridge stack in Frontend account
+		// const targetEventBusParam = new GuParameter(this, 'FrontendEBParam', {
+		// 	fromSSM: true,
+		// 	default: `/${this.stage}/${this.stack}/${this.app}/frontend-eventbus-arn`,
+		// });
 
 		const sourceEventBus = EventBus.fromEventBusName(
 			this,
@@ -22,7 +27,7 @@ export class FrontendAccountEventbridgeConnection extends GuStack {
 		const targetEventBus = EventBus.fromEventBusArn(
 			this,
 			'FrontendEB',
-			targetEventBusParam.valueAsString,
+			publicationEventBusArn,
 		);
 		new Rule(this, 'FrontendBusConnection', {
 			eventBus: sourceEventBus,
