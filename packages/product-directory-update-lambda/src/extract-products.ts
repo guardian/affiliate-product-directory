@@ -12,12 +12,10 @@ export function extractAllProductsFromArticle(content: Content) {
 
 		const bodyBlocks = articleBlocks.body as Block[];
 
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars -- not yet implemented
 		const bodyBlockProductElements = bodyBlocks.flatMap((bodyBlock) =>
 			extractProductElements(content, bodyBlock),
 		);
 
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars -- not yet implemented
 		const bodyProductButtons = bodyBlocks.flatMap((bodyBlock) =>
 			extractProductButtons(content, bodyBlock),
 		);
