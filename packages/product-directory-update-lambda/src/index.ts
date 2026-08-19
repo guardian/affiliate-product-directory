@@ -13,10 +13,11 @@ import {
 } from './eventbridge-models';
 import { handleContentUpdate } from './update-processor';
 
-export const eventHandler: Handler<CrierEventBridgeEvent, void> = (event) => {
+export const eventHandler: Handler<CrierEventBridgeEvent, string> = (event) => {
 	const { stage, app } = getConfig();
 
-	console.log(`New event received in ${app} in ${stage}`);
+	const msg = `New event received in ${app} in ${stage}`;
+	console.log(msg);
 
 	switch (event['detail-type']) {
 		case ContentUpdateEventDetail:
@@ -24,10 +25,11 @@ export const eventHandler: Handler<CrierEventBridgeEvent, void> = (event) => {
 			processRecord({
 				eventDetail: event.detail,
 			});
-			return;
+			return Promise.resolve(msg);
 		}
 		default: {
 			console.error(`Unknown event payload: ${JSON.stringify(event)}`);
+			return;
 		}
 	}
 };
