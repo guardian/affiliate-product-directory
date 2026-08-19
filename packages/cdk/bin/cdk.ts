@@ -36,13 +36,15 @@ new FrontendAccountEventbridgeConnection(
 		app: 'frontend-crier-infra',
 	},
 );
-new FrontendAccountEventbridgeConnection(
-	app,
-	'FrontendAccountEventbridgeConnection-euwest-1-PROD',
-	{
-		stack: 'content-api',
-		stage: 'PROD',
-		env: { region: 'eu-west-1' },
-		app: 'frontend-crier-infra',
-	},
-);
+
+// Deploy in a separate PR to avoid chicken and egg arn scenario
+// new FrontendAccountEventbridgeConnection(
+// 	app,
+// 	'FrontendAccountEventbridgeConnection-euwest-1-PROD',
+// 	{
+// 		stack: 'content-api',
+// 		stage: 'PROD',
+// 		env: { region: 'eu-west-1' },
+// 		app: 'frontend-crier-infra',
+// 	},
+// );
