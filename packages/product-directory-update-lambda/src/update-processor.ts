@@ -8,6 +8,14 @@ export function handleContentUpdate({ content }: { content: Content }) {
 			return;
 		} //no point processing live-blogs etc.
 
+		if (
+			content.tags.find(
+				(tag) => tag.internalName === 'The Filter UK (series tag',
+			)
+		) {
+			console.log('Found a Filter UK article');
+		}
+
 		const productsFound = extractAllProductsFromArticle(content);
 		console.log(`to be implemented ${productsFound.length}`);
 		// ToDo: process the products
