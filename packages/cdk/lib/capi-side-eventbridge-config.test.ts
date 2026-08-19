@@ -8,9 +8,8 @@ describe('The FrontendAccountEventbridgeConnection stack', () => {
 		const app = new App();
 		const stack = new FrontendAccountEventbridgeConnection(
 			app,
-			'FrontendAccountEventbridgeConnection-euwest-1-TEST',
+			'FrontendAccountEventbridgeConnection-euwest-1-INFRA',
 			{ stack: 'content-api', stage: 'TEST', app: '' },
-			'arn:aws:events:eu-west-1:123:event-bus/publication-events-TEST',
 		);
 		const template = Template.fromStack(stack);
 		expect(template.toJSON()).toMatchSnapshot();

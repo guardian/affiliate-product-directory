@@ -3,8 +3,16 @@
 exports[`The FrontendAccountEventbridgeConnection stack matches the snapshot 1`] = `
 {
   "Metadata": {
-    "gu:cdk:constructs": [],
+    "gu:cdk:constructs": [
+      "GuParameter",
+    ],
     "gu:cdk:version": "TEST",
+  },
+  "Parameters": {
+    "FrontendEBParam": {
+      "Default": "/TEST/content-api//frontend-eventbus-arn",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
   },
   "Resources": {
     "FrontendBusConnection5CAF1D4C": {
@@ -37,7 +45,9 @@ exports[`The FrontendAccountEventbridgeConnection stack matches the snapshot 1`]
         ],
         "Targets": [
           {
-            "Arn": "arn:aws:events:eu-west-1:123:event-bus/publication-events-TEST",
+            "Arn": {
+              "Ref": "FrontendEBParam",
+            },
             "Id": "Target0",
             "RoleArn": {
               "Fn::GetAtt": [
@@ -92,7 +102,9 @@ exports[`The FrontendAccountEventbridgeConnection stack matches the snapshot 1`]
             {
               "Action": "events:PutEvents",
               "Effect": "Allow",
-              "Resource": "arn:aws:events:eu-west-1:123:event-bus/publication-events-TEST",
+              "Resource": {
+                "Ref": "FrontendEBParam",
+              },
             },
           ],
           "Version": "2012-10-17",

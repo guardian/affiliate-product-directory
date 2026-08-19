@@ -9,22 +9,40 @@ import { FrontendAccountEventbridgeConnection } from '../lib/capi-side-eventbrid
  */
 const app = new GuRoot();
 
-const frontendProductDirectoryPROD = new AffiliateProductDirectory(
+new AffiliateProductDirectory(
 	app,
-	'AffiliateProductDirectoryLambda-PROD',
-	{
-		stack: 'frontend',
-		stage: 'PROD',
-		env: {
-			region: 'eu-west-1',
-		},
-		app: 'affiliate-product-directory',
-	},
-);
-const frontendProductDirectoryCODE = new AffiliateProductDirectory(
-	app,
+	// 'AffiliateProductDirectoryLambda-PROD',
+	// {
+	// 	/**
+	// 	 * This becomes the value of the STACK tag on provisioned resources.
+	// 	 *
+	// 	 * It is also used by Riff-Raff to determine the AWS account to deploy into.
+	// 	 *
+	// 	 * @see https://riffraff.gutools.co.uk/deployinfo/data?key=credentials%3Aaws-cfn-role
+	// 	 */
+	// 	stack: 'frontend',
+
+	// 	/**
+	// 	 * This becomes the value of the STAGE tag on provisioned resources.
+	// 	 */
+	// 	stage: 'PROD',
+
+	// 	env: {
+	// 		/**
+	// 		 * Which AWS region should this service be deployed into?
+	// 		 */
+	// 		region: 'eu-west-1',
+	// 	},
+	// },
 	'AffiliateProductDirectoryLambda-CODE',
 	{
+		/**
+		 * This becomes the value of the STACK tag on provisioned resources.
+		 *
+		 * It is also used by Riff-Raff to determine the AWS account to deploy into.
+		 *
+		 * @see https://riffraff.gutools.co.uk/deployinfo/data?key=credentials%3Aaws-cfn-role
+		 */
 		stack: 'frontend',
 		stage: 'CODE',
 		env: {
@@ -42,16 +60,4 @@ new FrontendAccountEventbridgeConnection(
 		env: { region: 'eu-west-1' },
 		app: 'frontend-crier-infra',
 	},
-	frontendProductDirectoryCODE.publicationEventBusArn,
-);
-new FrontendAccountEventbridgeConnection(
-	app,
-	'FrontendAccountEventbridgeConnection-euwest-1-PROD',
-	{
-		stack: 'content-api',
-		stage: 'PROD',
-		env: { region: 'eu-west-1' },
-		app: 'frontend-crier-infra',
-	},
-	frontendProductDirectoryPROD.publicationEventBusArn,
 );
