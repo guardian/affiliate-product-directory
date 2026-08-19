@@ -9,11 +9,13 @@ export function handleContentUpdate({ content }: { content: Content }) {
 		} //no point processing live-blogs etc.
 
 		if (
-			content.tags.find(
-				(tag) => tag.internalName === 'The Filter UK (series tag',
+			content.tags.find((tag) =>
+				['The Filter UK (series tag)', 'The Filter US'].includes(
+					tag.internalName ?? '',
+				),
 			)
 		) {
-			console.log('Found a Filter UK article');
+			console.log('Found a Filter article');
 		}
 
 		const productsFound = extractAllProductsFromArticle(content);
