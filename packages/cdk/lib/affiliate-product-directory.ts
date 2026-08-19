@@ -1,5 +1,5 @@
 import type { GuStackProps } from '@guardian/cdk/lib/constructs/core';
-import { GuStack } from '@guardian/cdk/lib/constructs/core';
+import { GuParameter, GuStack } from '@guardian/cdk/lib/constructs/core';
 import { GuDynamoTable } from '@guardian/cdk/lib/constructs/dynamodb/index';
 import {
 	GuDynamoDBReadPolicy,
@@ -182,10 +182,15 @@ export class AffiliateProductDirectory extends GuStack {
 
 		new CrierEventbridge(this, 'Crier');
 
+		const eventBusParam = new GuParameter(this, 'EventBus', {
+			fromSSM: true,
+			default: `/${this.stage}/frontend/frontend-shared-infra/crier-event-bus`,
+		});
+
 		const crierEventBus = EventBus.fromEventBusName(
 			this,
 			'CrierEventBus',
-			`crier-eventbus-content-api-crier-v2-${this.stage}`,
+			eventBusParam.valueAsString,
 		);
 
 		new Rule(this, 'CrierConnection', {

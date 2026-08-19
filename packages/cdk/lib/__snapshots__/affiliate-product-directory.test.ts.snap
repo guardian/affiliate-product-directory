@@ -14,6 +14,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       "GuDynamoDBReadPolicy",
       "GuDynamoDBWritePolicy",
       "GuParameter",
+      "GuParameter",
     ],
     "gu:cdk:version": "TEST",
   },
@@ -25,6 +26,10 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
     "DistributionBucketName": {
       "Default": "/account/services/artifact.bucket",
       "Description": "SSM parameter containing the S3 bucket name holding distribution artifacts",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+    "EventBus": {
+      "Default": "/TEST/frontend/frontend-shared-infra/crier-event-bus",
       "Type": "AWS::SSM::Parameter::Value<String>",
     },
   },
@@ -51,7 +56,9 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
     "CrierConnectionE7D24320": {
       "Properties": {
         "Description": "Connect product-directory-update-lambda TEST to Crier",
-        "EventBusName": "crier-eventbus-content-api-crier-v2-TEST",
+        "EventBusName": {
+          "Ref": "EventBus",
+        },
         "EventPattern": {
           "detail-type": [
             "content-update",
