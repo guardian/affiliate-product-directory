@@ -71,7 +71,7 @@ export class AffiliateProductDirectory extends GuStack {
 			{
 				app: 'product-directory-update-lambda',
 				fileName: 'product-directory-update-lambda.zip',
-				handler: 'index.main',
+				handler: 'index.eventHandler',
 				runtime: Runtime.NODEJS_22_X,
 				architecture: Architecture.ARM_64,
 			},

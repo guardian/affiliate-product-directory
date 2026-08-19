@@ -561,7 +561,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
             "STAGE": "TEST",
           },
         },
-        "Handler": "index.main",
+        "Handler": "index.eventHandler",
         "LoggingConfig": {
           "LogFormat": "JSON",
         },

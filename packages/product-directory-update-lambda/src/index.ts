@@ -13,14 +13,11 @@ import {
 } from './eventbridge-models';
 import { handleContentUpdate } from './update-processor';
 
-export async function main() {
-	const { stage, app } = getConfig();
-	const msg = `Hello from ${app} in ${stage}! The time is ${new Date().toString()}`;
-	console.log(msg);
-	return Promise.resolve(msg);
-}
-
 export const eventHandler: Handler<CrierEventBridgeEvent, void> = (event) => {
+	const { stage, app } = getConfig();
+
+	console.log(`New event received in ${app} in ${stage}`);
+
 	switch (event['detail-type']) {
 		case ContentUpdateEventDetail:
 		case ContentDeleteEventDetail: {
