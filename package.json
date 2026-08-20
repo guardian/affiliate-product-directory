@@ -14,7 +14,7 @@
   "devDependencies": {
     "@guardian/eslint-config": "14.0.1",
     "@guardian/prettier": "10.0.0",
-    "@guardian/tsconfig": "1.0.1",
+    "@guardian/tsconfig": "2.0.0",
     "@jest/globals": "30.3.0",
     "@types/jest": "30.0.0",
     "@types/node": "25.3.3",
