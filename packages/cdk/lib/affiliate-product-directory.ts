@@ -156,17 +156,13 @@ export class AffiliateProductDirectory extends GuStack {
 			productPricingDynamoDBWritePolicy,
 		);
 
-		directoryUpdateLambda.role?.attachInlinePolicy(
+		[
 			productPricingDynamoDBReadPolicy,
-		);
-		directoryUpdateLambda.role?.attachInlinePolicy(
 			productPricingDynamoDBWritePolicy,
-		);
-		directoryUpdateLambda.role?.attachInlinePolicy(
 			productArticleDynamoDBReadPolicy,
-		);
-		directoryUpdateLambda.role?.attachInlinePolicy(
 			productArticleDynamoDBWritePolicy,
+		].forEach((policy) =>
+			directoryUpdateLambda.role?.attachInlinePolicy(policy),
 		);
 
 		const updatedPriceQueue = new Queue(this, 'ProductPricingUpdateQueue', {
