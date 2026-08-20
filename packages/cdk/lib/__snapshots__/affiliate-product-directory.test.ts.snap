@@ -6,23 +6,304 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
     "gu:cdk:constructs": [
       "GuDistributionBucketParameter",
       "GuLambdaFunction",
+      "GuLambdaFunction",
       "GuDynamoTable",
       "GuDynamoTable",
       "GuDynamoDBReadPolicy",
       "GuDynamoDBWritePolicy",
       "GuDynamoDBReadPolicy",
       "GuDynamoDBWritePolicy",
+      "GuParameter",
+      "GuParameter",
     ],
     "gu:cdk:version": "TEST",
   },
   "Parameters": {
+    "CapiAcctParam": {
+      "Default": "/TEST/frontend/affiliate-product-directory/capiAccountNumber",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
     "DistributionBucketName": {
       "Default": "/account/services/artifact.bucket",
       "Description": "SSM parameter containing the S3 bucket name holding distribution artifacts",
       "Type": "AWS::SSM::Parameter::Value<String>",
     },
+    "EventBus": {
+      "Default": "/TEST/frontend/frontend-shared-infra/crier-event-bus",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
   },
   "Resources": {
+    "CrierConnectionAllowEventRuleAffiliateProductDirectoryLambdaProductDirectoryUpdateLambdaDE4E02F3FB48C0C0": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ProductDirectoryUpdateLambda0434899A",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "CrierConnectionE7D24320",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "CrierConnectionE7D24320": {
+      "Properties": {
+        "Description": "Connect product-directory-update-lambda TEST to Crier",
+        "EventBusName": {
+          "Ref": "EventBus",
+        },
+        "EventPattern": {
+          "detail-type": [
+            "content-update",
+            "content-delete",
+            "content-retrievableupdate",
+          ],
+          "source": [
+            "crier",
+          ],
+        },
+        "State": "ENABLED",
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-product-directory",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "ProductDirectoryUpdateLambda0434899A",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "CrierEncKey4E7431B0": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "KeyPolicy": {
+          "Statement": [
+            {
+              "Action": "kms:*",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":iam::",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":root",
+                    ],
+                  ],
+                },
+              },
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "kms:Decrypt",
+                "kms:GenerateDataKey",
+                "kms:DescribeKey",
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceAccount": {
+                    "Ref": "AWS::AccountId",
+                  },
+                  "aws:SourceArn": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":events:eu-west-1:",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":event-bus/publication-events-TEST",
+                      ],
+                    ],
+                  },
+                  "kms:EncryptionContext:aws:events:event-bus:arn": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":events:eu-west-1:",
+                        {
+                          "Ref": "AWS::AccountId",
+                        },
+                        ":event-bus/publication-events-TEST",
+                      ],
+                    ],
+                  },
+                },
+              },
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "events.amazonaws.com",
+              },
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-product-directory",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+      },
+      "Type": "AWS::KMS::Key",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "CrierEventsA6BB2CDA": {
+      "Properties": {
+        "Description": "Picks up events from Content API (crier) LIVE TEST and makes them available to Frontend",
+        "KmsKeyIdentifier": {
+          "Fn::GetAtt": [
+            "CrierEncKey4E7431B0",
+            "Arn",
+          ],
+        },
+        "Name": "publication-events-TEST",
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-product-directory",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+      },
+      "Type": "AWS::Events::EventBus",
+    },
+    "CrierEventscdkCdkBasedAccountAllowTESTD9F73361": {
+      "Properties": {
+        "EventBusName": {
+          "Ref": "CrierEventsA6BB2CDA",
+        },
+        "Statement": {
+          "Action": "events:PutEvents",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": {
+              "Fn::Join": [
+                "",
+                [
+                  "arn:",
+                  {
+                    "Ref": "AWS::Partition",
+                  },
+                  ":iam::",
+                  {
+                    "Ref": "CapiAcctParam",
+                  },
+                  ":root",
+                ],
+              ],
+            },
+          },
+          "Resource": {
+            "Fn::GetAtt": [
+              "CrierEventsA6BB2CDA",
+              "Arn",
+            ],
+          },
+          "Sid": "cdk-CdkBasedAccountAllowTEST",
+        },
+        "StatementId": "cdk-CdkBasedAccountAllowTEST",
+      },
+      "Type": "AWS::Events::EventBusPolicy",
+    },
+    "CrierOutputBusNameB2477B2A": {
+      "Properties": {
+        "Name": "/TEST/frontend/frontend-shared-infra/crier-event-bus",
+        "Tags": {
+          "App": "affiliate-product-directory",
+          "Stack": "frontend",
+          "Stage": "TEST",
+          "gu:cdk:version": "TEST",
+          "gu:repo": "guardian/affiliate-product-directory",
+        },
+        "Type": "String",
+        "Value": {
+          "Ref": "CrierEventsA6BB2CDA",
+        },
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
     "ProductArticleDynamoReadPolicy02131EC2": {
       "Properties": {
         "PolicyDocument": {
@@ -76,7 +357,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         "PolicyName": "ProductArticleDynamoReadPolicy02131EC2",
         "Roles": [
           {
-            "Ref": "ProductPriceUpdateLambdaServiceRole34386223",
+            "Ref": "ProductDirectoryUpdateLambdaServiceRoleB5BDC4A1",
           },
         ],
       },
@@ -134,7 +415,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         "PolicyName": "ProductArticleDynamoWritePolicyD79B45C3",
         "Roles": [
           {
-            "Ref": "ProductPriceUpdateLambdaServiceRole34386223",
+            "Ref": "ProductDirectoryUpdateLambdaServiceRoleB5BDC4A1",
           },
         ],
       },
@@ -159,6 +440,10 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         ],
         "TableName": "affiliate-product-directory-pricing-TEST",
         "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-product-directory",
+          },
           {
             "Key": "devx-backup-enabled",
             "Value": "true",
@@ -226,6 +511,10 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         "TableName": "affiliate-product-directory-product-article-TEST",
         "Tags": [
           {
+            "Key": "App",
+            "Value": "affiliate-product-directory",
+          },
+          {
             "Key": "devx-backup-enabled",
             "Value": "true",
           },
@@ -249,6 +538,211 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       },
       "Type": "AWS::DynamoDB::Table",
       "UpdateReplacePolicy": "Retain",
+    },
+    "ProductDirectoryUpdateLambda0434899A": {
+      "DependsOn": [
+        "ProductDirectoryUpdateLambdaServiceRoleDefaultPolicyF5AA9989",
+        "ProductDirectoryUpdateLambdaServiceRoleB5BDC4A1",
+      ],
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Ref": "DistributionBucketName",
+          },
+          "S3Key": "frontend/TEST/product-directory-update-lambda/product-directory-update-lambda.zip",
+        },
+        "Environment": {
+          "Variables": {
+            "APP": "product-directory-update-lambda",
+            "STACK": "frontend",
+            "STAGE": "TEST",
+          },
+        },
+        "Handler": "index.eventHandler",
+        "LoggingConfig": {
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
+        "Role": {
+          "Fn::GetAtt": [
+            "ProductDirectoryUpdateLambdaServiceRoleB5BDC4A1",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs22.x",
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "product-directory-update-lambda",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+        "Timeout": 30,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "ProductDirectoryUpdateLambdaServiceRoleB5BDC4A1": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "product-directory-update-lambda",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "ProductDirectoryUpdateLambdaServiceRoleDefaultPolicyF5AA9989": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::",
+                      {
+                        "Ref": "DistributionBucketName",
+                      },
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::",
+                      {
+                        "Ref": "DistributionBucketName",
+                      },
+                      "/frontend/TEST/product-directory-update-lambda/product-directory-update-lambda.zip",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "ssm:GetParametersByPath",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:ssm:eu-west-1:",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":parameter/TEST/frontend/product-directory-update-lambda",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "ssm:GetParameters",
+                "ssm:GetParameter",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:ssm:eu-west-1:",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":parameter/TEST/frontend/product-directory-update-lambda/*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "ProductDirectoryUpdateLambdaServiceRoleDefaultPolicyF5AA9989",
+        "Roles": [
+          {
+            "Ref": "ProductDirectoryUpdateLambdaServiceRoleB5BDC4A1",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
     },
     "ProductPriceUpdateLambda911BBAB1": {
       "DependsOn": [
@@ -524,6 +1018,9 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
           {
             "Ref": "ProductPriceUpdateLambdaServiceRole34386223",
           },
+          {
+            "Ref": "ProductDirectoryUpdateLambdaServiceRoleB5BDC4A1",
+          },
         ],
       },
       "Type": "AWS::IAM::Policy",
@@ -582,6 +1079,9 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
           {
             "Ref": "ProductPriceUpdateLambdaServiceRole34386223",
           },
+          {
+            "Ref": "ProductDirectoryUpdateLambdaServiceRoleB5BDC4A1",
+          },
         ],
       },
       "Type": "AWS::IAM::Policy",
@@ -591,6 +1091,10 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       "Properties": {
         "QueueName": "affiliate-product-directory-pricing-update-TEST",
         "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-product-directory",
+          },
           {
             "Key": "gu:cdk:version",
             "Value": "TEST",

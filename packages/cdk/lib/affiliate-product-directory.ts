@@ -1,15 +1,17 @@
 import type { GuStackProps } from '@guardian/cdk/lib/constructs/core';
-import { GuStack } from '@guardian/cdk/lib/constructs/core';
+import { GuParameter, GuStack } from '@guardian/cdk/lib/constructs/core';
 import { GuDynamoTable } from '@guardian/cdk/lib/constructs/dynamodb/index';
 import {
 	GuDynamoDBReadPolicy,
 	GuDynamoDBWritePolicy,
 } from '@guardian/cdk/lib/constructs/iam';
 import { GuLambdaFunction } from '@guardian/cdk/lib/constructs/lambda';
-import { type App } from 'aws-cdk-lib';
+import { type App, aws_events_targets } from 'aws-cdk-lib';
 import { AttributeType, BillingMode } from 'aws-cdk-lib/aws-dynamodb';
+import { EventBus, Rule } from 'aws-cdk-lib/aws-events';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
+import { CrierEventbridge } from './crier-eventbridge';
 
 export class AffiliateProductDirectory extends GuStack {
 	constructor(scope: App, id: string, props: GuStackProps) {
@@ -59,6 +61,18 @@ export class AffiliateProductDirectory extends GuStack {
 				 *
 				 * @see https://aws.amazon.com/blogs/aws/aws-lambda-functions-powered-by-aws-graviton2-processor-run-your-functions-on-arm-and-get-up-to-34-better-price-performance/
 				 */
+				architecture: Architecture.ARM_64,
+			},
+		);
+
+		const directoryUpdateLambda = new GuLambdaFunction(
+			this,
+			'ProductDirectoryUpdateLambda',
+			{
+				app: 'product-directory-update-lambda',
+				fileName: 'product-directory-update-lambda.zip',
+				handler: 'index.eventHandler',
+				runtime: Runtime.NODEJS_22_X,
 				architecture: Architecture.ARM_64,
 			},
 		);
@@ -141,11 +155,14 @@ export class AffiliateProductDirectory extends GuStack {
 		priceUpdateLambda.role?.attachInlinePolicy(
 			productPricingDynamoDBWritePolicy,
 		);
-		priceUpdateLambda.role?.attachInlinePolicy(
+
+		[
+			productPricingDynamoDBReadPolicy,
+			productPricingDynamoDBWritePolicy,
 			productArticleDynamoDBReadPolicy,
-		);
-		priceUpdateLambda.role?.attachInlinePolicy(
 			productArticleDynamoDBWritePolicy,
+		].forEach((policy) =>
+			directoryUpdateLambda.role?.attachInlinePolicy(policy),
 		);
 
 		const updatedPriceQueue = new Queue(this, 'ProductPricingUpdateQueue', {
@@ -158,5 +175,36 @@ export class AffiliateProductDirectory extends GuStack {
 			// },
 		});
 		updatedPriceQueue.grantSendMessages(priceUpdateLambda);
+
+		new CrierEventbridge(this, 'Crier');
+
+		const eventBusParam = new GuParameter(this, 'EventBus', {
+			fromSSM: true,
+			default: `/${this.stage}/frontend/frontend-shared-infra/crier-event-bus`,
+		});
+
+		const crierEventBus = EventBus.fromEventBusName(
+			this,
+			'CrierEventBus',
+			eventBusParam.valueAsString,
+		);
+
+		new Rule(this, 'CrierConnection', {
+			eventBus: crierEventBus,
+			description: `Connect product-directory-update-lambda ${this.stage} to Crier`,
+			eventPattern: {
+				source: ['crier'],
+				detailType: [
+					'content-update',
+					'content-delete',
+					'content-retrievableupdate',
+				],
+			},
+			targets: [
+				new aws_events_targets.LambdaFunction(directoryUpdateLambda, {
+					// ToDo: do we want a DLQ?
+				}),
+			],
+		});
 	}
 }

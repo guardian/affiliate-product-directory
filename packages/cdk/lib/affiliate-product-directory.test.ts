@@ -14,6 +14,7 @@ describe('The AffiliateProductDirectoryLambda stack', () => {
 				env: {
 					region: 'eu-west-1',
 				},
+				app: 'affiliate-product-directory',
 			},
 		);
 		const template = Template.fromStack(stack);
