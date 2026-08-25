@@ -1,6 +1,12 @@
 # product-directory-update-lambda
 
-This lambda is responsible for populating and updating the list of products stored in the `ProductDirectoryPricingTable` table and the product-article relationship in the`ProductDirectoryProductArticleTable`. It does not handle any pricing information.
+This lambda is responsible for populating and updating the list of products stored in the `ProductDirectoryPricingTable` DynamoDB table and the product-article relationship in `ProductDirectoryProductArticleTable`. It does not handle any pricing information. The lambda is written in Typescript.
+
+Run the tests with
+
+```
+npm run test
+```
 
 It listens to [Crier](https://github.com/guardian/crier) events in order to find products that have been added to or removed from articles. These events are forwarded from the CAPI AWS account to the Frontend account, where this lambda lives, via an Eventbus.
 
