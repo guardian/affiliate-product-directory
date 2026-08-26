@@ -1,6 +1,7 @@
 import type { Content } from '@guardian/content-api-models/v1/content';
 import { ContentType } from '@guardian/content-api-models/v1/contentType';
 import { extractAllProductsFromArticle } from './extract-products';
+import { isFilterArticleByTags } from './utils';
 
 export function handleContentUpdate({ content }: { content: Content }) {
 	try {
@@ -8,14 +9,8 @@ export function handleContentUpdate({ content }: { content: Content }) {
 			return;
 		} //no point processing live-blogs etc.
 
-		if (
-			content.tags.find((tag) =>
-				['The Filter UK (series tag)', 'The Filter US'].includes(
-					tag.internalName ?? '',
-				),
-			)
-		) {
-			console.log('Found a Filter article');
+		if (!isFilterArticleByTags(content.tags)) {
+			return;
 		}
 
 		const productsFound = extractAllProductsFromArticle(content);
