@@ -4,6 +4,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
 {
   "Metadata": {
     "gu:cdk:constructs": [
+      "GuParameter",
       "GuDistributionBucketParameter",
       "GuLambdaFunction",
       "GuLambdaFunction",
@@ -32,8 +33,79 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       "Default": "/TEST/frontend/frontend-shared-infra/crier-event-bus",
       "Type": "AWS::SSM::Parameter::Value<String>",
     },
+    "capiKey": {
+      "Default": "/TEST/frontend/affiliate-product-directory/capi-key",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
   },
   "Resources": {
+    "BackfillConnection25E8AC50": {
+      "Properties": {
+        "Description": "Connect product-directory-update-lambda TEST to backfill events",
+        "EventBusName": {
+          "Ref": "EventBus",
+        },
+        "EventPattern": {
+          "source": [
+            "backfill",
+          ],
+        },
+        "State": "ENABLED",
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-product-directory",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "ProductDirectoryUpdateLambda0434899A",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "BackfillConnectionAllowEventRuleAffiliateProductDirectoryLambdaProductDirectoryUpdateLambdaDE4E02F346C687BA": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ProductDirectoryUpdateLambda0434899A",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "BackfillConnection25E8AC50",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
     "CrierConnectionAllowEventRuleAffiliateProductDirectoryLambdaProductDirectoryUpdateLambdaDE4E02F3FB48C0C0": {
       "Properties": {
         "Action": "lambda:InvokeFunction",
@@ -557,6 +629,9 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         "Environment": {
           "Variables": {
             "APP": "product-directory-update-lambda",
+            "CAPI_KEY": {
+              "Ref": "capiKey",
+            },
             "STACK": "frontend",
             "STAGE": "TEST",
           },

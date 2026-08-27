@@ -1,20 +1,29 @@
 import type { DeletedContent } from '@guardian/content-api-models/crier/event/v1/deletedContent';
 import { EventType } from '@guardian/content-api-models/crier/event/v1/eventType';
 import { ItemType } from '@guardian/content-api-models/crier/event/v1/itemType';
-import type { ContentType } from '@guardian/content-api-models/v1/contentType';
+import { ContentType } from '@guardian/content-api-models/v1/contentType';
 import { type Handler } from 'aws-lambda';
-import { getConfig } from './config';
+import { getCapiBaseUrl, getConfig } from './config';
 import { deserializeEvent } from './deserialize';
-import type { CrierEventDetail } from './eventbridge-models';
+import type {
+	BackfillEventBridgeEvent,
+	CrierEventDetail,
+} from './eventbridge-models';
 import {
+	BackfillEventDetail,
 	ContentDeleteEventDetail,
 	ContentUpdateEventDetail,
 	type CrierEventBridgeEvent,
 } from './eventbridge-models';
+import { handleContentUpdateByCapiUrl } from './retrievable-update-processor';
 import { handleContentUpdate } from './update-processor';
 
-export const eventHandler: Handler<CrierEventBridgeEvent, string> = (event) => {
+export const eventHandler: Handler<
+	CrierEventBridgeEvent | BackfillEventBridgeEvent,
+	number
+> = async (event) => {
 	const { stage, app } = getConfig();
+	const capiBaseUrl = getCapiBaseUrl(stage);
 
 	const msg = `New event received in ${app} in ${stage}`;
 	console.log(msg);
@@ -22,25 +31,34 @@ export const eventHandler: Handler<CrierEventBridgeEvent, string> = (event) => {
 	switch (event['detail-type']) {
 		case ContentUpdateEventDetail:
 		case ContentDeleteEventDetail: {
-			processRecord({
+			return await processRecord({
 				eventDetail: event.detail,
 			});
-			return Promise.resolve(msg);
+		}
+		case BackfillEventDetail: {
+			return await processBackfillRecord({
+				eventDetail: event.detail,
+				capiBaseUrl,
+			});
 		}
 		default: {
 			console.error(`Unknown event payload: ${JSON.stringify(event)}`);
-			return;
+			return Promise.resolve(0);
 		}
 	}
 };
 
-function processRecord({ eventDetail }: { eventDetail: CrierEventDetail }) {
+async function processRecord({
+	eventDetail,
+}: {
+	eventDetail: CrierEventDetail;
+}): Promise<number> {
 	try {
 		const evt = deserializeEvent(eventDetail.event);
 
 		//we're only interested in content updates
 		if (evt.itemType != ItemType.CONTENT) {
-			return;
+			return 0;
 		}
 
 		console.log(
@@ -49,7 +67,7 @@ function processRecord({ eventDetail }: { eventDetail: CrierEventDetail }) {
 		switch (evt.eventType) {
 			case EventType.DELETE:
 				// ToDo: do nothing to the product price table but remove an article from the product-article table
-				return;
+				return 0;
 			case EventType.UPDATE:
 			case EventType.RETRIEVABLEUPDATE:
 				switch (evt.payload?.kind) {
@@ -81,31 +99,43 @@ function processRecord({ eventDetail }: { eventDetail: CrierEventDetail }) {
 			default:
 				console.error('ERROR Unknown event type ', evt.eventType);
 		}
-		return; //if we get here, no action was taken
+		return 0; //if we get here, no action was taken
 	} catch (err) {
 		console.error(
 			`ERROR Could not process data from Kinesis: ${(err as Error).toString()}`,
 		);
-		return;
+		return 0;
 	}
 }
 
-function handleContentUpdateByCapiUrl({
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- not yet implemented
-	contentType,
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- not yet implemented
-	capiUrl,
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- not yet implemented
-	internalRevision,
+async function processBackfillRecord({
+	eventDetail,
+	capiBaseUrl,
 }: {
-	contentType?: ContentType;
-	capiUrl: string;
-	internalRevision?: number;
+	eventDetail: BackfillEventDetail;
+	capiBaseUrl: string;
 }) {
-	throw new Error('Function not implemented.');
+	let totalCount = 0;
+
+	console.log(
+		`Received ${
+			eventDetail.articleIds.length
+		} articles to backfill: \n${eventDetail.articleIds.join(', \n')}`,
+	);
+
+	for (const articleId of eventDetail.articleIds) {
+		totalCount += await handleContentUpdateByCapiUrl({
+			capiUrl: `${capiBaseUrl}/${articleId}`,
+			contentType: ContentType.ARTICLE,
+		});
+	}
+
+	console.log(`Backfilled ${eventDetail.articleIds.length} articles`);
+
+	return totalCount;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- not yet implemented
-function handleDeletedContent(deletedContent: DeletedContent) {
+function handleDeletedContent(deletedContent: DeletedContent): number {
 	throw new Error('Function not implemented.');
 }
