@@ -1,18 +1,14 @@
 import { ContentType } from '@guardian/content-api-models/v1/contentType';
 import type { PollingResult } from './capi';
 import { callCAPI, PollingAction } from './capi';
-import { getCapiKey } from './config';
 import { handleContentUpdate } from './update-processor';
 
 export async function retrieveContent(capiUrl: string): Promise<PollingResult> {
-	const capiKey = getCapiKey();
-
 	const params = [
 		`show-fields=internalRevision,lastModifiedDate,firstPublishedDate,publishedDate`,
 		`show-blocks=all`,
 		`show-channels=all`,
 		`show-tags=all`,
-		`api-key=${capiKey}`,
 		`format=thrift`,
 	]
 		.filter((v) => !!v)

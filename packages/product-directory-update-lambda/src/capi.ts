@@ -1,6 +1,7 @@
 /* Implementation from recipes-backend */
 /* eslint @typescript-eslint/naming-convention: "off"  -- PollingAction uses a more CAPI-like convention*/
 import type { Content } from '@guardian/content-api-models/v1/content';
+import { getCapiKey } from './config';
 import { deserializeItemResponse } from './deserialize';
 
 export enum PollingAction {
@@ -18,14 +19,19 @@ export interface PollingResult {
 	content?: Content;
 }
 
+function addCapiKeyParam(capiUrl: string): string {
+	const capiKey = getCapiKey();
+	return `${capiUrl}&api-key=${capiKey}`;
+}
+
 /**
  Makes a request to CAPI.
- @param capiUrl - Full URL to hit, including request parameters
+ @param capiUrl - Full URL to hit, including request parameters minus API key
  @return a Promise containing a PollingResult object indicating if the requested object exists or not, and containing
  the deserialised content if it does.
  */
 export async function callCAPI(capiUrl: string): Promise<PollingResult> {
-	const response = await fetch(capiUrl);
+	const response = await fetch(addCapiKeyParam(capiUrl));
 	const contentBuffer = await response.arrayBuffer();
 
 	const contentBody =
