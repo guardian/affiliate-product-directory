@@ -3,7 +3,7 @@ import type { PollingResult } from './capi';
 import { callCAPI, PollingAction } from './capi';
 import { handleContentUpdate } from './update-processor';
 
-export async function retrieveContent(capiUrl: string): Promise<PollingResult> {
+async function retrieveContent(capiUrl: string): Promise<PollingResult> {
 	const params = [
 		`show-fields=internalRevision,lastModifiedDate,firstPublishedDate,publishedDate`,
 		`show-blocks=all`,
