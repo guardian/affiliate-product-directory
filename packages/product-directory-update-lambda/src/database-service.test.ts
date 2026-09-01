@@ -1,4 +1,4 @@
-import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb';
+import type { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb';
 import { jest } from '@jest/globals';
 import { DynamoService } from './database-service';
 
@@ -18,12 +18,17 @@ describe('DynamoService', () => {
 		});
 
 		expect(send).toHaveBeenCalledTimes(1);
-		const command = send.mock.calls[0][0] as PutItemCommand;
-		expect(command.input).toEqual({
-			TableName: 'affiliate-product-directory-pricing-TEST',
-			Item: {
-				productMerchantUrl: { S: 'https://example.com/product' },
-			},
-		});
+		expect(send.mock.calls).toEqual([
+			[
+				expect.objectContaining({
+					input: {
+						TableName: 'affiliate-product-directory-pricing-TEST',
+						Item: {
+							productMerchantUrl: { S: 'https://example.com/product' },
+						},
+					},
+				}),
+			],
+		]);
 	});
 });

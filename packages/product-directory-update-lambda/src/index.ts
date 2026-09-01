@@ -14,7 +14,9 @@ import {
 } from './eventbridge-models';
 import { handleContentUpdate } from './update-processor';
 
-export const eventHandler: Handler<CrierEventBridgeEvent, string> = async (event) => {
+export const eventHandler: Handler<CrierEventBridgeEvent, string> = async (
+	event,
+) => {
 	const { stage, app } = getConfig();
 	const dynamoService = new DynamoService(stage);
 
