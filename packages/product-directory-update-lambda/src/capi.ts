@@ -20,8 +20,9 @@ export interface PollingResult {
 }
 
 function addCapiKeyParam(capiUrl: string): string {
-	const capiKey = getCapiKey();
-	return `${capiUrl}&api-key=${capiKey}`;
+	const url = new URL(capiUrl);
+	url.searchParams.set('api-key', getCapiKey());
+	return url.toString();
 }
 
 /**
@@ -32,16 +33,15 @@ function addCapiKeyParam(capiUrl: string): string {
  */
 export async function callCAPI(capiUrl: string): Promise<PollingResult> {
 	const response = await fetch(addCapiKeyParam(capiUrl));
-	const contentBuffer = await response.arrayBuffer();
-
-	const contentBody =
-		response.status === 200
-			? deserializeItemResponse(Buffer.from(contentBuffer))
-			: null; //this will throw if the content is invalid
 
 	switch (response.status) {
-		case 200: //we got the content :D.
-			if (contentBody?.content) {
+		case 200: {
+			//we got the content
+			const contentBuffer = await response.arrayBuffer();
+
+			const contentBody = deserializeItemResponse(Buffer.from(contentBuffer));
+
+			if (contentBody.content) {
 				return {
 					action: PollingAction.CONTENT_EXISTS,
 					content: contentBody.content,
@@ -49,6 +49,7 @@ export async function callCAPI(capiUrl: string): Promise<PollingResult> {
 			} else {
 				throw new Error('Found content, but result object was blank?!');
 			}
+		}
 		case 404: //content does not exist.
 			console.log(`Nothing found for ${capiUrl}`);
 			return {
