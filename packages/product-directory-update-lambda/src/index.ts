@@ -4,6 +4,7 @@ import { ItemType } from '@guardian/content-api-models/crier/event/v1/itemType';
 import type { ContentType } from '@guardian/content-api-models/v1/contentType';
 import { type Handler } from 'aws-lambda';
 import { getConfig } from './config';
+import { DynamoService } from './database-service';
 import { deserializeEvent } from './deserialize';
 import type { CrierEventDetail } from './eventbridge-models';
 import {
@@ -13,8 +14,9 @@ import {
 } from './eventbridge-models';
 import { handleContentUpdate } from './update-processor';
 
-export const eventHandler: Handler<CrierEventBridgeEvent, string> = (event) => {
+export const eventHandler: Handler<CrierEventBridgeEvent, string> = async (event) => {
 	const { stage, app } = getConfig();
+	const dynamoService = new DynamoService(stage);
 
 	const msg = `New event received in ${app} in ${stage}`;
 	console.log(msg);
@@ -22,19 +24,26 @@ export const eventHandler: Handler<CrierEventBridgeEvent, string> = (event) => {
 	switch (event['detail-type']) {
 		case ContentUpdateEventDetail:
 		case ContentDeleteEventDetail: {
-			processRecord({
+			await processRecord({
 				eventDetail: event.detail,
+				dynamoService,
 			});
-			return Promise.resolve(msg);
+			return msg;
 		}
 		default: {
 			console.error(`Unknown event payload: ${JSON.stringify(event)}`);
-			return;
+			return msg;
 		}
 	}
 };
 
-function processRecord({ eventDetail }: { eventDetail: CrierEventDetail }) {
+async function processRecord({
+	eventDetail,
+	dynamoService,
+}: {
+	eventDetail: CrierEventDetail;
+	dynamoService: DynamoService;
+}): Promise<void> {
 	try {
 		const evt = deserializeEvent(eventDetail.event);
 
@@ -58,8 +67,9 @@ function processRecord({ eventDetail }: { eventDetail: CrierEventDetail }) {
 						break;
 					}
 					case 'content': {
-						return handleContentUpdate({
+						return await handleContentUpdate({
 							content: evt.payload.content,
+							dynamoService,
 						});
 					}
 					case 'retrievableContent': {
