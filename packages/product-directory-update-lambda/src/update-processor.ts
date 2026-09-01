@@ -3,18 +3,19 @@ import { ContentType } from '@guardian/content-api-models/v1/contentType';
 import { extractAllProductsFromArticle } from './extract-products';
 import { isFilterArticleByTags } from './utils';
 
-export function handleContentUpdate({ content }: { content: Content }) {
+export function handleContentUpdate({ content }: { content: Content }): number {
 	try {
 		if (content.type != ContentType.ARTICLE) {
-			return;
+			return 0;
 		} //no point processing live-blogs etc.
 
 		if (!isFilterArticleByTags(content.tags)) {
-			return;
+			return 0;
 		}
 
 		const productsFound = extractAllProductsFromArticle(content);
 		console.log(`to be implemented ${productsFound.length}`);
+		return productsFound.length;
 		// ToDo: process the products
 	} catch (err) {
 		//log out what actually caused the breakage
