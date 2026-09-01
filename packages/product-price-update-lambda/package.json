@@ -10,6 +10,8 @@
 		"postbuild": "cd dist && zip -r product-price-update-lambda.zip ."
 	},
 	"devDependencies": {
+		"@aws-sdk/client-dynamodb": "^3.1123.0",
+		"@aws-sdk/lib-dynamodb": "^3.1123.0",
 		"esbuild": "0.27.3"
 	}
 }
