@@ -4,16 +4,14 @@ import { callCAPI, PollingAction } from './capi';
 import { handleContentUpdate } from './update-processor';
 
 async function retrieveContent(capiUrl: string): Promise<PollingResult> {
-	const params = [
-		`show-fields=internalRevision,lastModifiedDate,firstPublishedDate,publishedDate`,
-		`show-blocks=all`,
-		`show-channels=all`,
-		`show-tags=all`,
-		`format=thrift`,
-	]
-		.filter((v) => !!v)
-		.join('&');
-
+	const params = new URLSearchParams({
+		'show-fields':
+			'internalRevision,lastModifiedDate,firstPublishedDate,publishedDate',
+		'show-blocks': 'all',
+		'show-channels': 'all',
+		'show-tags': 'all',
+		format: 'thrift',
+	});
 	return callCAPI(`${capiUrl}?${params}`);
 }
 
@@ -27,6 +25,9 @@ export async function handleContentUpdateByCapiUrl({
 	internalRevision?: number;
 }): Promise<number> {
 	if (contentType != ContentType.ARTICLE) {
+		console.log(
+			`INFO ${capiUrl} skipped - only article content type "${ContentType.ARTICLE}" is processed, but received "${contentType}"`,
+		);
 		return 0;
 	} //no point processing live-blogs etc.
 	const capiResponse = await retrieveContent(capiUrl);
