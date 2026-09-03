@@ -39,13 +39,11 @@ export class ProductsUpdater {
 
 	private categoriseProducts(products: Product[]): CategorisedProducts {
 		const categorised: CategorisedProducts = { amazon: [], skimlinks: [] };
+		const amazonHosts = new Set(['amazon.com', 'www.amazon.com', 'amazon.co.uk', 'www.amazon.co.uk']);
 
 		products.forEach((product) => {
-			const hostname = new URL(product.url).hostname;
-			const partner: Partner =
-				hostname.includes('amazon.com') || hostname.includes('amazon.co.uk')
-					? 'amazon'
-					: 'skimlinks';
+			const hostname = new URL(product.url).hostname.toLowerCase();
+			const partner: Partner = amazonHosts.has(hostname) ? 'amazon' : 'skimlinks';
 			categorised[partner].push(product);
 		});
 
