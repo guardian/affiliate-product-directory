@@ -6,11 +6,11 @@ import { ContentType } from '@guardian/content-api-models/v1/contentType';
 import { ElementType } from '@guardian/content-api-models/v1/elementType';
 import { LinkType } from '@guardian/content-api-models/v1/linkType';
 import type { ProductCTA } from '@guardian/content-api-models/v1/productCTA';
-import type { DirectoryProduct } from './models';
+import type { ExtractedDirectoryProduct } from './models';
 
 export function extractAllProductsFromArticle(
 	content: Content,
-): DirectoryProduct[] {
+): ExtractedDirectoryProduct[] {
 	if (content.type == ContentType.ARTICLE && content.blocks) {
 		const articleBlocks: Blocks = content.blocks;
 		// TODO: why did recipes-backend check the main block?
@@ -42,7 +42,14 @@ export function extractAllProductsFromArticle(
 				.filter((url) => url !== undefined),
 		);
 		return [...deduplicatedURLs].map((url) => ({
-			productMerchantUrl: url,
+			pricing: {
+				productMerchantUrl: url,
+			},
+			article: {
+				productMerchantUrl: url,
+				articleUrl: content.id,
+				composerArticleId: content.fields?.internalComposerCode,
+			},
 		}));
 	} else {
 		return [];
