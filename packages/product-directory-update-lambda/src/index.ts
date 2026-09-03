@@ -3,7 +3,8 @@ import { EventType } from '@guardian/content-api-models/crier/event/v1/eventType
 import { ItemType } from '@guardian/content-api-models/crier/event/v1/itemType';
 import { ContentType } from '@guardian/content-api-models/v1/contentType';
 import { type Handler } from 'aws-lambda';
-import { getCapiBaseUrl, getConfig } from '../../common/src/config';
+import { getCapiBaseUrl, getConfig } from './config';
+import { DynamoService } from './database-service';
 import { deserializeEvent } from './deserialize';
 import type {
 	BackfillEventBridgeEvent,
@@ -23,6 +24,7 @@ export const eventHandler: Handler<
 	number
 > = async (event) => {
 	const { stage, app } = getConfig();
+	const dynamoService = new DynamoService(stage);
 	const capiBaseUrl = getCapiBaseUrl(stage);
 
 	const msg = `New event received in ${app} in ${stage}`;
@@ -33,12 +35,14 @@ export const eventHandler: Handler<
 		case ContentDeleteEventDetail: {
 			return await processRecord({
 				eventDetail: event.detail,
+				dynamoService,
 			});
 		}
 		case BackfillEventDetail: {
 			return await processBackfillRecord({
 				eventDetail: event.detail,
 				capiBaseUrl,
+				dynamoService,
 			});
 		}
 		default: {
@@ -50,8 +54,10 @@ export const eventHandler: Handler<
 
 async function processRecord({
 	eventDetail,
+	dynamoService,
 }: {
 	eventDetail: CrierEventDetail;
+	dynamoService: DynamoService;
 }): Promise<number> {
 	try {
 		const evt = deserializeEvent(eventDetail.event);
@@ -76,8 +82,9 @@ async function processRecord({
 						break;
 					}
 					case 'content': {
-						return handleContentUpdate({
+						return await handleContentUpdate({
 							content: evt.payload.content,
+							dynamoService,
 						});
 					}
 					case 'retrievableContent': {
@@ -87,6 +94,7 @@ async function processRecord({
 							capiUrl,
 							contentType,
 							internalRevision,
+							dynamoService,
 						});
 					}
 					case 'deletedContent': {
@@ -104,16 +112,18 @@ async function processRecord({
 		console.error(
 			`ERROR Could not process data from Kinesis: ${(err as Error).toString()}`,
 		);
-		return 0;
+		throw err;
 	}
 }
 
 async function processBackfillRecord({
 	eventDetail,
 	capiBaseUrl,
+	dynamoService,
 }: {
 	eventDetail: BackfillEventDetail;
 	capiBaseUrl: string;
+	dynamoService: DynamoService;
 }) {
 	let totalCount = 0;
 
@@ -127,6 +137,7 @@ async function processBackfillRecord({
 		totalCount += await handleContentUpdateByCapiUrl({
 			capiUrl: `${capiBaseUrl}/${articleId}`,
 			contentType: ContentType.ARTICLE,
+			dynamoService,
 		});
 	}
 

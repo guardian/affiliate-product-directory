@@ -1,9 +1,16 @@
 import type { Content } from '@guardian/content-api-models/v1/content';
 import { ContentType } from '@guardian/content-api-models/v1/contentType';
+import type { DynamoService } from './database-service';
 import { extractAllProductsFromArticle } from './extract-products';
 import { isFilterArticleByTags } from './utils';
 
-export function handleContentUpdate({ content }: { content: Content }): number {
+export async function handleContentUpdate({
+	content,
+	dynamoService,
+}: {
+	content: Content;
+	dynamoService: DynamoService;
+}): Promise<number> {
 	try {
 		if (content.type != ContentType.ARTICLE) {
 			return 0;
@@ -14,9 +21,10 @@ export function handleContentUpdate({ content }: { content: Content }): number {
 		}
 
 		const productsFound = extractAllProductsFromArticle(content);
-		console.log(`to be implemented ${productsFound.length}`);
+		await Promise.all(
+			productsFound.map((product) => dynamoService.saveProduct(product)),
+		);
 		return productsFound.length;
-		// ToDo: process the products
 	} catch (err) {
 		//log out what actually caused the breakage
 		console.error('Failed article was: ', JSON.stringify(content), err);

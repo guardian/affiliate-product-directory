@@ -134,7 +134,7 @@ describe('extractAllProductsFromArticle', () => {
 		});
 
 		expect(result.length).toEqual(3);
-		expect(result.map((r) => r.productMerchantUrl)).toEqual([
+		expect(result.map((r) => r.article.productMerchantUrl)).toEqual([
 			'https://www.etsy.com/uk/listing/1798629224/colourful-long-raffia-tail-teaser-sticks',
 			'https://www.ebay.co.uk/itm/315870795819',
 			'https://www.argos.co.uk/itm/315870795819',
