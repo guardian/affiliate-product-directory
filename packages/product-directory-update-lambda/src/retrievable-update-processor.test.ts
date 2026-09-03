@@ -3,6 +3,7 @@ import type { Content } from '@guardian/content-api-models/v1/content';
 import { ContentType } from '@guardian/content-api-models/v1/contentType';
 import { jest } from '@jest/globals';
 import type * as CapiModule from './capi';
+import type { DynamoService } from './database-service';
 import type * as RetrievableUpdateProcessor from './retrievable-update-processor';
 import type * as UpdateProcessor from './update-processor';
 
@@ -21,6 +22,7 @@ const content: Content = {
 	webTitle: 'Test Article',
 	webUrl: 'web://path/to/content',
 };
+const dynamoService = {} as DynamoService;
 
 jest.unstable_mockModule('./capi', () => ({
 	callCAPI: jest.fn(),
@@ -67,14 +69,20 @@ describe('handleContentUpdateByCapiUrl', () => {
 			action: PollingAction.CONTENT_EXISTS,
 			content,
 		});
-		handleContentUpdate.mockReturnValue(3);
+		handleContentUpdate.mockResolvedValue(3);
 
-		const recordCount = await handleContentUpdateByCapiUrl(update);
+		const recordCount = await handleContentUpdateByCapiUrl({
+			...update,
+			dynamoService,
+		});
 
 		expect(callCAPI).toHaveBeenCalledWith(
 			expect.stringContaining(update.capiUrl),
 		);
-		expect(handleContentUpdate).toHaveBeenCalledWith({ content: content });
+		expect(handleContentUpdate).toHaveBeenCalledWith({
+			content,
+			dynamoService,
+		});
 		expect(recordCount).toEqual(3);
 	});
 
@@ -82,6 +90,7 @@ describe('handleContentUpdateByCapiUrl', () => {
 		const recordCount = await handleContentUpdateByCapiUrl({
 			...update,
 			contentType: ContentType.GALLERY,
+			dynamoService,
 		});
 
 		expect(callCAPI).not.toHaveBeenCalled();
@@ -93,7 +102,9 @@ describe('handleContentUpdateByCapiUrl', () => {
 			action: PollingAction.INTERNAL_BUG,
 			content,
 		});
-		await expect(handleContentUpdateByCapiUrl(update)).rejects.toEqual(
+		await expect(
+			handleContentUpdateByCapiUrl({ ...update, dynamoService }),
+		).rejects.toEqual(
 			new Error(
 				'Could not handle retrievable update from CAPI: PollingAction code was 4. Allowing the lambda runtime to retry or DLQ.',
 			),
@@ -106,7 +117,10 @@ describe('handleContentUpdateByCapiUrl', () => {
 			action: PollingAction.CONTENT_MISSING,
 			content: content,
 		});
-		const recordCount = await handleContentUpdateByCapiUrl(update);
+		const recordCount = await handleContentUpdateByCapiUrl({
+			...update,
+			dynamoService,
+		});
 		expect(callCAPI).toHaveBeenCalledTimes(1);
 		expect(handleContentUpdate).toHaveBeenCalledTimes(0);
 		expect(recordCount).toEqual(0);
