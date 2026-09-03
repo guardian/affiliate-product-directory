@@ -3,21 +3,28 @@ import { jest } from '@jest/globals';
 import { DynamoService } from './database-service';
 
 describe('DynamoService', () => {
-	it('writes a product URL using the pricing table partition key', async () => {
+	it('saves a product to the pricing and product-article tables', async () => {
 		const send = jest
 			.fn<(command: PutItemCommand) => Promise<object>>()
 			.mockResolvedValue({});
 		const service = new DynamoService(
 			'TEST',
 			'affiliate-product-directory-pricing-TEST',
+			'affiliate-product-directory-product-article-TEST',
 			{ send } as unknown as DynamoDBClient,
 		);
 
 		await service.saveProduct({
-			productMerchantUrl: 'https://example.com/product',
+			pricing: {
+				productMerchantUrl: 'https://example.com/product',
+			},
+			article: {
+				productMerchantUrl: 'https://example.com/product',
+				articleUrl: 'filter/sep/3/best-products',
+			},
 		});
 
-		expect(send).toHaveBeenCalledTimes(1);
+		expect(send).toHaveBeenCalledTimes(2);
 		expect(send.mock.calls).toEqual([
 			[
 				expect.objectContaining({
@@ -26,6 +33,20 @@ describe('DynamoService', () => {
 						Item: {
 							productMerchantUrl: { S: 'https://example.com/product' },
 						},
+						ConditionExpression: 'attribute_not_exists(productMerchantUrl)',
+					},
+				}),
+			],
+			[
+				expect.objectContaining({
+					input: {
+						TableName: 'affiliate-product-directory-product-article-TEST',
+						Item: {
+							productMerchantUrl: { S: 'https://example.com/product' },
+							articleUrl: { S: 'filter/sep/3/best-products' },
+							composerArticleId: { S: '' },
+						},
+						ConditionExpression: 'attribute_not_exists(productMerchantUrl)',
 					},
 				}),
 			],
@@ -40,12 +61,19 @@ describe('DynamoService', () => {
 		const service = new DynamoService(
 			'TEST',
 			'affiliate-product-directory-pricing-TEST',
+			'affiliate-product-directory-product-article-TEST',
 			{ send } as unknown as DynamoDBClient,
 		);
 
 		await expect(
 			service.saveProduct({
-				productMerchantUrl: 'https://example.com/product',
+				pricing: {
+					productMerchantUrl: 'https://example.com/product',
+				},
+				article: {
+					productMerchantUrl: 'https://example.com/product',
+					articleUrl: 'filter/sep/3/best-products',
+				},
 			}),
 		).rejects.toThrow(error);
 	});
