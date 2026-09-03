@@ -12,13 +12,13 @@ import { AttributeType, BillingMode } from 'aws-cdk-lib/aws-dynamodb';
 import { EventBus, Rule, Schedule } from 'aws-cdk-lib/aws-events';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
+import { appName } from '../../common/src/constants';
 import { CrierEventbridge } from './crier-eventbridge';
 
 export class AffiliateProductDirectory extends GuStack {
 	constructor(scope: App, id: string, props: GuStackProps) {
 		super(scope, id, props);
 		const { stage } = this;
-		const appName = 'affiliate-product-directory';
 
 		const capiKeyParam = new GuParameter(this, 'capiKey', {
 			fromSSM: true,
@@ -34,6 +34,7 @@ export class AffiliateProductDirectory extends GuStack {
 				handler: 'index.eventHandler',
 				runtime: Runtime.NODEJS_22_X,
 				architecture: Architecture.ARM_64,
+				// Used for defining cron job execution
 				rules: [
 					{
 						schedule: Schedule.cron({ minute: '0', hour: '2' }),

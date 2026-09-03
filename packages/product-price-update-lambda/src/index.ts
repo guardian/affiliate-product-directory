@@ -1,12 +1,9 @@
-import type { EventBridgeEvent, Context } from 'aws-lambda';
-import { getConfig } from './config';
+import type { EventBridgeEvent } from 'aws-lambda';
+import { getConfig } from '../../common/src/config';
 
 type DetailType = Record<string, unknown>; // replace with your actual event detail shape
 
-export const eventHandler = async (
-	event: EventBridgeEvent<string, DetailType>,
-	context: Context,
-) => {
+export const eventHandler = (event: EventBridgeEvent<string, DetailType>) => {
 	const { stage, app } = getConfig();
 
 	console.log(

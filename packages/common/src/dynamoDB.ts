@@ -8,35 +8,34 @@ import {
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
 
-const TABLE_NAME = process.env.TABLE_NAME ?? ''; // replace with your actual table name / config source
-
-export interface ProductItem {
-	// replace with your actual item shape
-	id: string;
-	[key: string]: unknown;
-}
-
 /**
- * Fetches all items from the table, recursing through pages until
+ * Fetches all items from a table, recursing through pages until
  * there's no LastEvaluatedKey left.
  */
-export async function getAllItems(
-	lastEvaluatedKey?: Record<string, unknown>,
-): Promise<ProductItem[]> {
+export async function getAllItems<T>({
+	tableName,
+	lastEvaluatedKey,
+}: {
+	tableName: string;
+	lastEvaluatedKey?: Record<string, unknown>;
+}): Promise<T[]> {
 	const response = await docClient.send(
 		new ScanCommand({
-			TableName: TABLE_NAME,
+			TableName: tableName,
 			ExclusiveStartKey: lastEvaluatedKey,
 		}),
 	);
 
-	const items = (response.Items as ProductItem[]) ?? [];
+	const items = response.Items as T[];
 
 	if (!response.LastEvaluatedKey) {
 		return items;
 	}
 
-	const remainingItems = await getAllItems(response.LastEvaluatedKey);
+	const remainingItems = await getAllItems<T>({
+		tableName: tableName,
+		lastEvaluatedKey: response.LastEvaluatedKey,
+	});
 	return [...items, ...remainingItems];
 }
 
@@ -45,7 +44,13 @@ export async function getAllItems(
  * (DynamoDB's BatchWriteItem limit). No retry on unprocessed items —
  * any that fail are just dropped for now.
  */
-export async function batchUpdateItems(items: ProductItem[]): Promise<void> {
+export async function batchUpdateItems({
+	items,
+	tableName,
+}: {
+	items: object[];
+	tableName: string;
+}): Promise<void> {
 	const BATCH_SIZE = 25;
 	const batches = chunk(items, BATCH_SIZE);
 
@@ -54,8 +59,8 @@ export async function batchUpdateItems(items: ProductItem[]): Promise<void> {
 			docClient.send(
 				new BatchWriteCommand({
 					RequestItems: {
-						[TABLE_NAME]: batch.map((item) => ({
-							PutRequest: { Item: item },
+						[tableName]: batch.map((item) => ({
+							PutRequest: { Item: item as Record<string, unknown> },
 						})),
 					},
 				}),
@@ -65,7 +70,7 @@ export async function batchUpdateItems(items: ProductItem[]): Promise<void> {
 }
 
 /**
- * Splits an array into chunks of a given size, without a while loop.
+ * Splits an array into chunks of a given size.
  */
 function chunk<T>(items: T[], size: number): T[][] {
 	if (items.length === 0) {
