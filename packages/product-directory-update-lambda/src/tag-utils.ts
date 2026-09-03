@@ -8,7 +8,9 @@ const FILTER_TAGs = [FILTER_UK_SERIES_TAG_ID, FILTER_US_SERIES_TAG_ID];
 export const isFilterArticleByTags = (tags: Tag[]) =>
 	tags.some((tag) => FILTER_TAGs.includes(tag.id));
 
-export const getRegionFromTags = (tags: Tag[]): string | undefined => {
+type Region = 'GB' | 'US';
+
+export const getRegionFromTags = (tags: Tag[]): Region | undefined => {
 	const filterTag = tags.find((tag) => FILTER_TAGs.includes(tag.id));
 
 	if (filterTag === undefined) {
@@ -18,7 +20,7 @@ export const getRegionFromTags = (tags: Tag[]): string | undefined => {
 
 	switch (filterTag.id) {
 		case FILTER_UK_SERIES_TAG_ID:
-			return 'UK';
+			return 'GB';
 		case FILTER_US_SERIES_TAG_ID:
 			return 'US';
 		default:

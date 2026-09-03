@@ -17,7 +17,7 @@ describe('DynamoService', () => {
 		await service.saveProduct({
 			pricing: {
 				productMerchantUrl: 'https://example.com/product',
-				region: 'UK',
+				region: 'GB',
 			},
 			article: {
 				productMerchantUrl: 'https://example.com/product',
@@ -33,7 +33,7 @@ describe('DynamoService', () => {
 						TableName: 'affiliate-product-directory-pricing-TEST',
 						Item: {
 							productMerchantUrl: { S: 'https://example.com/product' },
-							region: { S: 'UK' },
+							region: { S: 'GB' },
 						},
 						ConditionExpression: 'attribute_not_exists(productMerchantUrl)',
 					},
@@ -71,7 +71,7 @@ describe('DynamoService', () => {
 			service.saveProduct({
 				pricing: {
 					productMerchantUrl: 'https://example.com/product',
-					region: 'UK',
+					region: 'GB',
 				},
 				article: {
 					productMerchantUrl: 'https://example.com/product',

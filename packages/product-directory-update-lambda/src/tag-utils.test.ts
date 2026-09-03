@@ -19,9 +19,9 @@ describe('isFilterArticleByTags', () => {
 });
 
 describe('getRegionFromTags', () => {
-	it('Returns UK for Filter UK article', () => {
+	it('Returns GB for Filter UK article', () => {
 		const result = getRegionFromTags(filterTagsUK);
-		expect(result).toEqual('UK');
+		expect(result).toEqual('GB');
 	});
 
 	it('Returns US for Filter US article', () => {
