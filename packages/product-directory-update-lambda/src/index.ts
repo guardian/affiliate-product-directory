@@ -1,24 +1,31 @@
 import type { DeletedContent } from '@guardian/content-api-models/crier/event/v1/deletedContent';
 import { EventType } from '@guardian/content-api-models/crier/event/v1/eventType';
 import { ItemType } from '@guardian/content-api-models/crier/event/v1/itemType';
-import type { ContentType } from '@guardian/content-api-models/v1/contentType';
+import { ContentType } from '@guardian/content-api-models/v1/contentType';
 import { type Handler } from 'aws-lambda';
-import { getConfig } from './config';
+import { getCapiBaseUrl, getConfig } from './config';
 import { DynamoService } from './database-service';
 import { deserializeEvent } from './deserialize';
-import type { CrierEventDetail } from './eventbridge-models';
+import type {
+	BackfillEventBridgeEvent,
+	CrierEventDetail,
+} from './eventbridge-models';
 import {
+	BackfillEventDetail,
 	ContentDeleteEventDetail,
 	ContentUpdateEventDetail,
 	type CrierEventBridgeEvent,
 } from './eventbridge-models';
+import { handleContentUpdateByCapiUrl } from './retrievable-update-processor';
 import { handleContentUpdate } from './update-processor';
 
-export const eventHandler: Handler<CrierEventBridgeEvent, string> = async (
-	event,
-) => {
+export const eventHandler: Handler<
+	CrierEventBridgeEvent | BackfillEventBridgeEvent,
+	number
+> = async (event) => {
 	const { stage, app } = getConfig();
 	const dynamoService = new DynamoService(stage);
+	const capiBaseUrl = getCapiBaseUrl(stage);
 
 	const msg = `New event received in ${app} in ${stage}`;
 	console.log(msg);
@@ -26,15 +33,21 @@ export const eventHandler: Handler<CrierEventBridgeEvent, string> = async (
 	switch (event['detail-type']) {
 		case ContentUpdateEventDetail:
 		case ContentDeleteEventDetail: {
-			await processRecord({
+			return await processRecord({
 				eventDetail: event.detail,
 				dynamoService,
 			});
-			return msg;
+		}
+		case BackfillEventDetail: {
+			return await processBackfillRecord({
+				eventDetail: event.detail,
+				capiBaseUrl,
+				dynamoService,
+			});
 		}
 		default: {
 			console.error(`Unknown event payload: ${JSON.stringify(event)}`);
-			return msg;
+			return Promise.resolve(0);
 		}
 	}
 };
@@ -45,13 +58,13 @@ async function processRecord({
 }: {
 	eventDetail: CrierEventDetail;
 	dynamoService: DynamoService;
-}): Promise<void> {
+}): Promise<number> {
 	try {
 		const evt = deserializeEvent(eventDetail.event);
 
 		//we're only interested in content updates
 		if (evt.itemType != ItemType.CONTENT) {
-			return;
+			return 0;
 		}
 
 		console.log(
@@ -60,7 +73,7 @@ async function processRecord({
 		switch (evt.eventType) {
 			case EventType.DELETE:
 				// ToDo: do nothing to the product price table but remove an article from the product-article table
-				return;
+				return 0;
 			case EventType.UPDATE:
 			case EventType.RETRIEVABLEUPDATE:
 				switch (evt.payload?.kind) {
@@ -81,6 +94,7 @@ async function processRecord({
 							capiUrl,
 							contentType,
 							internalRevision,
+							dynamoService,
 						});
 					}
 					case 'deletedContent': {
@@ -93,7 +107,7 @@ async function processRecord({
 			default:
 				console.error('ERROR Unknown event type ', evt.eventType);
 		}
-		return; //if we get here, no action was taken
+		return 0; //if we get here, no action was taken
 	} catch (err) {
 		console.error(
 			`ERROR Could not process data from Kinesis: ${(err as Error).toString()}`,
@@ -102,22 +116,37 @@ async function processRecord({
 	}
 }
 
-function handleContentUpdateByCapiUrl({
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- not yet implemented
-	contentType,
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- not yet implemented
-	capiUrl,
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- not yet implemented
-	internalRevision,
+async function processBackfillRecord({
+	eventDetail,
+	capiBaseUrl,
+	dynamoService,
 }: {
-	contentType?: ContentType;
-	capiUrl: string;
-	internalRevision?: number;
+	eventDetail: BackfillEventDetail;
+	capiBaseUrl: string;
+	dynamoService: DynamoService;
 }) {
-	throw new Error('Function not implemented.');
+	let totalCount = 0;
+
+	console.log(
+		`Received ${
+			eventDetail.articleIds.length
+		} articles to backfill: \n${eventDetail.articleIds.join(', \n')}`,
+	);
+
+	for (const articleId of eventDetail.articleIds) {
+		totalCount += await handleContentUpdateByCapiUrl({
+			capiUrl: `${capiBaseUrl}/${articleId}`,
+			contentType: ContentType.ARTICLE,
+			dynamoService,
+		});
+	}
+
+	console.log(`Backfilled ${eventDetail.articleIds.length} articles`);
+
+	return totalCount;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- not yet implemented
-function handleDeletedContent(deletedContent: DeletedContent) {
+function handleDeletedContent(deletedContent: DeletedContent): number {
 	throw new Error('Function not implemented.');
 }
