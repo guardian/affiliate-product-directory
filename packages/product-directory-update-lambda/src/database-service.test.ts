@@ -31,4 +31,22 @@ describe('DynamoService', () => {
 			],
 		]);
 	});
+
+	it('propagates a failed DynamoDB write', async () => {
+		const error = new Error('DynamoDB is unavailable');
+		const send = jest
+			.fn<(command: PutItemCommand) => Promise<object>>()
+			.mockRejectedValue(error);
+		const service = new DynamoService(
+			'TEST',
+			'affiliate-product-directory-pricing-TEST',
+			{ send } as unknown as DynamoDBClient,
+		);
+
+		await expect(
+			service.saveProduct({
+				productMerchantUrl: 'https://example.com/product',
+			}),
+		).rejects.toThrow(error);
+	});
 });
