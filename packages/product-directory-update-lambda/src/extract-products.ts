@@ -7,13 +7,13 @@ import { ElementType } from '@guardian/content-api-models/v1/elementType';
 import { LinkType } from '@guardian/content-api-models/v1/linkType';
 import type { ProductCTA } from '@guardian/content-api-models/v1/productCTA';
 import type { ExtractedDirectoryProduct } from './models';
+import { getRegionFromTags } from './tag-utils';
 
 export function extractAllProductsFromArticle(
 	content: Content,
 ): ExtractedDirectoryProduct[] {
 	if (content.type == ContentType.ARTICLE && content.blocks) {
 		const articleBlocks: Blocks = content.blocks;
-		// TODO: why did recipes-backend check the main block?
 
 		const bodyBlocks = articleBlocks.body as Block[];
 
@@ -41,9 +41,16 @@ export function extractAllProductsFromArticle(
 				.concat(nestedButtonProductUrls)
 				.filter((url) => url !== undefined),
 		);
+
+		const region = getRegionFromTags(content.tags);
+		if (region === undefined) {
+			console.error('Non-Filter article processed, something has gone wrong');
+		}
+
 		return [...deduplicatedURLs].map((url) => ({
 			pricing: {
 				productMerchantUrl: url,
+				region: region ?? '',
 			},
 			article: {
 				productMerchantUrl: url,

@@ -20,6 +20,7 @@ export class DynamoService {
 					TableName: this.pricingTableName,
 					Item: {
 						productMerchantUrl: { S: pricing.productMerchantUrl },
+						region: { S: pricing.region },
 					},
 					ConditionExpression: 'attribute_not_exists(productMerchantUrl)',
 				}),

@@ -1,5 +1,6 @@
 export type DirectoryPricingTableEntry = {
 	productMerchantUrl: string;
+	region: string;
 };
 
 export type DirectoryArticleProductTableEntry = {
