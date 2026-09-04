@@ -11,7 +11,7 @@
 	},
 	"dependencies": {
 		"@aws-sdk/client-dynamodb": "^3.1118.0",
-		"@guardian/content-api-models": "47.0.0",
+		"@guardian/content-api-models": "50.0.0",
 		"aws-lambda": "^1.0.7"
 	},
 	"devDependencies": {
