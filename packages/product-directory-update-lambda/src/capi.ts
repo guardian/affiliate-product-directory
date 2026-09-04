@@ -1,7 +1,7 @@
 /* Implementation from recipes-backend */
 /* eslint @typescript-eslint/naming-convention: "off"  -- PollingAction uses a more CAPI-like convention*/
 import type { Content } from '@guardian/content-api-models/v1/content';
-import { getCapiKey } from './config';
+import { getCapiKey } from '../../common/src/config';
 import { deserializeItemResponse } from './deserialize';
 
 export enum PollingAction {
