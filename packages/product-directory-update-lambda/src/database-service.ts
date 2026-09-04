@@ -95,7 +95,7 @@ export class DynamoService {
 			const articles = response.Items.map(getDirectoryArticleFromDynamoRecord);
 			return articles
 				.filter((article) => !article.removed)
-				.map((article) => article.productMerchantUrl);
+				.map((article) => article.articleUrl);
 		} else {
 			return [];
 		}

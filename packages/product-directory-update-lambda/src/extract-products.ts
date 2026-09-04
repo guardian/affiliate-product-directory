@@ -39,8 +39,7 @@ export function extractAllProductsFromArticle(
 			productCTAUrls
 				.concat(buttonProductURLs)
 				.concat(nestedButtonProductUrls)
-				.filter((url) => url?.trim() !== '')
-				.filter((url) => url !== undefined),
+				.filter((url): url is string => url !== undefined && url.trim() !== ''),
 		);
 
 		const region = getRegionFromTags(content.tags);
