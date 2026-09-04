@@ -11,6 +11,7 @@ import type { CrierEventDetail } from './eventbridge-models';
 
 jest.unstable_mockModule('./deserialize', () => ({
 	deserializeEvent: jest.fn(),
+	deserializeItemResponse: jest.fn(),
 }));
 
 describe('The lambda', () => {
@@ -80,7 +81,7 @@ describe('The lambda', () => {
 			fail: jest.fn(),
 			succeed: jest.fn(),
 		};
-		const callbackMock: Callback<string> = (error, result) => {
+		const callbackMock: Callback<number> = (error, result) => {
 			if (error) {
 				console.error('Error:', error);
 			} else {
@@ -88,9 +89,7 @@ describe('The lambda', () => {
 			}
 		};
 		const response = await eventHandler(eventMock, contextMock, callbackMock);
-		expect(response).toContain(
-			'New event received in product-directory-update-lambda in TEST',
-		);
+		expect(response).toBe(0);
 		expect(deserializeEvent).toHaveBeenCalledWith(testReq.event);
 	});
 });
