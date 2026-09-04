@@ -2,6 +2,12 @@ import { GetParametersCommand, SSMClient } from '@aws-sdk/client-ssm';
 
 const ssmClient = new SSMClient({ region: 'eu-west-1' });
 
+/**
+ *
+ * @param names - SSM parameter store paths
+ * @param withDecryption
+ * @returns Object of key-value pairs {SSM path => retrieved value}
+ */
 export async function getParametersFromParameterStore(
 	names: string[],
 	withDecryption = false,

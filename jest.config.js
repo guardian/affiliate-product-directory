@@ -39,7 +39,10 @@ export default {
 			moduleNameMapper: {
 				'^(\\.{1,2}/.*)\\.js$': '$1',
 			},
-			testMatch: ['<rootDir>/packages/*lambda/**/*.test.ts'],
+			testMatch: [
+				'<rootDir>/packages/*lambda/**/*.test.ts',
+				'<rootDir>/packages/common/**/*.test.ts',
+			],
 		},
 	],
 };
