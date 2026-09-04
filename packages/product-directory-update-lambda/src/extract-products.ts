@@ -44,7 +44,7 @@ export function extractAllProductsFromArticle(
 
 		const region = getRegionFromTags(content.tags);
 		if (region === undefined) {
-			console.error('Non-Filter article processed, something has gone wrong');
+			console.error(`Could not determine region for article: ${content.id}.`);
 		}
 
 		return [...deduplicatedURLs].map((url) => ({
