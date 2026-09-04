@@ -39,6 +39,7 @@ export function extractAllProductsFromArticle(
 			productCTAUrls
 				.concat(buttonProductURLs)
 				.concat(nestedButtonProductUrls)
+				.filter((url) => url?.trim() !== '')
 				.filter((url) => url !== undefined),
 		);
 

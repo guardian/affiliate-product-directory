@@ -31,6 +31,9 @@ export class DynamoService {
 		pricing,
 		article,
 	}: ExtractedDirectoryProduct): Promise<void> {
+		console.log(`Saving pricing data: ${JSON.stringify(pricing)}`);
+		console.log(`Saving product-article data: ${JSON.stringify(article)}`);
+
 		await Promise.all([
 			this.saveToDb({
 				TableName: this.pricingTableName,
