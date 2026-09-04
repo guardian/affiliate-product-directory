@@ -13,3 +13,14 @@ export type CrierEventBridgeEvent = EventBridgeEvent<
 	typeof ContentUpdateEventDetail | typeof ContentDeleteEventDetail,
 	CrierEventDetail
 >;
+
+export interface BackfillEventDetail {
+	articleIds: string[];
+}
+
+export const BackfillEventDetail = 'backfill-request';
+
+export type BackfillEventBridgeEvent = EventBridgeEvent<
+	typeof BackfillEventDetail,
+	BackfillEventDetail
+>;
