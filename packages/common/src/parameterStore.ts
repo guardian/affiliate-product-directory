@@ -1,6 +1,6 @@
 import { GetParametersCommand, SSMClient } from '@aws-sdk/client-ssm';
 
-const ssmClient = new SSMClient({});
+const ssmClient = new SSMClient({ region: 'eu-west-1' });
 
 export async function getParametersFromParameterStore(
 	names: string[],

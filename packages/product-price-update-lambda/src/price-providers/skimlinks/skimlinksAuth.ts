@@ -4,12 +4,12 @@ import { getParametersFromParameterStore } from '../../../../common/src/paramete
 import type { Region } from '../../models';
 
 const config = getConfig();
-const commonPath = `/${config.stage}/${config.stack}/${appName}/skimlinks/products`;
+const commonPath = `/${config.stage}/${config.stack}/${appName}/skimlinks`;
 const publisherIdKey = `${commonPath}/publisherId`;
-const clientIdKey = `${commonPath}/clientId`;
-const clientSecretKey = `${commonPath}/clientSecret`;
-const ukPublisherDomainIdKey = `${commonPath}/publisherDomainId/UK`;
-const usPublisherDomainIdKey = `${commonPath}/publisherDomainId/US`;
+const clientIdKey = `${commonPath}/products/clientId`;
+const clientSecretKey = `${commonPath}/products/clientSecret`;
+const ukPublisherDomainIdKey = `${commonPath}/products/publisherDomainId/UK`;
+const usPublisherDomainIdKey = `${commonPath}/products/publisherDomainId/US`;
 
 export interface SkimlinksCredentials {
 	publisherId: string;
@@ -56,6 +56,9 @@ export async function getSkimlinksAccessToken(): Promise<string> {
 	const credentials = await getSkimlinksCredentials();
 	const resp = await fetch('https://authentication.skimapis.com/access_token', {
 		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+		},
 		body: JSON.stringify({
 			client_id: credentials.clientId,
 			client_secret: credentials.clientSecret,
@@ -64,6 +67,7 @@ export async function getSkimlinksAccessToken(): Promise<string> {
 	});
 
 	if (!resp.ok) {
+		console.log(JSON.stringify(await resp.json(), null, 2));
 		throw new Error('Failed to fetch Skimlinks credentials');
 	}
 

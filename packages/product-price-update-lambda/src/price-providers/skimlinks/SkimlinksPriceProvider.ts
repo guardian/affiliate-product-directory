@@ -12,6 +12,7 @@ export class SkimlinksPriceProvider extends PriceProvider {
 	private readonly batchSize = 100;
 
 	public async refreshPrices(products: Product[]): Promise<Product[]> {
+		console.log(`Fetching Skimlinks prices for ${products.length} products`);
 		const productData = await this.fetchProductData(products);
 		return this.updateProducts(products, productData);
 	}
