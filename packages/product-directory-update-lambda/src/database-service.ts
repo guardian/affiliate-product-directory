@@ -3,9 +3,14 @@ import {
 	ConditionalCheckFailedException,
 	DynamoDBClient,
 	PutItemCommand,
+	QueryCommand,
+	UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
 import { dynamoConfig } from './aws-config';
-import type { ExtractedDirectoryProduct } from './models';
+import {
+	type ExtractedDirectoryProduct,
+	getDirectoryArticleFromDynamoRecord,
+} from './models';
 
 export class DynamoService {
 	constructor(
@@ -52,6 +57,89 @@ export class DynamoService {
 				},
 				ConditionExpression: 'attribute_not_exists(productMerchantUrl)',
 			}),
+		]);
+	}
+
+	async getProductsInArticle(articleUrl: string): Promise<string[]> {
+		const req = new QueryCommand({
+			TableName: this.articleTableName,
+			KeyConditionExpression: 'articleUrl = :articleUrl',
+			ExpressionAttributeValues: {
+				':articleUrl': { S: articleUrl },
+			},
+			IndexName: 'articleUrl-index',
+		});
+
+		const response = await this.client.send(req);
+		if (response.Items && response.Items.length > 0) {
+			const articles = response.Items.map(getDirectoryArticleFromDynamoRecord);
+			return articles
+				.filter((article) => !article.removed)
+				.map((article) => article.productMerchantUrl);
+		} else {
+			return [];
+		}
+	}
+
+	async getArticlesForProduct(productMerchantUrl: string): Promise<string[]> {
+		const req = new QueryCommand({
+			TableName: this.articleTableName,
+			KeyConditionExpression: 'productMerchantUrl = :productMerchantUrl',
+			ExpressionAttributeValues: {
+				':productMerchantUrl': { S: productMerchantUrl },
+			},
+		});
+
+		const response = await this.client.send(req);
+		if (response.Items && response.Items.length > 0) {
+			const articles = response.Items.map(getDirectoryArticleFromDynamoRecord);
+			return articles
+				.filter((article) => !article.removed)
+				.map((article) => article.productMerchantUrl);
+		} else {
+			return [];
+		}
+	}
+
+	async markPricingProductAsRemoved(productMerchantUrl: string): Promise<void> {
+		await Promise.all([
+			this.client.send(
+				new UpdateItemCommand({
+					TableName: this.pricingTableName,
+					Key: {
+						productMerchantUrl: { S: productMerchantUrl },
+					},
+					UpdateExpression:
+						'SET removed = :removed, removedDate = :removedDate',
+					ExpressionAttributeValues: {
+						':removed': { S: 'true' },
+						':removedDate': { N: Date.now().toString() },
+					},
+				}),
+			),
+		]);
+	}
+
+	async markProductAsRemovedInArticle(
+		productMerchantUrl: string,
+		articleUrl: string,
+	): Promise<void> {
+		await Promise.all([
+			this.client.send(
+				new UpdateItemCommand({
+					TableName: this.articleTableName,
+					Key: {
+						productMerchantUrl: { S: productMerchantUrl },
+						articleUrl: { S: articleUrl },
+					},
+					UpdateExpression:
+						'SET removed = :removed, removedDate = :removedDate',
+					ExpressionAttributeValues: {
+						':removed': { S: 'true' },
+						':removedDate': { N: Date.now().toString() },
+					},
+				}),
+			),
 		]);
 	}
 }
