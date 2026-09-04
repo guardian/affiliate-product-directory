@@ -7,8 +7,8 @@ export abstract class PriceProvider {
 	/** Used as `updatedBy` on refreshed products, e.g. `'skimlinks'`. */
 	protected abstract readonly name: string;
 
-	/** Refresh prices for these products. */
-	public abstract fetchPrices(products: Product[]): Promise<Product[]>;
+	/** Refresh prices on these products, returning the ones that were updated. */
+	public abstract refreshPrices(products: Product[]): Promise<Product[]>;
 
 	protected async withRetry<T>(operation: () => Promise<T>): Promise<T> {
 		try {

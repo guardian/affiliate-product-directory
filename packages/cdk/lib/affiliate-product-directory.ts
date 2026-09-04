@@ -9,7 +9,7 @@ import { GuLambdaFunction } from '@guardian/cdk/lib/constructs/lambda';
 import { GuScheduledLambda } from '@guardian/cdk/lib/patterns/scheduled-lambda';
 import { type App, aws_events_targets } from 'aws-cdk-lib';
 import { AttributeType, BillingMode } from 'aws-cdk-lib/aws-dynamodb';
-import { EventBus, Rule, Schedule } from 'aws-cdk-lib/aws-events';
+import { EventBus, Rule } from 'aws-cdk-lib/aws-events';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { appName } from '../../common/src/constants';
@@ -36,11 +36,11 @@ export class AffiliateProductDirectory extends GuStack {
 				architecture: Architecture.ARM_64,
 				// Used for defining cron job execution
 				rules: [
-					{
-						schedule: Schedule.cron({ minute: '0', hour: '2' }),
-						description: 'Product price update lambda',
-						input: undefined,
-					},
+					// {
+					// 	schedule: Schedule.cron({ minute: '0', hour: '2' }),
+					// 	description: 'Product price update lambda',
+					// 	input: undefined,
+					// },
 				],
 				// ToDo: we should add monitoring as part of observability and alarming
 				monitoringConfiguration: { noMonitoring: true },

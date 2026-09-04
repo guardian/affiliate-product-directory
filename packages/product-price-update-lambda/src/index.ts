@@ -1,21 +1,18 @@
-import type { EventBridgeEvent } from 'aws-lambda';
+import type { Handler } from 'aws-lambda';
 import { getConfig } from '../../common/src/config';
+import { appName } from '../../common/src/constants';
+import { ProductsUpdater } from './ProductsUpdater';
 
-type DetailType = Record<string, unknown>; // replace with your actual event detail shape
+export async function main(): Promise<void> {
+	const { stage } = getConfig();
+	const productTableName = `${appName}-pricing-${stage}`;
 
-export const eventHandler = (event: EventBridgeEvent<string, DetailType>) => {
-	const { stage, app } = getConfig();
+	console.log(`Starting price update for ${productTableName}`);
+	const updater = new ProductsUpdater({ productTableName });
+	await updater.refreshPrices();
+	console.log('Price update complete');
+}
 
-	console.log(
-		`Received event in ${app} (${stage}): ${event['detail-type']}`,
-		JSON.stringify(event.detail),
-	);
-
-	try {
-		// ...handler logic goes here
-		return;
-	} catch (error) {
-		console.error('Error handling event', error);
-		throw error; // rethrow so Lambda/EventBridge records the failure
-	}
+export const eventHandler: Handler = async () => {
+	await main();
 };

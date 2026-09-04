@@ -1,7 +1,7 @@
 export type Region = 'UK' | 'US';
 
 export interface Product {
-	url: string;
+	productMerchantUrl: string;
 	createdAt: number;
 	region: string;
 	updatedAt: number;

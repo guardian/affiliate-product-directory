@@ -19,12 +19,12 @@ export class ProductsUpdater {
 	 * This is the main entry point for updating the prices, it will get all products in the DB
 	 *  and check affiliate partners for the latest prices, and lastly updated the DB
 	 */
-	public async updatePrices() {
+	public async refreshPrices() {
 		const categorised = this.categoriseProducts(await this.getProductsFromDB());
 
 		const [amazonUpdated, skimlinksUpdated] = await Promise.all([
-			this.amazon.fetchPrices(categorised.amazon),
-			this.skimlinks.fetchPrices(categorised.skimlinks),
+			this.amazon.refreshPrices(categorised.amazon),
+			this.skimlinks.refreshPrices(categorised.skimlinks),
 		]);
 
 		await batchUpdateItems({
@@ -39,11 +39,20 @@ export class ProductsUpdater {
 
 	private categoriseProducts(products: Product[]): CategorisedProducts {
 		const categorised: CategorisedProducts = { amazon: [], skimlinks: [] };
-		const amazonHosts = new Set(['amazon.com', 'www.amazon.com', 'amazon.co.uk', 'www.amazon.co.uk']);
+		const amazonHosts = new Set([
+			'amazon.com',
+			'www.amazon.com',
+			'amazon.co.uk',
+			'www.amazon.co.uk',
+		]);
 
 		products.forEach((product) => {
-			const hostname = new URL(product.url).hostname.toLowerCase();
-			const partner: Partner = amazonHosts.has(hostname) ? 'amazon' : 'skimlinks';
+			const hostname = new URL(
+				product.productMerchantUrl,
+			).hostname.toLowerCase();
+			const partner: Partner = amazonHosts.has(hostname)
+				? 'amazon'
+				: 'skimlinks';
 			categorised[partner].push(product);
 		});
 
