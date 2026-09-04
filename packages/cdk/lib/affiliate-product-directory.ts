@@ -19,6 +19,11 @@ export class AffiliateProductDirectory extends GuStack {
 		const { stage } = this;
 		const appName = 'affiliate-product-directory';
 
+		const capiKeyParam = new GuParameter(this, 'capiKey', {
+			fromSSM: true,
+			default: `/${this.stage}/${this.stack}/${appName}/capi-key`,
+		});
+
 		/**
 		 * A GuLambdaFunction comes with the following batteries included:
 		 *   - IAM permissions to read from SSM Parameter store
@@ -72,6 +77,9 @@ export class AffiliateProductDirectory extends GuStack {
 				app: 'product-directory-update-lambda',
 				fileName: 'product-directory-update-lambda.zip',
 				handler: 'index.eventHandler',
+				environment: {
+					CAPI_KEY: capiKeyParam.valueAsString,
+				},
 				runtime: Runtime.NODEJS_22_X,
 				architecture: Architecture.ARM_64,
 			},
@@ -199,6 +207,19 @@ export class AffiliateProductDirectory extends GuStack {
 					'content-delete',
 					'content-retrievableupdate',
 				],
+			},
+			targets: [
+				new aws_events_targets.LambdaFunction(directoryUpdateLambda, {
+					// ToDo: do we want a DLQ?
+				}),
+			],
+		});
+
+		new Rule(this, 'BackfillConnection', {
+			eventBus: crierEventBus,
+			description: `Connect product-directory-update-lambda ${this.stage} to backfill events`,
+			eventPattern: {
+				source: ['backfill'],
 			},
 			targets: [
 				new aws_events_targets.LambdaFunction(directoryUpdateLambda, {
