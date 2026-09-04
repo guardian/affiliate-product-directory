@@ -2,6 +2,7 @@ import type { GuStackProps } from '@guardian/cdk/lib/constructs/core';
 import { GuParameter, GuStack } from '@guardian/cdk/lib/constructs/core';
 import { GuDynamoTable } from '@guardian/cdk/lib/constructs/dynamodb/index';
 import {
+	GuAllowPolicy,
 	GuDynamoDBReadPolicy,
 	GuDynamoDBWritePolicy,
 } from '@guardian/cdk/lib/constructs/iam';
@@ -134,9 +135,25 @@ export class AffiliateProductDirectory extends GuStack {
 			},
 		);
 
+		const skimlinksParameterStoreReadPolicy = new GuAllowPolicy(
+			this,
+			'SkimlinksParameterStoreReadPolicy',
+			{
+				actions: [
+					'ssm:GetParameter',
+					'ssm:GetParameters',
+					'ssm:GetParametersByPath',
+				],
+				resources: [
+					`arn:aws:ssm:${this.region}:${this.account}:parameter/CODE/frontend/${appName}/skimlinks/*`,
+				],
+			},
+		);
+
 		[
 			productPricingDynamoDBReadPolicy,
 			productPricingDynamoDBWritePolicy,
+			skimlinksParameterStoreReadPolicy,
 		].forEach((policy) => priceUpdateLambda.role?.attachInlinePolicy(policy));
 
 		[
