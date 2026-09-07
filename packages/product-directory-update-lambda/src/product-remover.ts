@@ -34,6 +34,9 @@ async function markProductAsRemoved(
 	articleUrl: string,
 	dynamoService: DynamoService,
 ): Promise<void> {
+	console.log(
+		`Marking ${productToRemove.url} as removed from ${articleUrl} ${productToRemove.shouldRemoveFromPricingTable ? 'and the pricing table' : ''}`,
+	);
 	await Promise.all([
 		dynamoService.markProductAsRemovedInArticle(
 			productToRemove.url,
@@ -55,6 +58,7 @@ export async function handleTakedown(
 ): Promise<number> {
 	const products = await dynamoService.getProductsInArticle(articleUrl);
 
+	console.log(`Found ${products.length} products`);
 	await markProductsAsRemovedFromArticle(products, articleUrl, dynamoService);
 
 	return products.length;
