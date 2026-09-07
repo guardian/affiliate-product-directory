@@ -1,14 +1,6 @@
-export type Region = 'UK' | 'US';
+import type { Product } from '@common/models';
 
-export interface Product {
-	productMerchantUrl: string;
-	createdAt: number;
-	region: string;
-	updatedAt: number;
-	updatedBy: string;
-	price: number;
-	currency: string;
-}
+export type Region = 'UK' | 'US';
 
 export const REGIONS: Region[] = ['UK', 'US'];
 

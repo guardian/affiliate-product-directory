@@ -1,4 +1,4 @@
-import type { Product } from '../product-price-update-lambda/src/models';
+import type { Product } from '@common/models';
 
 export function buildProduct(overrides: Partial<Product> = {}): Product {
 	return {

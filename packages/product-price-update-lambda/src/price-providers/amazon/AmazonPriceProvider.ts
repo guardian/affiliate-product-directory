@@ -1,4 +1,4 @@
-import type { Product } from '@price-update/models';
+import type { Product } from '@common/models';
 import { PriceProvider } from '@price-update/price-providers/PriceProvider';
 
 export class AmazonPriceProvider extends PriceProvider {

@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import type { Config } from '@common/src/config';
+import type { Config } from '@common/config';
 
 const defaultConfig: Config = {
 	stack: 'test-stack',
@@ -12,7 +12,7 @@ mockGetConfig.mockImplementation(() => {
 	return defaultConfig;
 });
 
-jest.unstable_mockModule('@common/src/config', () => {
+jest.unstable_mockModule('@common/config', () => {
 	return {
 		getConfig: mockGetConfig,
 	};

@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import type { Product } from '@price-update/models';
+import type { Product } from '@common/models';
 
 const mockAmazonRefreshPrices =
 	jest.fn<(products: Product[]) => Promise<Product[]>>();

@@ -1,6 +1,6 @@
-import { getConfig } from '@common/src/config';
-import { appName } from '@common/src/constants';
-import { getParametersFromParameterStore } from '@common/src/parameterStore';
+import { getConfig } from '@common/config';
+import { appName } from '@common/constants';
+import { getParametersFromParameterStore } from '@common/parameterStore';
 import type { Region } from '@price-update/models';
 
 const config = getConfig();

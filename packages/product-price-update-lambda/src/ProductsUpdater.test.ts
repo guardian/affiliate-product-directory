@@ -1,36 +1,42 @@
+import type * as DatabaseServiceModule from '@common/database-service';
 import { jest } from '@jest/globals';
 import { mockAmazonRefreshPrices } from '@mocks/AmazonPriceProviderMock';
-import { mockBatchUpdateItems, mockGetAllItems } from '@mocks/DynamoDBMock';
+import {
+	mockBatchUpdateProducts,
+	mockGetAllProducts,
+} from '@mocks/DatabaseServiceMock';
 import { buildProduct } from '@mocks/ProductFixtures';
 import { mockSkimlinksRefreshPrices } from '@mocks/SkimlinksPriceProviderMock';
 import type * as ProductsUpdaterModule from './ProductsUpdater';
 
-const tableName = 'products-table';
-
 let ProductsUpdater: typeof ProductsUpdaterModule.ProductsUpdater;
+let DynamoService: typeof DatabaseServiceModule.DynamoService;
 
 beforeAll(async () => {
+	// Import after the mocks above have registered, otherwise the real
+	// modules get pulled in first and the mocks never take effect.
 	({ ProductsUpdater } = await import('./ProductsUpdater'));
+	({ DynamoService } = await import('@common/database-service'));
 });
 
 beforeEach(() => {
 	jest.clearAllMocks();
-	mockGetAllItems.mockResolvedValue([]);
+	mockGetAllProducts.mockResolvedValue([]);
 	mockAmazonRefreshPrices.mockResolvedValue([]);
 	mockSkimlinksRefreshPrices.mockResolvedValue([]);
 });
 
 function updater() {
-	return new ProductsUpdater({ productTableName: tableName });
+	return new ProductsUpdater(new DynamoService('TEST'));
 }
 
 describe('getProductsFromDB', () => {
 	it('scans the product table and returns the items', async () => {
 		const products = [buildProduct(), buildProduct()];
-		mockGetAllItems.mockResolvedValue(products);
+		mockGetAllProducts.mockResolvedValue(products);
 
 		await expect(updater().getProductsFromDB()).resolves.toEqual(products);
-		expect(mockGetAllItems).toHaveBeenCalledWith({ tableName });
+		expect(mockGetAllProducts).toHaveBeenCalledWith({});
 	});
 });
 
@@ -45,7 +51,7 @@ describe('refreshPrices', () => {
 		const other = buildProduct({
 			productMerchantUrl: 'https://www.johnlewis.com/p/3',
 		});
-		mockGetAllItems.mockResolvedValue([amazonCom, amazonCoUk, other]);
+		mockGetAllProducts.mockResolvedValue([amazonCom, amazonCoUk, other]);
 
 		await updater().refreshPrices();
 
@@ -57,7 +63,7 @@ describe('refreshPrices', () => {
 	});
 
 	it('writes the combined updated products back to the table', async () => {
-		mockGetAllItems.mockResolvedValue([
+		mockGetAllProducts.mockResolvedValue([
 			buildProduct({ productMerchantUrl: 'https://www.amazon.com/dp/1' }),
 			buildProduct({ productMerchantUrl: 'https://www.target.com/p/2' }),
 		]);
@@ -69,9 +75,8 @@ describe('refreshPrices', () => {
 
 		await updater().refreshPrices();
 
-		expect(mockBatchUpdateItems).toHaveBeenCalledWith({
+		expect(mockBatchUpdateProducts).toHaveBeenCalledWith({
 			items: [amazonUpdated, skimlinksUpdated],
-			tableName,
 		});
 	});
 });

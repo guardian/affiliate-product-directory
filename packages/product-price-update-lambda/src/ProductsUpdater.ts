@@ -1,5 +1,5 @@
-import { batchUpdateItems, getAllItems } from '@common/src/dynamoDB';
-import type { Product } from '@price-update/models';
+import type { DynamoService } from '@common/database-service';
+import type { Product } from '@common/models';
 import { AmazonPriceProvider } from '@price-update/price-providers/amazon/AmazonPriceProvider';
 import { SkimlinksPriceProvider } from '@price-update/price-providers/skimlinks/SkimlinksPriceProvider';
 
@@ -7,13 +7,10 @@ type Partner = 'amazon' | 'skimlinks';
 type CategorisedProducts = Record<Partner, Product[]>;
 
 export class ProductsUpdater {
-	private productTableName: string;
 	private amazon = new AmazonPriceProvider();
 	private skimlinks = new SkimlinksPriceProvider();
 
-	constructor({ productTableName }: { productTableName: string }) {
-		this.productTableName = productTableName;
-	}
+	constructor(private readonly dynamoService: DynamoService) {}
 
 	/**
 	 * This is the main entry point for updating the prices, it will get all products in the DB
@@ -27,14 +24,13 @@ export class ProductsUpdater {
 			this.skimlinks.refreshPrices(categorised.skimlinks),
 		]);
 
-		await batchUpdateItems({
+		await this.dynamoService.batchUpdateProducts({
 			items: [...amazonUpdated, ...skimlinksUpdated],
-			tableName: this.productTableName,
 		});
 	}
 
 	public async getProductsFromDB(): Promise<Product[]> {
-		return await getAllItems<Product>({ tableName: this.productTableName });
+		return await this.dynamoService.getAllProducts({});
 	}
 
 	private categoriseProducts(products: Product[]): CategorisedProducts {

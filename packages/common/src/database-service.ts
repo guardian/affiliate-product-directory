@@ -1,16 +1,23 @@
-import type { PutItemCommandInput } from '@aws-sdk/client-dynamodb';
+import type {
+	AttributeValue,
+	PutItemCommandInput,
+} from '@aws-sdk/client-dynamodb';
 import {
 	ConditionalCheckFailedException,
 	DynamoDBClient,
 	PutItemCommand,
 	QueryCommand,
+	ScanCommand,
 	UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
-import { dynamoConfig } from './aws-config';
+import { BatchWriteCommand } from '@aws-sdk/lib-dynamodb';
+import { dynamoConfig } from '@directory-update/aws-config';
 import {
 	type ExtractedDirectoryProduct,
 	getDirectoryArticleFromDynamoRecord,
-} from './models';
+} from '@directory-update/models';
+import { chunk } from '@common/chunk';
+import type { Product } from '@common/models';
 
 export class DynamoService {
 	constructor(
@@ -19,6 +26,60 @@ export class DynamoService {
 		private readonly articleTableName = `affiliate-product-directory-product-article-${stage}`,
 		private readonly client = new DynamoDBClient(dynamoConfig),
 	) {}
+
+	/**
+	 * Fetches all products from price table, recursing through pages until
+	 * there's no LastEvaluatedKey left.
+	 */
+	async getAllProducts<T>({
+		lastEvaluatedKey,
+	}: {
+		lastEvaluatedKey?: Record<string, AttributeValue>;
+	}): Promise<T[]> {
+		const response = await this.client.send(
+			new ScanCommand({
+				TableName: this.pricingTableName,
+				ExclusiveStartKey: lastEvaluatedKey,
+			}),
+		);
+
+		const items = response.Items as T[];
+
+		if (!response.LastEvaluatedKey) {
+			return items;
+		}
+
+		const remainingItems = await this.getAllProducts<T>({
+			lastEvaluatedKey: response.LastEvaluatedKey,
+		});
+		return [...items, ...remainingItems];
+	}
+
+	/**
+	 * Writes a batch of items to the table, chunking into groups of 25
+	 * (DynamoDB's BatchWriteItem limit). No retry on unprocessed items —
+	 * any that fail are just dropped for now.
+	 */
+	async batchUpdateProducts({ items }: { items: Product[] }): Promise<void> {
+		const BATCH_SIZE = 25;
+		const batches = chunk(items, BATCH_SIZE);
+
+		await Promise.all(
+			batches.map((batch) =>
+				this.client.send(
+					new BatchWriteCommand({
+						RequestItems: {
+							[this.pricingTableName]: batch.map((item) => ({
+								PutRequest: {
+									Item: item as unknown as Record<string, unknown>,
+								},
+							})),
+						},
+					}),
+				),
+			),
+		);
+	}
 
 	private async saveToDb(putItemCommand: PutItemCommandInput): Promise<void> {
 		try {

@@ -38,7 +38,7 @@ export default {
 			},
 			moduleNameMapper: {
 				'^@mocks/(.*)$': '<rootDir>/packages/mocks/$1',
-				'^@common/(.*)$': '<rootDir>/packages/common/$1',
+				'^@common/(.*)$': '<rootDir>/packages/common/src/$1',
 				'^@directory-update/(.*)$':
 					'<rootDir>/packages/product-directory-update-lambda/src/$1',
 				'^@price-update/(.*)$':

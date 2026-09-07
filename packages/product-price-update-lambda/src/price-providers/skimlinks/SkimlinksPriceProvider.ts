@@ -1,5 +1,5 @@
-import { groupByRegion, REGIONS } from '@price-update/models';
-import type { Product, Region } from '@price-update/models';
+import type { Product } from '@common/models';
+import { groupByRegion, type Region, REGIONS } from '@price-update/models';
 import { PriceProvider } from '@price-update/price-providers/PriceProvider';
 import {
 	getSkimlinksAccessToken,

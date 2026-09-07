@@ -1,7 +1,7 @@
+import type { DynamoService } from '@common/database-service';
 import { ContentType } from '@guardian/content-api-models/v1/contentType';
 import type { PollingResult } from './capi';
 import { callCAPI, PollingAction } from './capi';
-import type { DynamoService } from './database-service';
 import { handleContentUpdate } from './update-processor';
 
 async function retrieveContent(capiUrl: string): Promise<PollingResult> {

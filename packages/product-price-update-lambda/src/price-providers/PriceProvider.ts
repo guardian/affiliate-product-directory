@@ -1,4 +1,4 @@
-import type { Product } from '@price-update/models';
+import type { Product } from '@common/models';
 
 /**
  * Base class for an affiliate partner we fetch prices from (Skimlinks, Amazon, ...)
