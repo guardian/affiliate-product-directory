@@ -1,9 +1,9 @@
+import type { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb';
 import type {
-	DynamoDBClient,
-	PutItemCommand,
+	BatchWriteCommand,
+	DynamoDBDocumentClient,
 	ScanCommand,
-} from '@aws-sdk/client-dynamodb';
-import type { BatchWriteCommand } from '@aws-sdk/lib-dynamodb';
+} from '@aws-sdk/lib-dynamodb';
 import { jest } from '@jest/globals';
 import { buildProduct } from '@mocks/ProductFixtures';
 import { DynamoService } from './database-service';
@@ -88,7 +88,9 @@ describe('DynamoService', () => {
 	});
 
 	describe('getAllProducts', () => {
-		it('scans the pricing table and returns the items', async () => {
+		it('scans the pricing table and returns the unmarshalled items', async () => {
+			// The document client hands back plain JS objects, not the
+			// { S: ... } / { N: ... } attribute-value format.
 			const items = [buildProduct(), buildProduct()];
 			const send = jest
 				.fn<(command: ScanCommand) => Promise<object>>()
@@ -97,7 +99,8 @@ describe('DynamoService', () => {
 				'TEST',
 				'affiliate-product-directory-pricing-TEST',
 				'affiliate-product-directory-product-article-TEST',
-				{ send } as unknown as DynamoDBClient,
+				{} as unknown as DynamoDBClient,
+				{ send } as unknown as DynamoDBDocumentClient,
 			);
 
 			await expect(service.getAllProducts({})).resolves.toEqual(items);
@@ -124,7 +127,8 @@ describe('DynamoService', () => {
 				'TEST',
 				'affiliate-product-directory-pricing-TEST',
 				'affiliate-product-directory-product-article-TEST',
-				{ send } as unknown as DynamoDBClient,
+				{} as unknown as DynamoDBClient,
+				{ send } as unknown as DynamoDBDocumentClient,
 			);
 
 			await expect(service.getAllProducts({})).resolves.toEqual([

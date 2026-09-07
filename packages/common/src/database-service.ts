@@ -7,10 +7,13 @@ import {
 	DynamoDBClient,
 	PutItemCommand,
 	QueryCommand,
-	ScanCommand,
 	UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
-import { BatchWriteCommand } from '@aws-sdk/lib-dynamodb';
+import {
+	BatchWriteCommand,
+	DynamoDBDocumentClient,
+	ScanCommand,
+} from '@aws-sdk/lib-dynamodb';
 import { dynamoConfig } from '@directory-update/aws-config';
 import {
 	type ExtractedDirectoryProduct,
@@ -25,31 +28,33 @@ export class DynamoService {
 		private readonly pricingTableName = `affiliate-product-directory-pricing-${stage}`,
 		private readonly articleTableName = `affiliate-product-directory-product-article-${stage}`,
 		private readonly client = new DynamoDBClient(dynamoConfig),
+		private docClient?: DynamoDBDocumentClient,
 	) {}
 
 	/**
 	 * Fetches all products from price table, recursing through pages until
 	 * there's no LastEvaluatedKey left.
 	 */
-	async getAllProducts<T>({
+	async getAllProducts({
 		lastEvaluatedKey,
 	}: {
 		lastEvaluatedKey?: Record<string, AttributeValue>;
-	}): Promise<T[]> {
-		const response = await this.client.send(
+	}): Promise<Product[]> {
+		this.docClient ??= DynamoDBDocumentClient.from(this.client);
+		const response = await this.docClient.send(
 			new ScanCommand({
 				TableName: this.pricingTableName,
 				ExclusiveStartKey: lastEvaluatedKey,
 			}),
 		);
 
-		const items = response.Items as T[];
+		const items = response.Items as Product[];
 
 		if (!response.LastEvaluatedKey) {
 			return items;
 		}
 
-		const remainingItems = await this.getAllProducts<T>({
+		const remainingItems = await this.getAllProducts({
 			lastEvaluatedKey: response.LastEvaluatedKey,
 		});
 		return [...items, ...remainingItems];

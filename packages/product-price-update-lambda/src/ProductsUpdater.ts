@@ -43,13 +43,20 @@ export class ProductsUpdater {
 		]);
 
 		products.forEach((product) => {
-			const hostname = new URL(
-				product.productMerchantUrl,
-			).hostname.toLowerCase();
-			const partner: Partner = amazonHosts.has(hostname)
-				? 'amazon'
-				: 'skimlinks';
-			categorised[partner].push(product);
+			try {
+				const hostname = new URL(
+					product.productMerchantUrl,
+				).hostname.toLowerCase();
+				const partner: Partner = amazonHosts.has(hostname)
+					? 'amazon'
+					: 'skimlinks';
+				categorised[partner].push(product);
+			} catch {
+				console.log(
+					`Received invalid URL ${product.productMerchantUrl} - could not determine best affiliate partner`,
+				);
+				categorised['skimlinks'].push(product);
+			}
 		});
 
 		return categorised;
