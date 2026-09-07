@@ -1,9 +1,9 @@
+import { getCapiBaseUrl, getConfig } from '@common/src/config';
 import type { DeletedContent } from '@guardian/content-api-models/crier/event/v1/deletedContent';
 import { EventType } from '@guardian/content-api-models/crier/event/v1/eventType';
 import { ItemType } from '@guardian/content-api-models/crier/event/v1/itemType';
 import { ContentType } from '@guardian/content-api-models/v1/contentType';
 import { type Handler } from 'aws-lambda';
-import { getCapiBaseUrl, getConfig } from '../../common/src/config';
 import { DynamoService } from './database-service';
 import { deserializeEvent } from './deserialize';
 import type {
