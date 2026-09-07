@@ -3,7 +3,7 @@ import type { Config } from '@common/src/config';
 
 const defaultConfig: Config = {
 	stack: 'test-stack',
-	stage: 'CODE',
+	stage: 'TEST',
 	app: 'test-app',
 };
 
