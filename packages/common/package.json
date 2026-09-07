@@ -4,10 +4,7 @@
 	"type": "module",
 	"scripts": {
 		"test": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" npx jest --detectOpenHandles --config ../../jest.config.js --selectProjects lambda",
-		"start": "tsx --env-file=.env src/run-locally.ts",
-		"prebuild": "rm -rf dist",
-		"build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outdir=dist",
-		"postbuild": "cd dist && zip -r product-price-update-lambda.zip ."
+		"start": "tsx --env-file=.env src/run-locally.ts"
 	},
 	"devDependencies": {
 		"@aws-sdk/client-dynamodb": "^3.1123.0",
