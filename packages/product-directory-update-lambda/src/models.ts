@@ -25,6 +25,7 @@ export function getDirectoryArticleFromDynamoRecord(
 		productMerchantUrl: raw['productMerchantUrl']?.S ?? '',
 		articleUrl: raw['articleUrl']?.S ?? '',
 		composerArticleId: raw['composerArticleId']?.S,
+		removed: raw['removed']?.S === 'true',
 	};
 }
 
