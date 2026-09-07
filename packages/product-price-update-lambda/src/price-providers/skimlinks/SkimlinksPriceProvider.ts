@@ -1,4 +1,3 @@
-import { emitMetric } from '@common/src/metrics';
 import { groupByRegion, REGIONS } from '@price-update/models';
 import type { Product, Region } from '@price-update/models';
 import { PriceProvider } from '@price-update/price-providers/PriceProvider';
@@ -96,11 +95,12 @@ export class SkimlinksPriceProvider extends PriceProvider {
 			const match = productData[product.productMerchantUrl]?.[0];
 
 			if (!match) {
-				emitMetric('SkimlinksNoData');
+				// ToDo: investigate metrics in cloudwatch
+				console.log('SkimlinksNoData');
 				continue;
 			}
 
-			emitMetric('SkimlinksDataRetrieved');
+			console.log('SkimlinksDataRetrieved');
 			updated.push(
 				this.applyUpdate(product, {
 					price: match.price,
