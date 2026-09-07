@@ -58,7 +58,7 @@ export async function handleTakedown(
 ): Promise<number> {
 	const products = await dynamoService.getProductsInArticle(articleUrl);
 
-	console.log(`Found ${products.length} products`);
+	console.log(`Found ${products.length} products to remove after Takedown`);
 	await markProductsAsRemovedFromArticle(products, articleUrl, dynamoService);
 
 	return products.length;
