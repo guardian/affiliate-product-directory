@@ -1,7 +1,7 @@
+import { getConfig } from '@common/src/config';
+import { appName } from '@common/src/constants';
 import type { Handler } from 'aws-lambda';
-import { getConfig } from '../../common/src/config';
-import { appName } from '../../common/src/constants';
-import { ProductsUpdater } from './ProductsUpdater';
+import { ProductsUpdater } from '@price-update/ProductsUpdater';
 
 export async function main(): Promise<void> {
 	const { stage } = getConfig();

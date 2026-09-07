@@ -1,12 +1,17 @@
 import { jest } from '@jest/globals';
 import { mockGetParametersCommand, mockSend } from '../../mocks/SSMmock';
-import { getParametersFromParameterStore } from './parameterStore';
+import type { getParametersFromParameterStore as GetParametersFromParameterStore } from './parameterStore';
 
 afterEach(() => {
 	mockSend.mockReset();
 });
 
 describe('getParametersFromParameterStore', () => {
+	let getParametersFromParameterStore: typeof GetParametersFromParameterStore;
+
+	beforeAll(async () => {
+		({ getParametersFromParameterStore } = await import('./parameterStore'));
+	});
 	beforeEach(() => {
 		jest.clearAllMocks();
 	});

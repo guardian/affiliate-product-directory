@@ -1,7 +1,7 @@
-import { batchUpdateItems, getAllItems } from '../../common/src/dynamoDB';
-import type { Product } from './models';
-import { AmazonPriceProvider } from './price-providers/amazon/AmazonPriceProvider';
-import { SkimlinksPriceProvider } from './price-providers/skimlinks/SkimlinksPriceProvider';
+import { batchUpdateItems, getAllItems } from '@common/src/dynamoDB';
+import type { Product } from '@price-update/models';
+import { AmazonPriceProvider } from '@price-update/price-providers/amazon/AmazonPriceProvider';
+import { SkimlinksPriceProvider } from '@price-update/price-providers/skimlinks/SkimlinksPriceProvider';
 
 type Partner = 'amazon' | 'skimlinks';
 type CategorisedProducts = Record<Partner, Product[]>;

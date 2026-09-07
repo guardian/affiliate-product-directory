@@ -1,11 +1,11 @@
-import { emitMetric } from '../../../../common/src/metrics';
-import { groupByRegion, REGIONS } from '../../models';
-import type { Product, Region } from '../../models';
-import { PriceProvider } from '../PriceProvider';
+import { emitMetric } from '@common/src/metrics';
+import { groupByRegion, REGIONS } from '@price-update/models';
+import type { Product, Region } from '@price-update/models';
+import { PriceProvider } from '@price-update/price-providers/PriceProvider';
 import {
 	getSkimlinksAccessToken,
 	getSkimlinksCredentials,
-} from './skimlinksAuth';
+} from '@price-update/price-providers/skimlinks/skimlinksAuth';
 
 export class SkimlinksPriceProvider extends PriceProvider {
 	protected readonly name = 'skimlinks';

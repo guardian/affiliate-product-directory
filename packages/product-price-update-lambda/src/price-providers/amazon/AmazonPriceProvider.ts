@@ -1,5 +1,5 @@
-import type { Product } from '../../models';
-import { PriceProvider } from '../PriceProvider';
+import type { Product } from '@price-update/models';
+import { PriceProvider } from '@price-update/price-providers/PriceProvider';
 
 export class AmazonPriceProvider extends PriceProvider {
 	protected readonly name = 'amazon';

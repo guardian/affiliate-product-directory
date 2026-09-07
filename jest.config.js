@@ -37,6 +37,12 @@ export default {
 				'^.+\\.tsx?$': esmTsTransform,
 			},
 			moduleNameMapper: {
+				'^@mocks/(.*)$': '<rootDir>/packages/mocks/$1',
+				'^@common/(.*)$': '<rootDir>/packages/common/$1',
+				'^@directory-update/(.*)$':
+					'<rootDir>/packages/product-directory-update-lambda/src/$1',
+				'^@price-update/(.*)$':
+					'<rootDir>/packages/product-price-update-lambda/src/$1',
 				'^(\\.{1,2}/.*)\\.js$': '$1',
 			},
 			testMatch: [

@@ -1,7 +1,7 @@
-import { getConfig } from '../../../../common/src/config';
-import { appName } from '../../../../common/src/constants';
-import { getParametersFromParameterStore } from '../../../../common/src/parameterStore';
-import type { Region } from '../../models';
+import { getConfig } from '@common/src/config';
+import { appName } from '@common/src/constants';
+import { getParametersFromParameterStore } from '@common/src/parameterStore';
+import type { Region } from '@price-update/models';
 
 const config = getConfig();
 const commonPath = `/${config.stage}/${config.stack}/${appName}/skimlinks`;
