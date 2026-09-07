@@ -2,29 +2,16 @@ import type { Content } from '@guardian/content-api-models/v1/content';
 import { ContentType } from '@guardian/content-api-models/v1/contentType';
 import type { DynamoService } from './database-service';
 import { extractAllProductsFromArticle } from './extract-products';
+import { markProductsAsRemovedFromArticle } from './product-remover';
 import { isFilterArticleByTags } from './tag-utils';
 
 export function getRemovedProducts(
 	newProducts: string[],
 	storedProducts: string[],
-) {
+): string[] {
 	return storedProducts.filter(
 		(storedProduct) => !newProducts.includes(storedProduct),
 	);
-}
-
-async function markProductAsRemoved(
-	removedProductUrl: string,
-	shouldRemoveFromPricingTable: boolean,
-	articleUrl: string,
-	dynamoService: DynamoService,
-): Promise<void> {
-	await Promise.all([
-		dynamoService.markProductAsRemovedInArticle(removedProductUrl, articleUrl),
-		shouldRemoveFromPricingTable
-			? dynamoService.markPricingProductAsRemoved(removedProductUrl)
-			: Promise.resolve(),
-	]);
 }
 
 export async function handleContentUpdate({
@@ -55,28 +42,12 @@ export async function handleContentUpdate({
 			storedProductsForArticle,
 		);
 
-		// Determine if it needs to be marked removed in the pricing table
-		const productsToMarkRemoved = await Promise.all(
-			removedProducts.map(async (removedProductUrl) => {
-				const productArticles =
-					await dynamoService.getArticlesForProduct(removedProductUrl);
-				return {
-					removedProductUrl,
-					shouldRemoveFromPricingTable: productArticles.length <= 1,
-				};
-			}),
-		);
-
 		await Promise.all([
 			...productsInContent.map((product) => dynamoService.saveProduct(product)),
-			...productsToMarkRemoved.map(
-				({ removedProductUrl, shouldRemoveFromPricingTable }) =>
-					markProductAsRemoved(
-						removedProductUrl,
-						shouldRemoveFromPricingTable,
-						articleUrl,
-						dynamoService,
-					),
+			markProductsAsRemovedFromArticle(
+				removedProducts,
+				articleUrl,
+				dynamoService,
 			),
 		]);
 		return productsInContent.length;

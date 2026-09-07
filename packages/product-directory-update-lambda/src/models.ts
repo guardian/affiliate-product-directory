@@ -27,3 +27,14 @@ export function getDirectoryArticleFromDynamoRecord(
 		composerArticleId: raw['composerArticleId']?.S,
 	};
 }
+
+export function getArticleProductFromDynamoRecord(
+	raw: Record<string, AttributeValue>,
+): DirectoryArticleProductTableEntry {
+	return {
+		productMerchantUrl: raw['productMerchantUrl']?.S ?? '',
+		articleUrl: raw['articleUrl']?.S ?? '',
+		composerArticleId: raw['composerArticleId']?.S ?? '',
+		removed: raw['removed']?.S === 'true',
+	};
+}

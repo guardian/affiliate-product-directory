@@ -4,6 +4,7 @@ import {
 	DynamoDBClient,
 	PutItemCommand,
 	QueryCommand,
+	ReturnValue,
 	UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
 import { dynamoConfig } from './aws-config';
@@ -102,44 +103,39 @@ export class DynamoService {
 	}
 
 	async markPricingProductAsRemoved(productMerchantUrl: string): Promise<void> {
-		await Promise.all([
-			this.client.send(
-				new UpdateItemCommand({
-					TableName: this.pricingTableName,
-					Key: {
-						productMerchantUrl: { S: productMerchantUrl },
-					},
-					UpdateExpression:
-						'SET removed = :removed, removedDate = :removedDate',
-					ExpressionAttributeValues: {
-						':removed': { S: 'true' },
-						':removedDate': { N: Date.now().toString() },
-					},
-				}),
-			),
-		]);
+		await this.client.send(
+			new UpdateItemCommand({
+				TableName: this.pricingTableName,
+				Key: {
+					productMerchantUrl: { S: productMerchantUrl },
+				},
+				UpdateExpression: 'SET removed = :removed, removedDate = :removedDate',
+				ExpressionAttributeValues: {
+					':removed': { S: 'true' },
+					':removedDate': { N: Date.now().toString() },
+				},
+			}),
+		);
 	}
 
 	async markProductAsRemovedInArticle(
 		productMerchantUrl: string,
 		articleUrl: string,
 	): Promise<void> {
-		await Promise.all([
-			this.client.send(
-				new UpdateItemCommand({
-					TableName: this.articleTableName,
-					Key: {
-						productMerchantUrl: { S: productMerchantUrl },
-						articleUrl: { S: articleUrl },
-					},
-					UpdateExpression:
-						'SET removed = :removed, removedDate = :removedDate',
-					ExpressionAttributeValues: {
-						':removed': { S: 'true' },
-						':removedDate': { N: Date.now().toString() },
-					},
-				}),
-			),
-		]);
+		await this.client.send(
+			new UpdateItemCommand({
+				TableName: this.articleTableName,
+				Key: {
+					productMerchantUrl: { S: productMerchantUrl },
+					articleUrl: { S: articleUrl },
+				},
+				UpdateExpression: 'SET removed = :removed, removedDate = :removedDate',
+				ExpressionAttributeValues: {
+					':removed': { S: 'true' },
+					':removedDate': { N: Date.now().toString() },
+				},
+				ReturnValues: ReturnValue.ALL_OLD,
+			}),
+		);
 	}
 }
