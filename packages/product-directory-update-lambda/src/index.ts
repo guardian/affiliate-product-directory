@@ -109,9 +109,7 @@ async function processRecord({
 		}
 		return 0; //if we get here, no action was taken
 	} catch (err) {
-		console.error(
-			`ERROR Could not process data from Kinesis: ${(err as Error).toString()}`,
-		);
+		console.error(`ERROR Could not process data: ${(err as Error).toString()}`);
 		throw err;
 	}
 }

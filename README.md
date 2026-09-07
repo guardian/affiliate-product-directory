@@ -69,6 +69,11 @@ Areas to include:
 
 The project consists of Typescript lambdas and DynamoDB tables.
 
+### `product-directory-update-lambda`
+
+This lambda is responsible for handling updates that add or remove products within articles.  
+See its [README](packages/product-directory-update-lambda//README.md) for more detail.
+
 ## 4. Useful Links
 
 <!---
