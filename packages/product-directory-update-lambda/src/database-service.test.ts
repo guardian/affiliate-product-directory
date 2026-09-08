@@ -7,9 +7,9 @@ import type {
 	DynamoDBDocumentClient,
 	ScanCommand,
 } from '@aws-sdk/lib-dynamodb';
+import { DynamoService } from '@common/database-service';
 import { jest } from '@jest/globals';
 import { buildProduct } from '@mocks/ProductFixtures';
-import { DynamoService } from './database-service';
 
 describe('DynamoService', () => {
 	it('saves a product to the pricing and product-article tables', async () => {
