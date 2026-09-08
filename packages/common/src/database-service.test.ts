@@ -9,7 +9,7 @@ import type {
 } from '@aws-sdk/lib-dynamodb';
 import { jest } from '@jest/globals';
 import { buildProduct } from '@mocks/ProductFixtures';
-import { DynamoService } from './database-service';
+import { DynamoService } from '@common/database-service';
 
 describe('DynamoService', () => {
 	it('saves a product to the pricing and product-article tables', async () => {
