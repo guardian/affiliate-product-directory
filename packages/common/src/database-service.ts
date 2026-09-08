@@ -76,7 +76,7 @@ export class DynamoService {
 						RequestItems: {
 							[this.pricingTableName]: batch.map((item) => ({
 								PutRequest: {
-									Item: item as unknown as Record<string, unknown>,
+									Item: item,
 								},
 							})),
 						},
