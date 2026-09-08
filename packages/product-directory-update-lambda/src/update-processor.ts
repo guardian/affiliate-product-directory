@@ -1,6 +1,6 @@
+import type { DynamoService } from '@common/database-service';
 import type { Content } from '@guardian/content-api-models/v1/content';
 import { ContentType } from '@guardian/content-api-models/v1/contentType';
-import type { DynamoService } from './database-service';
 import { extractAllProductsFromArticle } from './extract-products';
 import { markProductsAsRemovedFromArticle } from './product-remover';
 import { isFilterArticleByTags } from './tag-utils';

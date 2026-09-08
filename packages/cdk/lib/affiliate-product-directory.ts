@@ -2,71 +2,49 @@ import type { GuStackProps } from '@guardian/cdk/lib/constructs/core';
 import { GuParameter, GuStack } from '@guardian/cdk/lib/constructs/core';
 import { GuDynamoTable } from '@guardian/cdk/lib/constructs/dynamodb/index';
 import {
+	GuAllowPolicy,
 	GuDynamoDBReadPolicy,
 	GuDynamoDBWritePolicy,
 } from '@guardian/cdk/lib/constructs/iam';
 import { GuLambdaFunction } from '@guardian/cdk/lib/constructs/lambda';
+import { GuScheduledLambda } from '@guardian/cdk/lib/patterns/scheduled-lambda';
 import { type App, aws_events_targets } from 'aws-cdk-lib';
 import { AttributeType, BillingMode } from 'aws-cdk-lib/aws-dynamodb';
 import { EventBus, Rule } from 'aws-cdk-lib/aws-events';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
+import { appName } from '../../common/src/constants';
 import { CrierEventbridge } from './crier-eventbridge';
 
 export class AffiliateProductDirectory extends GuStack {
 	constructor(scope: App, id: string, props: GuStackProps) {
 		super(scope, id, props);
 		const { stage } = this;
-		const appName = 'affiliate-product-directory';
 
 		const capiKeyParam = new GuParameter(this, 'capiKey', {
 			fromSSM: true,
 			default: `/${this.stage}/${this.stack}/${appName}/capi-key`,
 		});
 
-		/**
-		 * A GuLambdaFunction comes with the following batteries included:
-		 *   - IAM permissions to read from SSM Parameter store
-		 *   - STACK, STAGE, APP environment variables
-		 *
-		 * @see The `__snapshots__` directory for more.
-		 */
-		const priceUpdateLambda = new GuLambdaFunction(
+		const priceUpdateLambda = new GuScheduledLambda(
 			this,
 			'ProductPriceUpdateLambda',
 			{
-				/**
-				 * This becomes the value of the APP tag on provisioned resources.
-				 */
 				app: 'product-price-update-lambda',
-
-				/**
-				 * This is the name of artifact in S3.
-				 */
 				fileName: 'product-price-update-lambda.zip',
-
-				/**
-				 * The format of this is `<filename>.<exported function>`.
-				 *
-				 * The file `packages/lambda/src/index.ts` has an exported function named `main`.
-				 */
-				handler: 'index.main',
-
-				/**
-				 * The runtime of the lambda function.
-				 *
-				 * Should align with `.nvmrc` at the root of the repository.
-				 */
+				handler: 'index.eventHandler',
 				runtime: Runtime.NODEJS_22_X,
-
-				/**
-				 * The architecture of the lambda function.
-				 *
-				 * Arm64 is preferred as it's more performant, and cheaper than x86_64.
-				 *
-				 * @see https://aws.amazon.com/blogs/aws/aws-lambda-functions-powered-by-aws-graviton2-processor-run-your-functions-on-arm-and-get-up-to-34-better-price-performance/
-				 */
 				architecture: Architecture.ARM_64,
+				// Used for defining cron job execution
+				rules: [
+					// {
+					// 	schedule: Schedule.cron({ minute: '0', hour: '2' }),
+					// 	description: 'Product price update lambda',
+					// 	input: undefined,
+					// },
+				],
+				// ToDo: we should add monitoring as part of observability and alarming
+				monitoringConfiguration: { noMonitoring: true },
 			},
 		);
 
@@ -157,12 +135,26 @@ export class AffiliateProductDirectory extends GuStack {
 			},
 		);
 
-		priceUpdateLambda.role?.attachInlinePolicy(
+		const skimlinksParameterStoreReadPolicy = new GuAllowPolicy(
+			this,
+			'SkimlinksParameterStoreReadPolicy',
+			{
+				actions: [
+					'ssm:GetParameter',
+					'ssm:GetParameters',
+					'ssm:GetParametersByPath',
+				],
+				resources: [
+					`arn:aws:ssm:${this.region}:${this.account}:parameter/CODE/frontend/${appName}/skimlinks/*`,
+				],
+			},
+		);
+
+		[
 			productPricingDynamoDBReadPolicy,
-		);
-		priceUpdateLambda.role?.attachInlinePolicy(
 			productPricingDynamoDBWritePolicy,
-		);
+			skimlinksParameterStoreReadPolicy,
+		].forEach((policy) => priceUpdateLambda.role?.attachInlinePolicy(policy));
 
 		[
 			productPricingDynamoDBReadPolicy,

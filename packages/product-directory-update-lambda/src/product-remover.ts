@@ -1,4 +1,4 @@
-import type { DynamoService } from './database-service';
+import type { DynamoService } from '@common/database-service';
 
 type ProductToRemove = {
 	url: string;

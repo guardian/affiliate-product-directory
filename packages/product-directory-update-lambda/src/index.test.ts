@@ -17,7 +17,7 @@ const mockDynamoService = {};
 const mockHandleTakedown = jest.fn().mockReturnValue(1);
 const mockHandleContentUpdate = jest.fn().mockReturnValue(1);
 
-jest.unstable_mockModule('./database-service', () => ({
+jest.unstable_mockModule('@common/database-service', () => ({
 	DynamoService: jest.fn(() => mockDynamoService),
 }));
 
