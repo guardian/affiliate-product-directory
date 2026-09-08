@@ -1,7 +1,4 @@
-import type {
-	AttributeValue,
-	PutItemCommandInput,
-} from '@aws-sdk/client-dynamodb';
+import type { AttributeValue } from '@aws-sdk/client-dynamodb';
 import {
 	ConditionalCheckFailedException,
 	DynamoDBClient,
@@ -28,7 +25,7 @@ export class DynamoService {
 		private readonly pricingTableName = `affiliate-product-directory-pricing-${stage}`,
 		private readonly articleTableName = `affiliate-product-directory-product-article-${stage}`,
 		private readonly client = new DynamoDBClient(dynamoConfig),
-		private docClient?: DynamoDBDocumentClient,
+		private readonly docClient = DynamoDBDocumentClient.from(client),
 	) {}
 
 	/**
@@ -40,7 +37,6 @@ export class DynamoService {
 	}: {
 		lastEvaluatedKey?: Record<string, AttributeValue>;
 	}): Promise<Product[]> {
-		this.docClient ??= DynamoDBDocumentClient.from(this.client);
 		const response = await this.docClient.send(
 			new ScanCommand({
 				TableName: this.pricingTableName,
@@ -71,7 +67,7 @@ export class DynamoService {
 
 		await Promise.all(
 			batches.map((batch) =>
-				this.client.send(
+				this.docClient.send(
 					new BatchWriteCommand({
 						RequestItems: {
 							[this.pricingTableName]: batch.map((item) => ({

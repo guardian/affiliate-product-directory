@@ -1,5 +1,11 @@
 import type { Product } from '@common/models';
-import { groupByRegion, type Region, REGIONS } from '@price-update/models';
+import type { SkimlinksProductsResponse } from '@price-update/models';
+import {
+	groupByRegion,
+	type Region,
+	REGIONS,
+	SkimlinksProductsResponseSchema,
+} from '@price-update/models';
 import { PriceProvider } from '@price-update/price-providers/PriceProvider';
 import {
 	getSkimlinksAccessToken,
@@ -18,11 +24,11 @@ export class SkimlinksPriceProvider extends PriceProvider {
 
 	private async fetchProductData(
 		products: Product[],
-	): Promise<SkimlinksProductData> {
+	): Promise<SkimlinksProductsResponse['results']> {
 		const { publisherId, publisherDomainId } = await getSkimlinksCredentials();
 		const accessToken = await getSkimlinksAccessToken();
 		const byRegion = groupByRegion(products);
-		const productData: SkimlinksProductData = {};
+		const productData: SkimlinksProductsResponse['results'] = {};
 
 		for (const region of REGIONS) {
 			for (const batch of this.chunk(byRegion[region], this.batchSize)) {
@@ -53,18 +59,21 @@ export class SkimlinksPriceProvider extends PriceProvider {
 		publisherId: string;
 		publisherDomainId: string;
 		accessToken: string;
-	}): Promise<SkimlinksProductData> {
+	}): Promise<SkimlinksProductsResponse['results']> {
+		const params = new URLSearchParams({
+			access_token: accessToken,
+			publisher_domain_id: publisherDomainId,
+			exclude_domains: '',
+			referrer_url: 'theguardian.com',
+			per_merchant_limit: '1',
+			country_code: COUNTRY_CODE[region],
+			product_id_type: 'asin',
+			alternatives_size: '0',
+		});
+
 		const endpoint = new URL(
-			`https://products.skimapis.com/v1/publisher/${publisherId}/products`,
+			`https://products.skimapis.com/v1/publisher/${publisherId}/products?${params}`,
 		);
-		endpoint.searchParams.set('access_token', accessToken);
-		endpoint.searchParams.set('publisher_domain_id', publisherDomainId);
-		endpoint.searchParams.set('exclude_domains', '');
-		endpoint.searchParams.set('referrer_url', 'theguardian.com');
-		endpoint.searchParams.set('per_merchant_limit', '1');
-		endpoint.searchParams.set('country_code', COUNTRY_CODE[region]);
-		endpoint.searchParams.set('product_id_type', 'asin');
-		endpoint.searchParams.set('alternatives_size', '0');
 
 		const { results } = await this.withRetry(async () => {
 			const response = await fetch(endpoint, {
@@ -79,7 +88,7 @@ export class SkimlinksPriceProvider extends PriceProvider {
 					`Skimlinks products request failed: ${response.status} ${response.statusText}`,
 				);
 			}
-			return (await response.json()) as SkimlinksProductsResponse;
+			return SkimlinksProductsResponseSchema.parse(await response.json());
 		});
 
 		return results;
@@ -87,7 +96,7 @@ export class SkimlinksPriceProvider extends PriceProvider {
 
 	private updateProducts(
 		products: Product[],
-		productData: SkimlinksProductData,
+		productData: SkimlinksProductsResponse['results'],
 	): Product[] {
 		const updated: Product[] = [];
 
@@ -113,11 +122,4 @@ export class SkimlinksPriceProvider extends PriceProvider {
 	}
 }
 
-type SkimlinksMatch = {
-	input_url: string;
-	price: number;
-	currency: string;
-};
-type SkimlinksProductData = Record<string, SkimlinksMatch[]>;
-type SkimlinksProductsResponse = { results: SkimlinksProductData };
 const COUNTRY_CODE: Record<Region, string> = { UK: 'GB', US: 'US' };

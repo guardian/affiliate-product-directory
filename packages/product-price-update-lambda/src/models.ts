@@ -1,4 +1,5 @@
 import type { Product } from '@common/models';
+import { z } from 'zod';
 
 export type Region = 'UK' | 'US';
 
@@ -16,3 +17,17 @@ export const groupByRegion = (
 	}
 	return byRegion;
 };
+
+const SkimlinksMatchSchema = z.object({
+	input_url: z.string(),
+	price: z.number(),
+	currency: z.string(),
+});
+export const SkimlinksProductsResponseSchema = z.object({
+	results: z.record(z.string(), z.array(SkimlinksMatchSchema)),
+});
+
+export type SkimlinksMatch = z.infer<typeof SkimlinksMatchSchema>;
+export type SkimlinksProductsResponse = z.infer<
+	typeof SkimlinksProductsResponseSchema
+>;

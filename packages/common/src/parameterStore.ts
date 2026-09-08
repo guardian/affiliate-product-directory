@@ -23,9 +23,13 @@ export async function getParametersFromParameterStore(
 	}
 
 	return Object.fromEntries(
-		(response.Parameters ?? []).map((p) => [
-			p.Name as string,
-			p.Value as string,
-		]),
+		(response.Parameters ?? []).map((p) => {
+			if (!p.Name || !p.Value) {
+				throw new Error(
+					`Received a parameter with a missing Name or Value: ${JSON.stringify(p)}`,
+				);
+			}
+			return [p.Name, p.Value];
+		}),
 	);
 }

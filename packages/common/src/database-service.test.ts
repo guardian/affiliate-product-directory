@@ -21,6 +21,7 @@ describe('DynamoService', () => {
 			'affiliate-product-directory-pricing-TEST',
 			'affiliate-product-directory-product-article-TEST',
 			{ send } as unknown as DynamoDBClient,
+			{} as unknown as DynamoDBDocumentClient,
 		);
 
 		await service.saveProduct({
@@ -96,6 +97,7 @@ describe('DynamoService', () => {
 			'affiliate-product-directory-pricing-TEST',
 			'affiliate-product-directory-product-article-TEST',
 			{ send } as unknown as DynamoDBClient,
+			{} as unknown as DynamoDBDocumentClient,
 		);
 
 		await expect(
@@ -183,7 +185,8 @@ describe('DynamoService', () => {
 				'TEST',
 				'affiliate-product-directory-pricing-TEST',
 				'affiliate-product-directory-product-article-TEST',
-				{ send } as unknown as DynamoDBClient,
+				{} as unknown as DynamoDBClient,
+				{ send } as unknown as DynamoDBDocumentClient,
 			);
 
 			await service.batchUpdateProducts({ items });
@@ -210,7 +213,8 @@ describe('DynamoService', () => {
 				'TEST',
 				'affiliate-product-directory-pricing-TEST',
 				'affiliate-product-directory-product-article-TEST',
-				{ send } as unknown as DynamoDBClient,
+				{} as unknown as DynamoDBClient,
+				{ send } as unknown as DynamoDBDocumentClient,
 			);
 
 			await service.batchUpdateProducts({ items });
@@ -231,7 +235,8 @@ describe('DynamoService', () => {
 				'TEST',
 				'affiliate-product-directory-pricing-TEST',
 				'affiliate-product-directory-product-article-TEST',
-				{ send } as unknown as DynamoDBClient,
+				{} as unknown as DynamoDBClient,
+				{ send } as unknown as DynamoDBDocumentClient,
 			);
 
 			await expect(
