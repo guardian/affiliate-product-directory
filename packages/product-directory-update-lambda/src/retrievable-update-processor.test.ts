@@ -1,9 +1,9 @@
+import type { DynamoService } from '@common/database-service';
 import type { RetrievableContent } from '@guardian/content-api-models/crier/event/v1/retrievableContent';
 import type { Content } from '@guardian/content-api-models/v1/content';
 import { ContentType } from '@guardian/content-api-models/v1/contentType';
 import { jest } from '@jest/globals';
 import type * as CapiModule from './capi';
-import type { DynamoService } from './database-service';
 import type * as RetrievableUpdateProcessor from './retrievable-update-processor';
 import type * as UpdateProcessor from './update-processor';
 

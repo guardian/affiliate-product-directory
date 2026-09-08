@@ -1,10 +1,9 @@
-import type { DeletedContent } from '@guardian/content-api-models/crier/event/v1/deletedContent';
+import { getCapiBaseUrl, getConfig } from '@common/config';
+import { DynamoService } from '@common/database-service';
 import { EventType } from '@guardian/content-api-models/crier/event/v1/eventType';
 import { ItemType } from '@guardian/content-api-models/crier/event/v1/itemType';
 import { ContentType } from '@guardian/content-api-models/v1/contentType';
 import { type Handler } from 'aws-lambda';
-import { getCapiBaseUrl, getConfig } from './config';
-import { DynamoService } from './database-service';
 import { deserializeEvent } from './deserialize';
 import type {
 	BackfillEventBridgeEvent,
@@ -16,6 +15,7 @@ import {
 	ContentUpdateEventDetail,
 	type CrierEventBridgeEvent,
 } from './eventbridge-models';
+import { handleTakedown } from './product-remover';
 import { handleContentUpdateByCapiUrl } from './retrievable-update-processor';
 import { handleContentUpdate } from './update-processor';
 
@@ -72,8 +72,7 @@ async function processRecord({
 		);
 		switch (evt.eventType) {
 			case EventType.DELETE:
-				// ToDo: do nothing to the product price table but remove an article from the product-article table
-				return 0;
+				return await handleTakedown(evt.payloadId, dynamoService);
 			case EventType.UPDATE:
 			case EventType.RETRIEVABLEUPDATE:
 				switch (evt.payload?.kind) {
@@ -97,9 +96,6 @@ async function processRecord({
 							dynamoService,
 						});
 					}
-					case 'deletedContent': {
-						return handleDeletedContent(evt.payload.deletedContent);
-					}
 					default:
 						break;
 				}
@@ -109,9 +105,7 @@ async function processRecord({
 		}
 		return 0; //if we get here, no action was taken
 	} catch (err) {
-		console.error(
-			`ERROR Could not process data from Kinesis: ${(err as Error).toString()}`,
-		);
+		console.error(`ERROR Could not process data: ${(err as Error).toString()}`);
 		throw err;
 	}
 }
@@ -144,9 +138,4 @@ async function processBackfillRecord({
 	console.log(`Backfilled ${eventDetail.articleIds.length} articles`);
 
 	return totalCount;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- not yet implemented
-function handleDeletedContent(deletedContent: DeletedContent): number {
-	throw new Error('Function not implemented.');
 }
