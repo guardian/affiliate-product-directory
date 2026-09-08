@@ -1,5 +1,6 @@
 import { jest } from '@jest/globals';
 import { buildProduct } from '@mocks/ProductFixtures';
+import { ZodError } from 'zod';
 import type * as SkimlinksAuthModule from './skimlinksAuth';
 import type * as SkimlinksPriceProviderModule from './SkimlinksPriceProvider';
 
@@ -94,6 +95,29 @@ describe('refreshPrices', () => {
 			updatedBy: 'skimlinks',
 		});
 		expect(updated!.updatedAt).toBeGreaterThan(staleUpdatedAt);
+	});
+
+	it('throws if payload is on unexpected shape', async () => {
+		const staleUpdatedAt = Date.now() - 60_000;
+		const product = buildProduct({
+			productMerchantUrl: 'https://johnlewis.com/p/1',
+			region: 'UK',
+			price: 10,
+			currency: 'GBP',
+			updatedAt: staleUpdatedAt,
+		});
+		mockFetch.mockResolvedValue(
+			jsonResponse({
+				results: {
+					'https://johnlewis.com/p/1': [
+						{ input_url: 'url1', price: 25, currency: 'madeup' },
+						{ input_urla: 'url1', price: 25, currency: 'madeup' },
+					],
+				},
+			}),
+		);
+
+		await expect(provider().refreshPrices([product])).rejects.toThrow(ZodError);
 	});
 
 	it('skips products the API returns no data for', async () => {
