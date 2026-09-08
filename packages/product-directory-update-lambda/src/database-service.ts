@@ -1,9 +1,8 @@
-import type { PutItemCommandInput } from '@aws-sdk/client-dynamodb';
 import {
 	ConditionalCheckFailedException,
 	DynamoDBClient,
-	PutItemCommand,
 	QueryCommand,
+	ReturnValue,
 	UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
 import { dynamoConfig } from './aws-config';
@@ -20,12 +19,12 @@ export class DynamoService {
 		private readonly client = new DynamoDBClient(dynamoConfig),
 	) {}
 
-	private async saveToDb(putItemCommand: PutItemCommandInput): Promise<void> {
+	private async saveToDb(command: UpdateItemCommand): Promise<void> {
 		try {
-			await this.client.send(new PutItemCommand(putItemCommand));
+			await this.client.send(command);
 		} catch (err) {
 			if (err instanceof ConditionalCheckFailedException) {
-				// item already exists; treat as a successful no-op
+				// item already exists
 			} else {
 				throw err;
 			}
@@ -40,23 +39,53 @@ export class DynamoService {
 		console.log(`Saving product-article data: ${JSON.stringify(article)}`);
 
 		await Promise.all([
-			this.saveToDb({
-				TableName: this.pricingTableName,
-				Item: {
-					productMerchantUrl: { S: pricing.productMerchantUrl },
-					region: { S: pricing.region },
-				},
-				ConditionExpression: 'attribute_not_exists(productMerchantUrl)',
-			}),
-			this.saveToDb({
-				TableName: this.articleTableName,
-				Item: {
-					productMerchantUrl: { S: article.productMerchantUrl },
-					articleUrl: { S: article.articleUrl },
-					composerArticleId: { S: article.composerArticleId ?? '' },
-				},
-				ConditionExpression: 'attribute_not_exists(productMerchantUrl)',
-			}),
+			this.saveToDb(
+				// We use an Update command so we can un-soft delete entries in the same operation
+				new UpdateItemCommand({
+					TableName: this.pricingTableName,
+					Key: {
+						productMerchantUrl: { S: pricing.productMerchantUrl },
+					},
+					UpdateExpression:
+						'SET #region = :region REMOVE #removed, #removedDate',
+					ExpressionAttributeNames: {
+						'#region': 'region',
+						'#removed': 'removed',
+						'#removedDate': 'removedDate',
+					},
+					ExpressionAttributeValues: {
+						':region': { S: pricing.region },
+						':removed': { S: 'true' },
+					},
+					// Only add new entries or modify entries marked as removed
+					ConditionExpression:
+						'attribute_not_exists(productMerchantUrl) OR #removed = :removed',
+				}),
+			),
+			this.saveToDb(
+				new UpdateItemCommand({
+					TableName: this.articleTableName,
+					Key: {
+						productMerchantUrl: { S: article.productMerchantUrl },
+						articleUrl: { S: article.articleUrl },
+					},
+					UpdateExpression:
+						'SET #composerArticleId = :composerArticleId REMOVE #removed, #removedDate',
+					ExpressionAttributeNames: {
+						'#composerArticleId': 'composerArticleId',
+						'#removed': 'removed',
+						'#removedDate': 'removedDate',
+					},
+					ExpressionAttributeValues: {
+						':composerArticleId': {
+							S: article.composerArticleId ?? '',
+						},
+						':removed': { S: 'true' },
+					},
+					ConditionExpression:
+						'attribute_not_exists(productMerchantUrl) OR #removed = :removed',
+				}),
+			),
 		]);
 	}
 
@@ -102,44 +131,39 @@ export class DynamoService {
 	}
 
 	async markPricingProductAsRemoved(productMerchantUrl: string): Promise<void> {
-		await Promise.all([
-			this.client.send(
-				new UpdateItemCommand({
-					TableName: this.pricingTableName,
-					Key: {
-						productMerchantUrl: { S: productMerchantUrl },
-					},
-					UpdateExpression:
-						'SET removed = :removed, removedDate = :removedDate',
-					ExpressionAttributeValues: {
-						':removed': { S: 'true' },
-						':removedDate': { N: Date.now().toString() },
-					},
-				}),
-			),
-		]);
+		await this.client.send(
+			new UpdateItemCommand({
+				TableName: this.pricingTableName,
+				Key: {
+					productMerchantUrl: { S: productMerchantUrl },
+				},
+				UpdateExpression: 'SET removed = :removed, removedDate = :removedDate',
+				ExpressionAttributeValues: {
+					':removed': { S: 'true' },
+					':removedDate': { N: Date.now().toString() },
+				},
+			}),
+		);
 	}
 
 	async markProductAsRemovedInArticle(
 		productMerchantUrl: string,
 		articleUrl: string,
 	): Promise<void> {
-		await Promise.all([
-			this.client.send(
-				new UpdateItemCommand({
-					TableName: this.articleTableName,
-					Key: {
-						productMerchantUrl: { S: productMerchantUrl },
-						articleUrl: { S: articleUrl },
-					},
-					UpdateExpression:
-						'SET removed = :removed, removedDate = :removedDate',
-					ExpressionAttributeValues: {
-						':removed': { S: 'true' },
-						':removedDate': { N: Date.now().toString() },
-					},
-				}),
-			),
-		]);
+		await this.client.send(
+			new UpdateItemCommand({
+				TableName: this.articleTableName,
+				Key: {
+					productMerchantUrl: { S: productMerchantUrl },
+					articleUrl: { S: articleUrl },
+				},
+				UpdateExpression: 'SET removed = :removed, removedDate = :removedDate',
+				ExpressionAttributeValues: {
+					':removed': { S: 'true' },
+					':removedDate': { N: Date.now().toString() },
+				},
+				ReturnValues: ReturnValue.ALL_OLD,
+			}),
+		);
 	}
 }
