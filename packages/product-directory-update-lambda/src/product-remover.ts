@@ -22,6 +22,12 @@ export async function markProductsAsRemovedFromArticle(
 			};
 		}),
 	);
+	console.log(
+		`Marking ${productsToRemove.length} as removed from product-article table`,
+	);
+	console.log(
+		`Marking ${productsToRemove.filter((p) => p.shouldRemoveFromPricingTable).length} as removed from pricing table`,
+	);
 	await Promise.all(
 		productsToRemove.map((productToRemove) =>
 			markProductAsRemoved(productToRemove, articleUrl, dynamoService),

@@ -5,11 +5,14 @@ import { extractAllProductsFromArticle } from './extract-products';
 import { markProductsAsRemovedFromArticle } from './product-remover';
 import { isFilterArticleByTags } from './tag-utils';
 
-export function getRemovedProducts(
-	newProducts: string[],
-	storedProducts: string[],
-): string[] {
-	return storedProducts.filter(
+export function getRemovedProducts({
+	newProducts,
+	storedProductsForArticle,
+}: {
+	newProducts: string[];
+	storedProductsForArticle: string[];
+}): string[] {
+	return storedProductsForArticle.filter(
 		(storedProduct) => !newProducts.includes(storedProduct),
 	);
 }
@@ -37,10 +40,10 @@ export async function handleContentUpdate({
 		const storedProductsForArticle =
 			await dynamoService.getProductsInArticle(articleUrl);
 		// Get the products removed from this article
-		const removedProducts = getRemovedProducts(
-			productsInContent.map((p) => p.article.productMerchantUrl),
+		const removedProducts = getRemovedProducts({
+			newProducts: productsInContent.map((p) => p.article.productMerchantUrl),
 			storedProductsForArticle,
-		);
+		});
 
 		await Promise.all([
 			...productsInContent.map((product) => dynamoService.saveProduct(product)),
