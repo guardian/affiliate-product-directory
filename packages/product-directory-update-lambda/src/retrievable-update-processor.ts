@@ -5,8 +5,10 @@ import { handleContentUpdate } from './update-processor';
 
 async function retrieveContent(capiUrl: string): Promise<PollingResult> {
 	const params = new URLSearchParams({
+		// Any fields we need must be added to this query param
+		// Value 'all' returns a large volume of data that we definitely don't need
 		'show-fields':
-			'internalRevision,lastModifiedDate,firstPublishedDate,publishedDate',
+			'internalComposerCode,internalRevision,lastModifiedDate,firstPublishedDate,publishedDate',
 		'show-blocks': 'all',
 		'show-channels': 'all',
 		'show-tags': 'all',
