@@ -1,7 +1,7 @@
 /*
 Fetches all Filter article IDs from CAPI and writes a backfill event to events.json.
 
-Usage: export CAPI_KEY=<your key> && tsx get-article-ids.ts <STACK>
+Usage: export CAPI_KEY=<your key> && tsx get-article-ids.ts <STAGE>
  */
 
 import { writeFile } from 'fs/promises';
@@ -23,8 +23,8 @@ function getCapiKey(): string {
 	return capiKey;
 }
 
-function getBaseCapiUrl(stack: string): string {
-	return stack === 'PROD'
+function getBaseCapiUrl(stage: string): string {
+	return stage === 'PROD'
 		? 'https://content.guardianapis.com'
 		: 'https://content.code.dev-guardianapis.com';
 }
@@ -34,11 +34,11 @@ function getArticleIdsFromResponse(searchResponse: CapiSearchResponse) {
 }
 
 async function getArticleIdsForPage(
-	stack: string,
+	stage: string,
 	capiKey: string,
 	page: number,
 ): Promise<CapiSearchResponse> {
-	const url = `${getBaseCapiUrl(stack)}/search?section=thefilter&page=${page}&api-key=${capiKey}`;
+	const url = `${getBaseCapiUrl(stage)}/search?section=thefilter&page=${page}&api-key=${capiKey}`;
 
 	const response = await fetch(url);
 	if (!response.ok) {
@@ -68,14 +68,14 @@ async function getAllArticleIds(stack: string): Promise<string[]> {
 }
 
 async function main() {
-	let stack = process.argv[2];
-	stack ??= 'CODE';
+	let stage = process.argv[2];
+	stage ??= 'CODE';
 
-	const articleIds = await getAllArticleIds(stack);
+	const articleIds = await getAllArticleIds(stage);
 
 	const formattedEvents = [
 		{
-			EventBusName: `publication-events-${stack}`,
+			EventBusName: `publication-events-${stage}`,
 			Source: 'backfill',
 			DetailType: 'backfill-request',
 			Detail: JSON.stringify({
@@ -84,9 +84,11 @@ async function main() {
 		},
 	];
 
-	const outputPath = './packages/scripts/backfill/output/backfill-events.json';
+	const outputPath = `./packages/scripts/backfill/output/backfill-events-${stage}.json`;
 	await writeFile(outputPath, JSON.stringify(formattedEvents, null, 2));
-	console.log(`Wrote ${articleIds.length} article IDs to ${outputPath}`);
+	console.log(
+		`Wrote ${articleIds.length} ${stage} article IDs to ${outputPath}`,
+	);
 }
 
 await main();

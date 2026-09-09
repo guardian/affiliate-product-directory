@@ -17,10 +17,10 @@ First run the script:
 
 This script calls CAPI to get all articles in "The Filter" section and their IDs. It should generate the JSON file which is referenced below.
 
-Run the AWS CLI put events command:
+Run the AWS CLI put events command, replacing STAGE which whichever environment you are backfilling:
 
 ```
 aws --profile frontend events put-events \
   --region eu-west-1 \
-  --entries file://packages/scripts/backfill/output/backfill-events.json
+  --entries file://packages/scripts/backfill/output/backfill-events-${STAGE}.json
 ```
