@@ -880,66 +880,6 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       },
       "Type": "AWS::Lambda::Function",
     },
-    "ProductPriceUpdateLambdaProductPriceUpdateLambdacron501706788E7C8": {
-      "Properties": {
-        "Description": "Product price update lambda",
-        "ScheduleExpression": "cron(50 17 * * ? *)",
-        "State": "ENABLED",
-        "Tags": [
-          {
-            "Key": "App",
-            "Value": "product-price-update-lambda",
-          },
-          {
-            "Key": "gu:cdk:version",
-            "Value": "TEST",
-          },
-          {
-            "Key": "gu:repo",
-            "Value": "guardian/affiliate-product-directory",
-          },
-          {
-            "Key": "Stack",
-            "Value": "frontend",
-          },
-          {
-            "Key": "Stage",
-            "Value": "TEST",
-          },
-        ],
-        "Targets": [
-          {
-            "Arn": {
-              "Fn::GetAtt": [
-                "ProductPriceUpdateLambda911BBAB1",
-                "Arn",
-              ],
-            },
-            "Id": "Target0",
-          },
-        ],
-      },
-      "Type": "AWS::Events::Rule",
-    },
-    "ProductPriceUpdateLambdaProductPriceUpdateLambdacron50170AllowEventRuleAffiliateProductDirectoryLambdaProductPriceUpdateLambda78318FDA31293981": {
-      "Properties": {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": {
-          "Fn::GetAtt": [
-            "ProductPriceUpdateLambda911BBAB1",
-            "Arn",
-          ],
-        },
-        "Principal": "events.amazonaws.com",
-        "SourceArn": {
-          "Fn::GetAtt": [
-            "ProductPriceUpdateLambdaProductPriceUpdateLambdacron501706788E7C8",
-            "Arn",
-          ],
-        },
-      },
-      "Type": "AWS::Lambda::Permission",
-    },
     "ProductPriceUpdateLambdaServiceRole34386223": {
       "Properties": {
         "AssumeRolePolicyDocument": {
