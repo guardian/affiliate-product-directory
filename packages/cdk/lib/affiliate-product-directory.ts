@@ -38,7 +38,7 @@ export class AffiliateProductDirectory extends GuStack {
 				// Used for defining cron job execution
 				rules: [
 					{
-						schedule: Schedule.cron({ hour: '17', minute: '36' }),
+						schedule: Schedule.cron({ hour: '17', minute: '40' }),
 						description: 'Product price update lambda',
 						input: undefined,
 					},
