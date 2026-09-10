@@ -30,7 +30,10 @@ export class ProductsUpdater {
 	}
 
 	public async getProductsFromDB(): Promise<Product[]> {
-		return await this.dynamoService.getAllProducts({});
+		// only update products that are active
+		return (await this.dynamoService.getAllProducts({})).filter(
+			(v) => v.removed !== 'true',
+		);
 	}
 
 	private categoriseProducts(products: Product[]): CategorisedProducts {
