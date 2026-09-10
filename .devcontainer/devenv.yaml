@@ -1,0 +1,10 @@
+# Devenv project configuration
+name: "affiliate-product-directory"
+
+modules:
+  - mise
+  - node
+
+postCreateCommand:
+  - cmd: "npm ci"
+    workingDirectory: "."
