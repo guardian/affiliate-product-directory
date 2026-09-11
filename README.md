@@ -74,6 +74,11 @@ The project consists of Typescript lambdas and DynamoDB tables.
 This lambda is responsible for handling updates that add or remove products within articles.  
 See its [README](packages/product-directory-update-lambda//README.md) for more detail.
 
+### `product-price-update-lambda`
+
+This lambda is responsible for handling product price updates and it runs at a set interval triggered by an Eventbridge rule.
+See its [README](packages/product-price-update-lambda//README.md) for more detail.
+
 ## 4. Useful Links
 
 <!---
