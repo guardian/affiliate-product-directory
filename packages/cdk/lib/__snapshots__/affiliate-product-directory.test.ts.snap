@@ -6,7 +6,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
     "gu:cdk:constructs": [
       "GuParameter",
       "GuDistributionBucketParameter",
-      "GuLambdaFunction",
+      "GuScheduledLambda",
       "GuLambdaFunction",
       "GuDynamoTable",
       "GuDynamoTable",
@@ -14,6 +14,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       "GuDynamoDBWritePolicy",
       "GuDynamoDBReadPolicy",
       "GuDynamoDBWritePolicy",
+      "GuAllowPolicy",
       "GuParameter",
       "GuParameter",
     ],
@@ -841,7 +842,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
             "STAGE": "TEST",
           },
         },
-        "Handler": "index.main",
+        "Handler": "index.eventHandler",
         "LoggingConfig": {
           "LogFormat": "JSON",
         },
@@ -1190,6 +1191,42 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       },
       "Type": "AWS::SQS::Queue",
       "UpdateReplacePolicy": "Delete",
+    },
+    "SkimlinksParameterStoreReadPolicy8172B98D": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "ssm:GetParameter",
+                "ssm:GetParameters",
+                "ssm:GetParametersByPath",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:ssm:eu-west-1:",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":parameter/CODE/frontend/affiliate-product-directory/skimlinks/*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "SkimlinksParameterStoreReadPolicy8172B98D",
+        "Roles": [
+          {
+            "Ref": "ProductPriceUpdateLambdaServiceRole34386223",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
     },
   },
 }

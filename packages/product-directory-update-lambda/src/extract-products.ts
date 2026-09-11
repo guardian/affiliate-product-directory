@@ -6,14 +6,14 @@ import { ContentType } from '@guardian/content-api-models/v1/contentType';
 import { ElementType } from '@guardian/content-api-models/v1/elementType';
 import { LinkType } from '@guardian/content-api-models/v1/linkType';
 import type { ProductCTA } from '@guardian/content-api-models/v1/productCTA';
-import type { DirectoryProduct } from './models';
+import type { ExtractedDirectoryProduct } from './models';
+import { getRegionFromTags } from './tag-utils';
 
 export function extractAllProductsFromArticle(
 	content: Content,
-): DirectoryProduct[] {
+): ExtractedDirectoryProduct[] {
 	if (content.type == ContentType.ARTICLE && content.blocks) {
 		const articleBlocks: Blocks = content.blocks;
-		// TODO: why did recipes-backend check the main block?
 
 		const bodyBlocks = articleBlocks.body as Block[];
 
@@ -39,10 +39,24 @@ export function extractAllProductsFromArticle(
 			productCTAUrls
 				.concat(buttonProductURLs)
 				.concat(nestedButtonProductUrls)
-				.filter((url) => url !== undefined),
+				.filter((url): url is string => url !== undefined && url.trim() !== ''),
 		);
+
+		const region = getRegionFromTags(content.tags);
+		if (region === undefined) {
+			console.error(`Could not determine region for article: ${content.id}.`);
+		}
+
 		return [...deduplicatedURLs].map((url) => ({
-			productMerchantUrl: url,
+			pricing: {
+				productMerchantUrl: url,
+				region: region ?? '',
+			},
+			article: {
+				productMerchantUrl: url,
+				articleUrl: content.id,
+				composerArticleId: content.fields?.internalComposerCode,
+			},
 		}));
 	} else {
 		return [];

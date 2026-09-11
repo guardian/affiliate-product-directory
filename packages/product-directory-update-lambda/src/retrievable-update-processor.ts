@@ -1,3 +1,4 @@
+import type { DynamoService } from '@common/database-service';
 import { ContentType } from '@guardian/content-api-models/v1/contentType';
 import type { PollingResult } from './capi';
 import { callCAPI, PollingAction } from './capi';
@@ -21,10 +22,12 @@ export async function handleContentUpdateByCapiUrl({
 	contentType,
 	capiUrl,
 	internalRevision,
+	dynamoService,
 }: {
 	contentType?: ContentType;
 	capiUrl: string;
 	internalRevision?: number;
+	dynamoService: DynamoService;
 }): Promise<number> {
 	if (contentType != ContentType.ARTICLE) {
 		console.log(
@@ -46,8 +49,9 @@ export async function handleContentUpdateByCapiUrl({
 					`INFO Retrievable update for ${capiUrl} was superceded - we expected to see ${internalRevision} but got ${capiResponse.content.fields.internalRevision}`,
 				);
 			} else if (capiResponse.content) {
-				return handleContentUpdate({
+				return await handleContentUpdate({
 					content: capiResponse.content,
+					dynamoService,
 				});
 			} else {
 				console.error(

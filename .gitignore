@@ -8,3 +8,5 @@ dist
 
 tsconfig.tsbuildinfo
 packages/scripts/backfill/output
+
+.env

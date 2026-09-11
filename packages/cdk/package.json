@@ -9,7 +9,7 @@
     "diff": "cdk diff --path-metadata false --version-reporting false"
   },
   "devDependencies": {
-    "@guardian/cdk": "62.4.0",
+    "@guardian/cdk": "64.6.0",
     "source-map-support": "0.5.21"
   }
 }
