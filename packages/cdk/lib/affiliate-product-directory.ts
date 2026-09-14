@@ -1,28 +1,18 @@
 import type { GuStackProps } from '@guardian/cdk/lib/constructs/core';
-import {
-	GuParameter,
-	GuStack,
-	GuStringParameter,
-} from '@guardian/cdk/lib/constructs/core';
+import { GuParameter, GuStack } from '@guardian/cdk/lib/constructs/core';
 import { GuDynamoTable } from '@guardian/cdk/lib/constructs/dynamodb/index';
 import {
 	GuAllowPolicy,
 	GuDynamoDBReadPolicy,
 	GuDynamoDBWritePolicy,
-	GuRole,
 } from '@guardian/cdk/lib/constructs/iam';
 import { GuLambdaFunction } from '@guardian/cdk/lib/constructs/lambda';
 import { GuScheduledLambda } from '@guardian/cdk/lib/patterns/scheduled-lambda';
 import { type App, aws_events_targets } from 'aws-cdk-lib';
 import { AttributeType, BillingMode } from 'aws-cdk-lib/aws-dynamodb';
 import { EventBus, Rule } from 'aws-cdk-lib/aws-events';
-import {
-	AccountPrincipal,
-	Effect,
-	PolicyDocument,
-	PolicyStatement,
-} from 'aws-cdk-lib/aws-iam';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
+import { Subscription, SubscriptionProtocol, Topic } from 'aws-cdk-lib/aws-sns';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { appName } from '../../common/src/constants';
 import { CrierEventbridge } from './crier-eventbridge';
@@ -60,6 +50,14 @@ export class AffiliateProductDirectory extends GuStack {
 			},
 		);
 
+		const snsTopic = new Topic(this, 'ProductDirectorySnsTopic');
+
+		new Subscription(this, 'ProductDirectoryErrors', {
+			topic: snsTopic,
+			endpoint: 'thefilter.dev@guardian.co.uk',
+			protocol: SubscriptionProtocol.EMAIL,
+		});
+
 		const directoryUpdateLambda = new GuLambdaFunction(
 			this,
 			'ProductDirectoryUpdateLambda',
@@ -74,7 +72,9 @@ export class AffiliateProductDirectory extends GuStack {
 				architecture: Architecture.ARM_64,
 				errorPercentageMonitoring: {
 					toleratedErrorPercentage: 1, // alarm on essentially any error
-					snsTopicName: 'todo',
+					alarmName: `${appName}-update-lambda-${stage}-alarm`,
+					alarmDescription: `Something went wrong updating the products in the ${appName} update-lambda ${stage}. Check the logs`,
+					snsTopicName: snsTopic.topicName,
 				},
 			},
 		);
@@ -234,39 +234,6 @@ export class AffiliateProductDirectory extends GuStack {
 					// ToDo: do we want a DLQ?
 				}),
 			],
-		});
-
-		const membershipAccountId = new GuStringParameter(
-			this,
-			'MembershipAccountId',
-			{
-				description: 'ID of the Membership AWS account',
-			},
-		);
-
-		// Role for membership account to assume to list Cloudwatch tags,
-		// used by the alarms-handler lambda.
-		new GuRole(this, 'MembershipListTagsRole', {
-			assumedBy: new AccountPrincipal(membershipAccountId.valueAsString),
-			inlinePolicies: {
-				listTagsPolicy: new PolicyDocument({
-					statements: [
-						new PolicyStatement({
-							effect: Effect.ALLOW,
-							actions: ['cloudwatch:ListTagsForResource'],
-							resources: ['*'],
-						}),
-						new PolicyStatement({
-							actions: ['cloudwatch:DescribeAlarms'],
-							resources: ['*'],
-						}),
-						new PolicyStatement({
-							actions: ['cloudwatch:DescribeAlarmHistory'],
-							resources: ['*'],
-						}),
-					],
-				}),
-			},
 		});
 	}
 }
