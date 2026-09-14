@@ -7,7 +7,9 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       "GuParameter",
       "GuDistributionBucketParameter",
       "GuScheduledLambda",
+      "GuAnghammaradTopicParameter",
       "GuLambdaFunction",
+      "GuLambdaErrorPercentageAlarm",
       "GuDynamoTable",
       "GuDynamoTable",
       "GuDynamoDBReadPolicy",
@@ -21,6 +23,11 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
     "gu:cdk:version": "TEST",
   },
   "Parameters": {
+    "AnghammaradSnsArn": {
+      "Default": "/account/services/anghammarad.topic.arn",
+      "Description": "SSM parameter containing the ARN of the Anghammarad SNS topic",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
     "CapiAcctParam": {
       "Default": "/TEST/frontend/affiliate-product-directory/capiAccountNumber",
       "Type": "AWS::SSM::Parameter::Value<String>",
@@ -674,6 +681,136 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         "Timeout": 30,
       },
       "Type": "AWS::Lambda::Function",
+    },
+    "ProductDirectoryUpdateLambdaErrorPercentageAlarmForLambdaA228BE4F": {
+      "Properties": {
+        "ActionsEnabled": true,
+        "AlarmActions": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:aws:sns:eu-west-1:",
+                {
+                  "Ref": "AWS::AccountId",
+                },
+                ":",
+                {
+                  "Ref": "AnghammaradSnsArn",
+                },
+              ],
+            ],
+          },
+        ],
+        "AlarmDescription": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "ProductDirectoryUpdateLambda0434899A",
+              },
+              " exceeded 1% error rate",
+            ],
+          ],
+        },
+        "AlarmName": {
+          "Fn::Join": [
+            "",
+            [
+              "High error percentage from ",
+              {
+                "Ref": "ProductDirectoryUpdateLambda0434899A",
+              },
+              " lambda in TEST",
+            ],
+          ],
+        },
+        "ComparisonOperator": "GreaterThanThreshold",
+        "EvaluationPeriods": 1,
+        "Metrics": [
+          {
+            "Expression": "100*m1/m2",
+            "Id": "expr_1",
+            "Label": {
+              "Fn::Join": [
+                "",
+                [
+                  "Error % of ",
+                  {
+                    "Ref": "ProductDirectoryUpdateLambda0434899A",
+                  },
+                ],
+              ],
+            },
+            "ReturnData": true,
+          },
+          {
+            "Id": "m1",
+            "MetricStat": {
+              "Metric": {
+                "Dimensions": [
+                  {
+                    "Name": "FunctionName",
+                    "Value": {
+                      "Ref": "ProductDirectoryUpdateLambda0434899A",
+                    },
+                  },
+                ],
+                "MetricName": "Errors",
+                "Namespace": "AWS/Lambda",
+              },
+              "Period": 60,
+              "Stat": "Sum",
+            },
+            "ReturnData": false,
+          },
+          {
+            "Id": "m2",
+            "MetricStat": {
+              "Metric": {
+                "Dimensions": [
+                  {
+                    "Name": "FunctionName",
+                    "Value": {
+                      "Ref": "ProductDirectoryUpdateLambda0434899A",
+                    },
+                  },
+                ],
+                "MetricName": "Invocations",
+                "Namespace": "AWS/Lambda",
+              },
+              "Period": 60,
+              "Stat": "Sum",
+            },
+            "ReturnData": false,
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-product-directory",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+        "Threshold": 1,
+        "TreatMissingData": "notBreaching",
+      },
+      "Type": "AWS::CloudWatch::Alarm",
     },
     "ProductDirectoryUpdateLambdaServiceRoleB5BDC4A1": {
       "Properties": {
