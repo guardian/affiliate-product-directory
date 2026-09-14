@@ -7,6 +7,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       "GuParameter",
       "GuDistributionBucketParameter",
       "GuScheduledLambda",
+      "GuLambdaErrorPercentageAlarm",
       "GuLambdaFunction",
       "GuLambdaErrorPercentageAlarm",
       "GuDynamoTable",
@@ -127,6 +128,75 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       },
       "Type": "AWS::Lambda::Permission",
     },
+    "CrierConnectionDLQ44A4C97F": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "QueueName": "affiliate-product-directory-crier-dlq-TEST",
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-product-directory",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+      },
+      "Type": "AWS::SQS::Queue",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CrierConnectionDLQPolicy75771D37": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sqs:SendMessage",
+              "Condition": {
+                "ArnEquals": {
+                  "aws:SourceArn": {
+                    "Fn::GetAtt": [
+                      "CrierConnectionE7D24320",
+                      "Arn",
+                    ],
+                  },
+                },
+              },
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "events.amazonaws.com",
+              },
+              "Resource": {
+                "Fn::GetAtt": [
+                  "CrierConnectionDLQ44A4C97F",
+                  "Arn",
+                ],
+              },
+              "Sid": "AllowEventRuleAffiliateProductDirectoryLambdaCrierConnection7D9A4027",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Queues": [
+          {
+            "Ref": "CrierConnectionDLQ44A4C97F",
+          },
+        ],
+      },
+      "Type": "AWS::SQS::QueuePolicy",
+    },
     "CrierConnectionE7D24320": {
       "Properties": {
         "Description": "Connect product-directory-update-lambda TEST to Crier",
@@ -174,7 +244,19 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
                 "Arn",
               ],
             },
+            "DeadLetterConfig": {
+              "Arn": {
+                "Fn::GetAtt": [
+                  "CrierConnectionDLQ44A4C97F",
+                  "Arn",
+                ],
+              },
+            },
             "Id": "Target0",
+            "RetryPolicy": {
+              "MaximumEventAgeInSeconds": 1800,
+              "MaximumRetryAttempts": 3,
+            },
           },
         ],
       },
@@ -1029,6 +1111,118 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         "Timeout": 30,
       },
       "Type": "AWS::Lambda::Function",
+    },
+    "ProductPriceUpdateLambdaErrorPercentageAlarmForLambdaB5BE234E": {
+      "Properties": {
+        "ActionsEnabled": true,
+        "AlarmActions": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:aws:sns:eu-west-1:",
+                {
+                  "Ref": "AWS::AccountId",
+                },
+                ":",
+                {
+                  "Fn::GetAtt": [
+                    "ProductDirectorySnsTopic57D490ED",
+                    "TopicName",
+                  ],
+                },
+              ],
+            ],
+          },
+        ],
+        "AlarmDescription": "Something went wrong updating the products in the affiliate-product-directory product-price-update-lambda TEST. Check the logs",
+        "AlarmName": "affiliate-product-directory-product-price-update-lambda-TEST-alarm",
+        "ComparisonOperator": "GreaterThanThreshold",
+        "EvaluationPeriods": 1,
+        "Metrics": [
+          {
+            "Expression": "100*m1/m2",
+            "Id": "expr_1",
+            "Label": {
+              "Fn::Join": [
+                "",
+                [
+                  "Error % of ",
+                  {
+                    "Ref": "ProductPriceUpdateLambda911BBAB1",
+                  },
+                ],
+              ],
+            },
+            "ReturnData": true,
+          },
+          {
+            "Id": "m1",
+            "MetricStat": {
+              "Metric": {
+                "Dimensions": [
+                  {
+                    "Name": "FunctionName",
+                    "Value": {
+                      "Ref": "ProductPriceUpdateLambda911BBAB1",
+                    },
+                  },
+                ],
+                "MetricName": "Errors",
+                "Namespace": "AWS/Lambda",
+              },
+              "Period": 60,
+              "Stat": "Sum",
+            },
+            "ReturnData": false,
+          },
+          {
+            "Id": "m2",
+            "MetricStat": {
+              "Metric": {
+                "Dimensions": [
+                  {
+                    "Name": "FunctionName",
+                    "Value": {
+                      "Ref": "ProductPriceUpdateLambda911BBAB1",
+                    },
+                  },
+                ],
+                "MetricName": "Invocations",
+                "Namespace": "AWS/Lambda",
+              },
+              "Period": 60,
+              "Stat": "Sum",
+            },
+            "ReturnData": false,
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-product-directory",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+        "Threshold": 1,
+        "TreatMissingData": "notBreaching",
+      },
+      "Type": "AWS::CloudWatch::Alarm",
     },
     "ProductPriceUpdateLambdaServiceRole34386223": {
       "Properties": {

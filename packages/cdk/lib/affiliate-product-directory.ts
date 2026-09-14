@@ -8,7 +8,7 @@ import {
 } from '@guardian/cdk/lib/constructs/iam';
 import { GuLambdaFunction } from '@guardian/cdk/lib/constructs/lambda';
 import { GuScheduledLambda } from '@guardian/cdk/lib/patterns/scheduled-lambda';
-import { type App, aws_events_targets } from 'aws-cdk-lib';
+import { type App, aws_events_targets, Duration } from 'aws-cdk-lib';
 import { AttributeType, BillingMode } from 'aws-cdk-lib/aws-dynamodb';
 import { EventBus, Rule } from 'aws-cdk-lib/aws-events';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
@@ -25,6 +25,14 @@ export class AffiliateProductDirectory extends GuStack {
 		const capiKeyParam = new GuParameter(this, 'capiKey', {
 			fromSSM: true,
 			default: `/${this.stage}/${this.stack}/${appName}/capi-key`,
+		});
+
+		const snsTopic = new Topic(this, 'ProductDirectorySnsTopic');
+
+		new Subscription(this, 'ProductDirectoryErrors', {
+			topic: snsTopic,
+			endpoint: 'thefilter.dev@guardian.co.uk',
+			protocol: SubscriptionProtocol.EMAIL,
 		});
 
 		const priceUpdateLambda = new GuScheduledLambda(
@@ -45,18 +53,14 @@ export class AffiliateProductDirectory extends GuStack {
 					// 	input: undefined,
 					// },
 				],
-				// ToDo: we should add monitoring as part of observability and alarming
-				monitoringConfiguration: { noMonitoring: true },
+				monitoringConfiguration: {
+					toleratedErrorPercentage: 1, // alarm on essentially any error
+					alarmName: `${appName}-product-price-update-lambda-${stage}-alarm`,
+					alarmDescription: `Something went wrong updating the products in the ${appName} product-price-update-lambda ${stage}. Check the logs`,
+					snsTopicName: snsTopic.topicName,
+				},
 			},
 		);
-
-		const snsTopic = new Topic(this, 'ProductDirectorySnsTopic');
-
-		new Subscription(this, 'ProductDirectoryErrors', {
-			topic: snsTopic,
-			endpoint: 'thefilter.dev@guardian.co.uk',
-			protocol: SubscriptionProtocol.EMAIL,
-		});
 
 		const directoryUpdateLambda = new GuLambdaFunction(
 			this,
@@ -205,6 +209,10 @@ export class AffiliateProductDirectory extends GuStack {
 			eventBusParam.valueAsString,
 		);
 
+		const crierDlq = new Queue(this, 'CrierConnectionDLQ', {
+			queueName: `${appName}-crier-dlq-${stage}`,
+		});
+
 		new Rule(this, 'CrierConnection', {
 			eventBus: crierEventBus,
 			description: `Connect product-directory-update-lambda ${this.stage} to Crier`,
@@ -218,7 +226,9 @@ export class AffiliateProductDirectory extends GuStack {
 			},
 			targets: [
 				new aws_events_targets.LambdaFunction(directoryUpdateLambda, {
-					// ToDo: do we want a DLQ?
+					deadLetterQueue: crierDlq,
+					maxEventAge: Duration.minutes(30),
+					retryAttempts: 3,
 				}),
 			],
 		});
@@ -229,11 +239,7 @@ export class AffiliateProductDirectory extends GuStack {
 			eventPattern: {
 				source: ['backfill'],
 			},
-			targets: [
-				new aws_events_targets.LambdaFunction(directoryUpdateLambda, {
-					// ToDo: do we want a DLQ?
-				}),
-			],
+			targets: [new aws_events_targets.LambdaFunction(directoryUpdateLambda)],
 		});
 	}
 }
