@@ -15,6 +15,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       "GuDynamoDBReadPolicy",
       "GuDynamoDBWritePolicy",
       "GuAllowPolicy",
+      "GuAllowPolicy",
       "GuParameter",
       "GuParameter",
     ],
@@ -40,6 +41,42 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
     },
   },
   "Resources": {
+    "AmazonParameterStoreReadPolicy5B049A35": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "ssm:GetParameter",
+                "ssm:GetParameters",
+                "ssm:GetParametersByPath",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:ssm:eu-west-1:",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":parameter/CODE/frontend/affiliate-product-directory/amazon/*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "AmazonParameterStoreReadPolicy5B049A35",
+        "Roles": [
+          {
+            "Ref": "ProductPriceUpdateLambdaServiceRole34386223",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
     "BackfillConnection25E8AC50": {
       "Properties": {
         "Description": "Connect product-directory-update-lambda TEST to backfill events",

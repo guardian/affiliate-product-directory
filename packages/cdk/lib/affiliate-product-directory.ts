@@ -151,10 +151,26 @@ export class AffiliateProductDirectory extends GuStack {
 			},
 		);
 
+		const amazonParameterStoreReadPolicy = new GuAllowPolicy(
+			this,
+			'AmazonParameterStoreReadPolicy',
+			{
+				actions: [
+					'ssm:GetParameter',
+					'ssm:GetParameters',
+					'ssm:GetParametersByPath',
+				],
+				resources: [
+					`arn:aws:ssm:${this.region}:${this.account}:parameter/CODE/frontend/${appName}/amazon/*`,
+				],
+			},
+		);
+
 		[
 			productPricingDynamoDBReadPolicy,
 			productPricingDynamoDBWritePolicy,
 			skimlinksParameterStoreReadPolicy,
+			amazonParameterStoreReadPolicy,
 		].forEach((policy) => priceUpdateLambda.role?.attachInlinePolicy(policy));
 
 		[
