@@ -32,10 +32,16 @@ function updater() {
 
 describe('getProductsFromDB', () => {
 	it('scans the product table and returns the items', async () => {
-		const products = [buildProduct(), buildProduct()];
+		const products = [
+			buildProduct(),
+			buildProduct(),
+			buildProduct({ removed: 'true' }),
+		];
 		mockGetAllProducts.mockResolvedValue(products);
 
-		await expect(updater().getProductsFromDB()).resolves.toEqual(products);
+		await expect(updater().getProductsFromDB()).resolves.toEqual(
+			products.slice(0, 2),
+		);
 		expect(mockGetAllProducts).toHaveBeenCalledWith({});
 	});
 });

@@ -3,8 +3,10 @@
 !jest.setup.js
 !.eslintrc.js
 *.d.ts
+.DS_Store
 node_modules
 dist
 
 tsconfig.tsbuildinfo
-.DS_Store
+
+.env
