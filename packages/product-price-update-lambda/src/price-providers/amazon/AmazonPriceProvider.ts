@@ -10,9 +10,7 @@ import {
 } from '@price-update/price-providers/amazon/amazonModels';
 import { PriceProvider } from '@price-update/price-providers/PriceProvider';
 
-// Confirmed live in the spike; creatorsapi.amazon resolves under Amazon's own .amazon gTLD.
 const AMAZON_CREATORS_API_BASE_URL = 'https://creatorsapi.amazon/catalog/v1';
-
 const MARKETPLACE: Record<Region, string> = {
 	UK: 'www.amazon.co.uk',
 	US: 'www.amazon.com',
@@ -25,8 +23,8 @@ interface ProductWithAsin {
 
 export class AmazonPriceProvider extends PriceProvider {
 	protected readonly name = 'amazon';
-	private readonly batchSize = 10; // GetItems accepts up to 10 ASINs per call
-	private readonly minMsBetweenRequests = 1000; // 1 TPS baseline
+	private readonly batchSize = 10;
+	private readonly minMsBetweenRequests = 1000;
 
 	private static readonly ASIN_REGEX = /\/(?:dp|gp\/product)\/([A-Z0-9]{10})/;
 
