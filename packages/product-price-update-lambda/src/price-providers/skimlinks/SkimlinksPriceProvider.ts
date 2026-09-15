@@ -1,3 +1,4 @@
+import { registerMetric } from '@common/cloudwatch';
 import type { Product } from '@common/models';
 import type { SkimlinksProductsResponse } from '@price-update/models';
 import {
@@ -94,10 +95,10 @@ export class SkimlinksPriceProvider extends PriceProvider {
 		return results;
 	}
 
-	private updateProducts(
+	private async updateProducts(
 		products: Product[],
 		productData: SkimlinksProductsResponse['results'],
-	): Product[] {
+	): Promise<Product[]> {
 		const updated: Product[] = [];
 
 		for (const product of products) {
@@ -118,6 +119,7 @@ export class SkimlinksPriceProvider extends PriceProvider {
 			);
 		}
 
+		await registerMetric('SkimlinksProductsFetched', updated.length);
 		return updated;
 	}
 }

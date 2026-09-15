@@ -1,3 +1,4 @@
+import { GuAlarm } from '@guardian/cdk/lib/constructs/cloudwatch';
 import type { GuStackProps } from '@guardian/cdk/lib/constructs/core';
 import { GuParameter, GuStack } from '@guardian/cdk/lib/constructs/core';
 import { GuDynamoTable } from '@guardian/cdk/lib/constructs/dynamodb/index';
@@ -9,6 +10,11 @@ import {
 import { GuLambdaFunction } from '@guardian/cdk/lib/constructs/lambda';
 import { GuScheduledLambda } from '@guardian/cdk/lib/patterns/scheduled-lambda';
 import { type App, aws_events_targets, Duration } from 'aws-cdk-lib';
+import {
+	ComparisonOperator,
+	Metric,
+	TreatMissingData,
+} from 'aws-cdk-lib/aws-cloudwatch';
 import { AttributeType, BillingMode } from 'aws-cdk-lib/aws-dynamodb';
 import { EventBus, Rule } from 'aws-cdk-lib/aws-events';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
@@ -28,6 +34,8 @@ export class AffiliateProductDirectory extends GuStack {
 		});
 
 		const snsTopic = new Topic(this, 'ProductDirectorySnsTopic');
+		// ToDo: revert after testing :)
+		const alarmActionsEnabled = true; //stage === 'PROD';
 
 		new Subscription(this, 'ProductDirectoryErrors', {
 			topic: snsTopic,
@@ -58,6 +66,7 @@ export class AffiliateProductDirectory extends GuStack {
 					alarmName: `${appName}-product-price-update-lambda-${stage}-alarm`,
 					alarmDescription: `Something went wrong updating the products in the ${appName} product-price-update-lambda ${stage}. Check the logs`,
 					snsTopicName: snsTopic.topicName,
+					actionsEnabled: alarmActionsEnabled,
 				},
 			},
 		);
@@ -79,6 +88,7 @@ export class AffiliateProductDirectory extends GuStack {
 					alarmName: `${appName}-update-lambda-${stage}-alarm`,
 					alarmDescription: `Something went wrong updating the products in the ${appName} update-lambda ${stage}. Check the logs`,
 					snsTopicName: snsTopic.topicName,
+					actionsEnabled: alarmActionsEnabled,
 				},
 			},
 		);
@@ -240,6 +250,72 @@ export class AffiliateProductDirectory extends GuStack {
 				source: ['backfill'],
 			},
 			targets: [new aws_events_targets.LambdaFunction(directoryUpdateLambda)],
+		});
+
+		const productsUpdatedMetric = new Metric({
+			namespace: 'AffiliateProductDirectory',
+			metricName: 'ArticleProductsUpdated',
+			dimensionsMap: { Stage: stage },
+			period: Duration.hours(24),
+			statistic: 'Sum',
+		});
+
+		new GuAlarm(this, 'NoArticleProductsUpdatedAlarm', {
+			app: appName,
+			alarmName: `${appName}-no-article-products-updated-${stage}`,
+			alarmDescription:
+				'No article products have been updated in the last 24 hours',
+			metric: productsUpdatedMetric,
+			comparisonOperator: ComparisonOperator.LESS_THAN_OR_EQUAL_TO_THRESHOLD,
+			threshold: 0,
+			evaluationPeriods: 1,
+			treatMissingData: TreatMissingData.BREACHING,
+			snsTopicName: snsTopic.topicName,
+			actionsEnabled: alarmActionsEnabled,
+		});
+
+		const skimlinksProductsFetchedMetric = new Metric({
+			namespace: 'AffiliateProductDirectory',
+			metricName: 'SkimlinksProductsFetched',
+			dimensionsMap: { Stage: stage },
+			period: Duration.hours(24),
+			statistic: 'Sum',
+		});
+
+		new GuAlarm(this, 'NoSkimlinksProductsFetchedAlarm', {
+			app: appName,
+			alarmName: `${appName}-no-skimlinks-products-fetched-${stage}`,
+			alarmDescription:
+				'No skimlinks products have been fetched in the last 24 hours',
+			metric: skimlinksProductsFetchedMetric,
+			comparisonOperator: ComparisonOperator.LESS_THAN_OR_EQUAL_TO_THRESHOLD,
+			threshold: 0,
+			evaluationPeriods: 1,
+			treatMissingData: TreatMissingData.BREACHING,
+			snsTopicName: snsTopic.topicName,
+			actionsEnabled: alarmActionsEnabled,
+		});
+
+		const amazonProductsFetchedMetric = new Metric({
+			namespace: 'AffiliateProductDirectory',
+			metricName: 'AmazonProductsFetched',
+			dimensionsMap: { Stage: stage },
+			period: Duration.hours(24),
+			statistic: 'Sum',
+		});
+
+		new GuAlarm(this, 'NoAmazonProductsFetchedAlarm', {
+			app: appName,
+			alarmName: `${appName}-no-amazon-products-fetched-${stage}`,
+			alarmDescription:
+				'No amazon products have been fetched in the last 24 hours',
+			metric: amazonProductsFetchedMetric,
+			comparisonOperator: ComparisonOperator.LESS_THAN_OR_EQUAL_TO_THRESHOLD,
+			threshold: 0,
+			evaluationPeriods: 1,
+			treatMissingData: TreatMissingData.BREACHING,
+			snsTopicName: snsTopic.topicName,
+			actionsEnabled: alarmActionsEnabled,
 		});
 	}
 }
