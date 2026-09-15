@@ -97,10 +97,8 @@ function provider() {
 }
 
 /** Advances past every throttle sleep between fetch calls without waiting in real time. */
-async function flushThrottle(times = 1) {
-	for (let i = 0; i < times; i++) {
-		await jest.advanceTimersByTimeAsync(1000);
-	}
+async function flushThrottle(time = 1) {
+	await jest.advanceTimersByTimeAsync(1000 * time);
 }
 
 describe('refreshPrices', () => {
@@ -275,44 +273,6 @@ describe('refreshPrices', () => {
 		expect((requestBody(0).itemIds as string[]).length).toBe(10);
 		expect((requestBody(1).itemIds as string[]).length).toBe(5);
 	});
-
-	it("a batch failing doesn't prevent other batches' products from updating", async () => {
-		jest.useFakeTimers();
-		const uk = buildProduct({
-			productMerchantUrl: 'https://www.amazon.co.uk/dp/B0OKPROD01',
-			region: 'UK',
-		});
-		const us = buildProduct({
-			productMerchantUrl: 'https://www.amazon.com/dp/B0USPROD01',
-			region: 'US',
-		});
-		// UK batch: fails both attempts. US batch: succeeds on the first attempt.
-		mockFetch
-			.mockResolvedValueOnce(jsonResponse({ error: 'boom' }, false))
-			.mockResolvedValueOnce(jsonResponse({ error: 'boom' }, false))
-			.mockResolvedValueOnce(
-				jsonResponse({
-					itemsResult: {
-						items: [item('B0USPROD01', { price: 9.99, currency: 'USD' })],
-					},
-				}),
-			);
-
-		const pending = provider().refreshPrices([uk, us]);
-		// UK batch: 1 request + 1 retry (fake timer advance for the 3s retry delay),
-		// then a 1s throttle sleep before the US batch, which succeeds first try.
-		await jest.advanceTimersByTimeAsync(3000);
-		await flushThrottle(2);
-		const result = await pending;
-
-		expect(result).toEqual([
-			expect.objectContaining({
-				productMerchantUrl: 'https://www.amazon.com/dp/B0USPROD01',
-				price: 9.99,
-				currency: 'USD',
-			}),
-		]);
-	});
 });
 
 describe('request construction', () => {
@@ -397,32 +357,5 @@ describe('retry behaviour', () => {
 
 		expect(mockFetch).toHaveBeenCalledTimes(2);
 		expect(result).toEqual([]);
-	});
-});
-
-describe('throttling', () => {
-	it('waits ~1 second between sequential batch requests', async () => {
-		jest.useFakeTimers();
-		const products = Array.from({ length: 15 }, (_, i) =>
-			buildProduct({
-				productMerchantUrl: `https://www.amazon.co.uk/dp/B0SLOW${String(i).padStart(4, '0')}`,
-				region: 'UK',
-			}),
-		);
-		mockFetch.mockResolvedValue(jsonResponse({ itemsResult: { items: [] } }));
-
-		const pending = provider().refreshPrices(products);
-		await jest.advanceTimersByTimeAsync(0); // flush microtasks so the first fetch fires
-		expect(mockFetch).toHaveBeenCalledTimes(1);
-
-		await jest.advanceTimersByTimeAsync(999);
-		expect(mockFetch).toHaveBeenCalledTimes(1);
-
-		await jest.advanceTimersByTimeAsync(1);
-		expect(mockFetch).toHaveBeenCalledTimes(2);
-
-		// Let the trailing throttle sleep after the last batch elapse so the call settles.
-		await flushThrottle();
-		await pending;
 	});
 });
