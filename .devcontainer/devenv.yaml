@@ -4,6 +4,13 @@ name: "affiliate-product-directory"
 modules:
   - mise
   - node
+  - github-copilot
+
+plugins:
+  vscode:
+    - GitHub.copilot-chat
+    - GitHub.cli
+  intellij: []
 
 postCreateCommand:
   - cmd: "npm ci"
