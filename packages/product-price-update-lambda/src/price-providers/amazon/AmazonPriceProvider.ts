@@ -1,3 +1,4 @@
+import { registerMetric } from '@common/cloudwatch';
 import type { Product } from '@common/models';
 import { type Region, regionOf, REGIONS } from '@price-update/models';
 import {
@@ -140,6 +141,8 @@ export class AmazonPriceProvider extends PriceProvider {
 					`Amazon GetItems request failed: ${response.status} ${response.statusText}`,
 				);
 			}
+
+			await registerMetric('AmazonProductsFetched', asins.length);
 
 			const parsed = AmazonGetItemsResponseSchema.parse(await response.json());
 			return parsed.itemsResult?.items ?? [];

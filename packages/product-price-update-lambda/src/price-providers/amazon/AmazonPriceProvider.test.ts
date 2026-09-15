@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals';
+import { mockRegisterMetric } from '@mocks/CloudwatchMock';
 import { buildProduct } from '@mocks/ProductFixtures';
 import type * as AmazonAuthModule from './amazonAuth';
 import type * as AmazonPriceProviderModule from './AmazonPriceProvider';
@@ -82,6 +83,7 @@ beforeEach(() => {
 	mockGetAmazonAccessToken.mockImplementation((region) =>
 		Promise.resolve(`${region.toLowerCase()}-token`),
 	);
+	mockRegisterMetric.mockResolvedValue();
 	mockFetch = jest.fn<typeof fetch>();
 	globalThis.fetch = mockFetch as unknown as typeof fetch;
 });
@@ -131,6 +133,7 @@ describe('refreshPrices', () => {
 			updatedBy: 'amazon',
 		});
 		expect(updated!.updatedAt).toBeGreaterThan(staleUpdatedAt);
+		expect(mockRegisterMetric).toHaveBeenCalledWith('AmazonProductsFetched', 1);
 	});
 
 	it('skips products whose URL has no extractable ASIN', async () => {
@@ -272,6 +275,16 @@ describe('refreshPrices', () => {
 		expect(mockFetch).toHaveBeenCalledTimes(2);
 		expect((requestBody(0).itemIds as string[]).length).toBe(10);
 		expect((requestBody(1).itemIds as string[]).length).toBe(5);
+		expect(mockRegisterMetric).toHaveBeenNthCalledWith(
+			1,
+			'AmazonProductsFetched',
+			10,
+		);
+		expect(mockRegisterMetric).toHaveBeenNthCalledWith(
+			2,
+			'AmazonProductsFetched',
+			5,
+		);
 	});
 });
 
