@@ -3,13 +3,10 @@
   "customizations" : {
     "vscode" : {
       "extensions" : [
-        "hverlin.mise-vscode"
-      ]
-    },
-    "jetbrains" : {
-      "plugins" : [
-        "com.github.l34130.mise",
-        "NodeJS"
+        "hverlin.mise-vscode",
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "GitHub.cli"
       ]
     }
   },
