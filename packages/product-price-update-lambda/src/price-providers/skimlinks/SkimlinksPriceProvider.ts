@@ -89,16 +89,18 @@ export class SkimlinksPriceProvider extends PriceProvider {
 					`Skimlinks products request failed: ${response.status} ${response.statusText}`,
 				);
 			}
+
+			await registerMetric('SkimlinksProductsFetched', batch.length);
 			return SkimlinksProductsResponseSchema.parse(await response.json());
 		});
 
 		return results;
 	}
 
-	private async updateProducts(
+	private updateProducts(
 		products: Product[],
 		productData: SkimlinksProductsResponse['results'],
-	): Promise<Product[]> {
+	): Product[] {
 		const updated: Product[] = [];
 
 		for (const product of products) {
@@ -119,7 +121,6 @@ export class SkimlinksPriceProvider extends PriceProvider {
 			);
 		}
 
-		await registerMetric('SkimlinksProductsFetched', updated.length);
 		return updated;
 	}
 }

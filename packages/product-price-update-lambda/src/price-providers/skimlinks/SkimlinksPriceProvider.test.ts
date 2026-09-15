@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals';
+import { mockRegisterMetric } from '@mocks/CloudwatchMock';
 import { buildProduct } from '@mocks/ProductFixtures';
 import { ZodError } from 'zod';
 import type * as SkimlinksAuthModule from './skimlinksAuth';
@@ -17,14 +18,11 @@ jest.unstable_mockModule(
 	}),
 );
 
-jest.unstable_mockModule('@common/cloudwatch', () => ({
-	registerMetric: jest.fn(),
-}));
-
 let SkimlinksPriceProvider: typeof SkimlinksPriceProviderModule.SkimlinksPriceProvider;
 
 beforeAll(async () => {
 	({ SkimlinksPriceProvider } = await import('./SkimlinksPriceProvider'));
+	mockRegisterMetric.mockResolvedValue();
 });
 
 const credentials = {
@@ -91,6 +89,11 @@ describe('refreshPrices', () => {
 
 		const [updated] = await provider().refreshPrices([product]);
 
+		expect(mockRegisterMetric).toHaveBeenCalledWith(
+			'SkimlinksProductsFetched',
+			1,
+		);
+
 		expect(updated).toMatchObject({
 			productMerchantUrl: 'https://johnlewis.com/p/1',
 			region: 'UK',
@@ -121,6 +124,7 @@ describe('refreshPrices', () => {
 			}),
 		);
 
+		expect(mockRegisterMetric).not.toHaveBeenCalled();
 		await expect(provider().refreshPrices([product])).rejects.toThrow(ZodError);
 	});
 
@@ -139,6 +143,10 @@ describe('refreshPrices', () => {
 
 		const result = await provider().refreshPrices([matched, unmatched]);
 
+		expect(mockRegisterMetric).toHaveBeenCalledWith(
+			'SkimlinksProductsFetched',
+			2,
+		);
 		expect(result).toEqual([matched]);
 	});
 
@@ -151,6 +159,10 @@ describe('refreshPrices', () => {
 		);
 
 		await expect(provider().refreshPrices([product])).resolves.toEqual([]);
+		expect(mockRegisterMetric).toHaveBeenCalledWith(
+			'SkimlinksProductsFetched',
+			1,
+		);
 	});
 });
 
