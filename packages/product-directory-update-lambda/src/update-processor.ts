@@ -1,3 +1,4 @@
+import { registerMetric } from '@common/cloudwatch';
 import type { DynamoService } from '@common/database-service';
 import type { Content } from '@guardian/content-api-models/v1/content';
 import { ContentType } from '@guardian/content-api-models/v1/contentType';
@@ -53,6 +54,10 @@ export async function handleContentUpdate({
 				dynamoService,
 			),
 		]);
+
+		// ToDo: how do we know these were all successful?
+		await registerMetric('ArticleProductsUpdated', productsInContent.length);
+
 		return productsInContent.length;
 	} catch (err) {
 		//log out what actually caused the breakage
