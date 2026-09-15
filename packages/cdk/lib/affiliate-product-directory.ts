@@ -34,8 +34,7 @@ export class AffiliateProductDirectory extends GuStack {
 		});
 
 		const snsTopic = new Topic(this, 'ProductDirectorySnsTopic');
-		// ToDo: revert after testing :)
-		const alarmActionsEnabled = true; //stage === 'PROD';
+		const alarmActionsEnabled = stage === 'PROD';
 
 		new Subscription(this, 'ProductDirectoryErrors', {
 			topic: snsTopic,
