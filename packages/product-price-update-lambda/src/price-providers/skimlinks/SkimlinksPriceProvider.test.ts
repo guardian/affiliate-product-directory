@@ -17,6 +17,10 @@ jest.unstable_mockModule(
 	}),
 );
 
+jest.unstable_mockModule('@common/cloudwatch', () => ({
+	registerMetric: jest.fn(),
+}));
+
 let SkimlinksPriceProvider: typeof SkimlinksPriceProviderModule.SkimlinksPriceProvider;
 
 beforeAll(async () => {
