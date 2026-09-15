@@ -3,7 +3,7 @@
 	"version": "0.0.0",
 	"type": "module",
 	"scripts": {
-		"test": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" npx jest --detectOpenHandles --config ../../jest.config.js --selectProjects lambda",
+		"test": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" npx jest --detectOpenHandles --config ../../jest.config.js --selectProjects product-directory-update-lambda",
 		"start": "tsx --env-file=.env src/run-locally.ts",
 		"prebuild": "rm -rf dist",
 		"build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outdir=dist",
