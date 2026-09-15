@@ -30,11 +30,6 @@ export const eventHandler: Handler<
 	const msg = `New event received in ${app} in ${stage}`;
 	console.log(msg);
 
-	// Testing alarm in CODE
-	if (stage !== 'TEST') {
-		throw new Error('test error');
-	}
-
 	switch (event['detail-type']) {
 		case ContentUpdateEventDetail:
 		case ContentDeleteEventDetail: {
