@@ -105,11 +105,11 @@ export class SkimlinksPriceProvider extends PriceProvider {
 
 			if (!match) {
 				// ToDo: investigate metrics in cloudwatch
-				console.log('SkimlinksNoData');
+				// console.log('SkimlinksNoData');
 				continue;
 			}
 
-			console.log('SkimlinksDataRetrieved');
+			// console.log('SkimlinksDataRetrieved');
 			updated.push(
 				this.applyUpdate(product, {
 					price: match.price,

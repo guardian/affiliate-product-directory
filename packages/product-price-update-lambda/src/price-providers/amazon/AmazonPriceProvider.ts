@@ -161,12 +161,9 @@ export class AmazonPriceProvider extends PriceProvider {
 			const money = listing?.price?.money;
 
 			if (!money) {
-				// ToDo: investigate metrics in cloudwatch
-				console.log('AmazonNoBuyBoxListing', asin);
 				continue;
 			}
 
-			console.log('AmazonDataRetrieved', asin);
 			updated.push(
 				this.applyUpdate(product, {
 					price: money.amount,
@@ -174,6 +171,7 @@ export class AmazonPriceProvider extends PriceProvider {
 				}),
 			);
 		}
+		console.log(`AmazonDataRetrieved for ${updated.length} products`);
 
 		return updated;
 	}
