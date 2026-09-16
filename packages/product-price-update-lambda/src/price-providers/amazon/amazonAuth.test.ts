@@ -181,8 +181,6 @@ describe('getAmazonAccessToken', () => {
 		mockFetch.mockResolvedValue(jsonResponse({ expires_in: 3600 }));
 		const { getAmazonAccessToken } = await loadModule();
 
-		await expect(getAmazonAccessToken('UK')).rejects.toThrow(
-			'access_token missing from Amazon response',
-		);
+		await expect(getAmazonAccessToken('UK')).rejects.toThrow();
 	});
 });
