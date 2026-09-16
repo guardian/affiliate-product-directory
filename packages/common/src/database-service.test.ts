@@ -10,8 +10,13 @@ import type {
 import { jest } from '@jest/globals';
 import { buildProduct } from '@mocks/ProductFixtures';
 import { DynamoService } from '@common/database-service';
+import type { Product } from '@common/models';
 
 describe('DynamoService', () => {
+	afterEach(() => {
+		jest.useRealTimers();
+	});
+
 	it('saves a product to the pricing and product-article tables', async () => {
 		const send = jest
 			.fn<(command: UpdateItemCommand) => Promise<object>>()
@@ -172,9 +177,114 @@ describe('DynamoService', () => {
 		});
 	});
 
-	describe('batchUpdateProducts', () => {
-		it('writes every item in a single batch when there are 25 or fewer', async () => {
+	describe('updateProducts', () => {
+		// batchUpdateProducts is private; spying on it lets these tests check
+		// updateProducts' own job (chunking and delegating) without also
+		// exercising the DynamoDB write/retry behaviour tested below.
+		function spyOnBatchUpdateProducts(service: DynamoService) {
+			return jest
+				.spyOn(
+					service as unknown as {
+						batchUpdateProducts: DynamoService['updateProducts'];
+					},
+					'batchUpdateProducts',
+				)
+				.mockResolvedValue(undefined);
+		}
+
+		it('calls batchUpdateProducts once for a batch of 25 or fewer items', async () => {
 			const items = [
+				buildProduct({ productMerchantUrl: 'https://example.com/1' }),
+				buildProduct({ productMerchantUrl: 'https://example.com/2' }),
+			];
+			const service = new DynamoService(
+				'TEST',
+				'affiliate-product-directory-pricing-TEST',
+				'affiliate-product-directory-product-article-TEST',
+				{} as unknown as DynamoDBClient,
+				{} as unknown as DynamoDBDocumentClient,
+			);
+			const batchUpdateProducts = spyOnBatchUpdateProducts(service);
+
+			await service.updateProducts({ items });
+
+			expect(batchUpdateProducts).toHaveBeenCalledTimes(1);
+			expect(batchUpdateProducts).toHaveBeenCalledWith({
+				batch: items,
+				attempt: 1,
+			});
+		});
+
+		it("splits items into chunks of 25 (DynamoDB's BatchWriteItem limit) and calls batchUpdateProducts per chunk", async () => {
+			const items = Array.from({ length: 30 }, (_, i) =>
+				buildProduct({ productMerchantUrl: `https://example.com/${i}` }),
+			);
+			const service = new DynamoService(
+				'TEST',
+				'affiliate-product-directory-pricing-TEST',
+				'affiliate-product-directory-product-article-TEST',
+				{} as unknown as DynamoDBClient,
+				{} as unknown as DynamoDBDocumentClient,
+			);
+			const batchUpdateProducts = spyOnBatchUpdateProducts(service);
+
+			await service.updateProducts({ items });
+
+			expect(batchUpdateProducts).toHaveBeenCalledTimes(2);
+			expect(batchUpdateProducts).toHaveBeenNthCalledWith(1, {
+				batch: items.slice(0, 25),
+				attempt: 1,
+			});
+			expect(batchUpdateProducts).toHaveBeenNthCalledWith(2, {
+				batch: items.slice(25),
+				attempt: 1,
+			});
+		});
+
+		it('propagates a rejection from batchUpdateProducts', async () => {
+			const error = new Error('DynamoDB is unavailable');
+			const service = new DynamoService(
+				'TEST',
+				'affiliate-product-directory-pricing-TEST',
+				'affiliate-product-directory-product-article-TEST',
+				{} as unknown as DynamoDBClient,
+				{} as unknown as DynamoDBDocumentClient,
+			);
+			jest
+				.spyOn(
+					service as unknown as {
+						batchUpdateProducts: DynamoService['updateProducts'];
+					},
+					'batchUpdateProducts',
+				)
+				.mockRejectedValue(error);
+
+			await expect(
+				service.updateProducts({ items: [buildProduct()] }),
+			).rejects.toThrow(error);
+		});
+	});
+
+	describe('batchUpdateProducts', () => {
+		// batchUpdateProducts is private; call it directly so these tests can
+		// cover its DynamoDB write/retry behaviour in isolation from
+		// updateProducts' chunking.
+		function callBatchUpdateProducts(
+			service: DynamoService,
+			args: { batch: Product[]; attempt: number },
+		): Promise<void> {
+			return (
+				service as unknown as {
+					batchUpdateProducts: (args: {
+						batch: Product[];
+						attempt: number;
+					}) => Promise<void>;
+				}
+			).batchUpdateProducts(args);
+		}
+
+		it('writes every item in the batch with a single BatchWriteCommand', async () => {
+			const batch = [
 				buildProduct({ productMerchantUrl: 'https://example.com/1' }),
 				buildProduct({ productMerchantUrl: 'https://example.com/2' }),
 			];
@@ -189,41 +299,17 @@ describe('DynamoService', () => {
 				{ send } as unknown as DynamoDBDocumentClient,
 			);
 
-			await service.batchUpdateProducts({ items });
+			await callBatchUpdateProducts(service, { batch, attempt: 1 });
 
 			expect(send).toHaveBeenCalledTimes(1);
 			expect(send.mock.calls[0]![0].input).toEqual({
 				RequestItems: {
 					'affiliate-product-directory-pricing-TEST': [
-						{ PutRequest: { Item: items[0] } },
-						{ PutRequest: { Item: items[1] } },
+						{ PutRequest: { Item: batch[0] } },
+						{ PutRequest: { Item: batch[1] } },
 					],
 				},
 			});
-		});
-
-		it("splits items into chunks of 25 (DynamoDB's BatchWriteItem limit)", async () => {
-			const items = Array.from({ length: 30 }, (_, i) =>
-				buildProduct({ productMerchantUrl: `https://example.com/${i}` }),
-			);
-			const send = jest
-				.fn<(command: BatchWriteCommand) => Promise<object>>()
-				.mockResolvedValue({});
-			const service = new DynamoService(
-				'TEST',
-				'affiliate-product-directory-pricing-TEST',
-				'affiliate-product-directory-product-article-TEST',
-				{} as unknown as DynamoDBClient,
-				{ send } as unknown as DynamoDBDocumentClient,
-			);
-
-			await service.batchUpdateProducts({ items });
-
-			expect(send).toHaveBeenCalledTimes(2);
-			const requestItems = (input: BatchWriteCommand['input']) =>
-				input.RequestItems?.['affiliate-product-directory-pricing-TEST'] ?? [];
-			expect(requestItems(send.mock.calls[0]![0].input)).toHaveLength(25);
-			expect(requestItems(send.mock.calls[1]![0].input)).toHaveLength(5);
 		});
 
 		it('propagates a failed batch write', async () => {
@@ -240,8 +326,87 @@ describe('DynamoService', () => {
 			);
 
 			await expect(
-				service.batchUpdateProducts({ items: [buildProduct()] }),
+				callBatchUpdateProducts(service, {
+					batch: [buildProduct()],
+					attempt: 1,
+				}),
 			).rejects.toThrow(error);
+		});
+
+		it('retries only the unprocessed items after a delay', async () => {
+			jest.useFakeTimers();
+			const batch = [
+				buildProduct({ productMerchantUrl: 'https://example.com/1' }),
+				buildProduct({ productMerchantUrl: 'https://example.com/2' }),
+			];
+			const send = jest
+				.fn<(command: BatchWriteCommand) => Promise<object>>()
+				.mockResolvedValueOnce({
+					UnprocessedItems: {
+						'affiliate-product-directory-pricing-TEST': [
+							{ PutRequest: { Item: batch[1] } },
+						],
+					},
+				})
+				.mockResolvedValueOnce({});
+			const service = new DynamoService(
+				'TEST',
+				'affiliate-product-directory-pricing-TEST',
+				'affiliate-product-directory-product-article-TEST',
+				{} as unknown as DynamoDBClient,
+				{ send } as unknown as DynamoDBDocumentClient,
+			);
+
+			const pending = callBatchUpdateProducts(service, {
+				batch,
+				attempt: 1,
+			});
+			await jest.advanceTimersByTimeAsync(500);
+			await pending;
+
+			expect(send).toHaveBeenCalledTimes(2);
+			expect(send.mock.calls[1]![0].input).toEqual({
+				RequestItems: {
+					'affiliate-product-directory-pricing-TEST': [
+						{ PutRequest: { Item: batch[1] } },
+					],
+				},
+			});
+		});
+
+		it('throws once items are still unprocessed after the max number of attempts', async () => {
+			jest.useFakeTimers();
+			const item = buildProduct();
+			const send = jest
+				.fn<(command: BatchWriteCommand) => Promise<object>>()
+				.mockResolvedValue({
+					UnprocessedItems: {
+						'affiliate-product-directory-pricing-TEST': [
+							{ PutRequest: { Item: item } },
+						],
+					},
+				});
+			const service = new DynamoService(
+				'TEST',
+				'affiliate-product-directory-pricing-TEST',
+				'affiliate-product-directory-product-article-TEST',
+				{} as unknown as DynamoDBClient,
+				{ send } as unknown as DynamoDBDocumentClient,
+			);
+
+			const pending = callBatchUpdateProducts(service, {
+				batch: [item],
+				attempt: 1,
+			});
+			// Swallow the eventual rejection so it isn't reported as unhandled
+			// while we're still advancing timers below.
+			pending.catch(() => {});
+			await jest.advanceTimersByTimeAsync(500);
+
+			await expect(pending).rejects.toThrow(
+				'1 item(s) still unprocessed after 2 attempts writing to affiliate-product-directory-pricing-TEST',
+			);
+			expect(send).toHaveBeenCalledTimes(2);
 		});
 	});
 });

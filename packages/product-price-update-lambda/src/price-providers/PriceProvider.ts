@@ -39,5 +39,5 @@ export abstract class PriceProvider {
 
 /** Fields a provider is allowed to refresh (identity fields are immutable, timestamp/author are auto-stamped). */
 type ProductUpdate = Partial<
-	Omit<Product, 'url' | 'createdAt' | 'region' | 'updatedAt' | 'updatedBy'>
+	Pick<Product, 'removed' | 'removedAt' | 'price' | 'currency'>
 >;
