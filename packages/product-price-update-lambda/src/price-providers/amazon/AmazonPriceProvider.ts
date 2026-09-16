@@ -172,7 +172,6 @@ export class AmazonPriceProvider extends PriceProvider {
 				}),
 			);
 		}
-		console.log(`AmazonDataRetrieved for ${updated.length} products`);
 
 		return updated;
 	}

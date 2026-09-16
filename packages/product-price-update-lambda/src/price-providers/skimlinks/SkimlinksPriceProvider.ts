@@ -107,12 +107,9 @@ export class SkimlinksPriceProvider extends PriceProvider {
 			const match = productData[product.productMerchantUrl]?.[0];
 
 			if (!match) {
-				// ToDo: investigate metrics in cloudwatch
-				// console.log('SkimlinksNoData');
 				continue;
 			}
 
-			// console.log('SkimlinksDataRetrieved');
 			updated.push(
 				this.applyUpdate(product, {
 					price: match.price,
