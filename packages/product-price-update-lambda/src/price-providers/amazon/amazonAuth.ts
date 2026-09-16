@@ -1,6 +1,7 @@
 import { getConfig } from '@common/config';
 import { appName } from '@common/constants';
 import { getParametersFromParameterStore } from '@common/parameterStore';
+import { z } from 'zod';
 import type { Region } from '@price-update/models';
 
 const config = getConfig();
@@ -84,14 +85,12 @@ export async function getAmazonAccessToken(region: Region): Promise<string> {
 		throw new Error('Failed to fetch Amazon credentials');
 	}
 
-	const data = (await resp.json()) as Partial<{
-		access_token: string;
-		expires_in: number;
-	}>;
+	const TokenResponseSchema = z.object({
+		access_token: z.string(),
+		expires_in: z.number().optional(),
+	});
 
-	if (!data.access_token) {
-		throw new Error('access_token missing from Amazon response');
-	}
+	const data = TokenResponseSchema.parse(await resp.json());
 
 	const accessToken = data.access_token;
 	tokenCache[region] = accessToken;
