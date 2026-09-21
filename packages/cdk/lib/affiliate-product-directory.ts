@@ -6,8 +6,10 @@ import {
 	GuAllowPolicy,
 	GuDynamoDBReadPolicy,
 	GuDynamoDBWritePolicy,
+	GuPutS3ObjectsPolicy,
 } from '@guardian/cdk/lib/constructs/iam';
 import { GuLambdaFunction } from '@guardian/cdk/lib/constructs/lambda';
+import { GuS3Bucket } from '@guardian/cdk/lib/constructs/s3';
 import { GuScheduledLambda } from '@guardian/cdk/lib/patterns/scheduled-lambda';
 import { type App, aws_events_targets, Duration } from 'aws-cdk-lib';
 import {
@@ -42,6 +44,11 @@ export class AffiliateProductDirectory extends GuStack {
 			protocol: SubscriptionProtocol.EMAIL,
 		});
 
+		const bucket = new GuS3Bucket(this, 'ProductDirectoryBucket', {
+			app: appName,
+			bucketName: `${appName}-${stage.toLowerCase()}`,
+		});
+
 		const priceUpdateLambda = new GuScheduledLambda(
 			this,
 			'ProductPriceUpdateLambda',
@@ -49,6 +56,9 @@ export class AffiliateProductDirectory extends GuStack {
 				app: 'product-price-update-lambda',
 				fileName: 'product-price-update-lambda.zip',
 				handler: 'index.eventHandler',
+				environment: {
+					BUCKET: bucket.bucketName,
+				},
 				runtime: Runtime.NODEJS_22_X,
 				architecture: Architecture.ARM_64,
 				// Used for defining cron job execution
@@ -164,9 +174,9 @@ export class AffiliateProductDirectory extends GuStack {
 			},
 		);
 
-		const skimlinksParameterStoreReadPolicy = new GuAllowPolicy(
+		const parameterStoreReadPolicy = new GuAllowPolicy(
 			this,
-			'SkimlinksParameterStoreReadPolicy',
+			'ProductDirectoryParameterStoreReadPolicy',
 			{
 				actions: [
 					'ssm:GetParameter',
@@ -174,31 +184,24 @@ export class AffiliateProductDirectory extends GuStack {
 					'ssm:GetParametersByPath',
 				],
 				resources: [
-					`arn:aws:ssm:${this.region}:${this.account}:parameter/CODE/frontend/${appName}/skimlinks/*`,
+					`arn:aws:ssm:${this.region}:${this.account}:parameter/${stage}/frontend/${appName}/*`,
 				],
 			},
 		);
 
-		const amazonParameterStoreReadPolicy = new GuAllowPolicy(
+		const s3PutPolicy = new GuPutS3ObjectsPolicy(
 			this,
-			'AmazonParameterStoreReadPolicy',
+			'PutS3ProductDirectoryBucketObjectsPolicy',
 			{
-				actions: [
-					'ssm:GetParameter',
-					'ssm:GetParameters',
-					'ssm:GetParametersByPath',
-				],
-				resources: [
-					`arn:aws:ssm:${this.region}:${this.account}:parameter/CODE/frontend/${appName}/amazon/*`,
-				],
+				bucketName: bucket.bucketName,
 			},
 		);
 
 		[
 			productPricingDynamoDBReadPolicy,
 			productPricingDynamoDBWritePolicy,
-			skimlinksParameterStoreReadPolicy,
-			amazonParameterStoreReadPolicy,
+			parameterStoreReadPolicy,
+			s3PutPolicy,
 		].forEach((policy) => priceUpdateLambda.role?.attachInlinePolicy(policy));
 
 		[

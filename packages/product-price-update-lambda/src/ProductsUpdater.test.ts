@@ -7,6 +7,7 @@ import {
 } from '@mocks/DatabaseServiceMock';
 import { buildProduct } from '@mocks/ProductFixtures';
 import { mockSkimlinksRefreshPrices } from '@mocks/SkimlinksPriceProviderMock';
+import '@mocks/S3FileWriterMock';
 import type * as ProductsUpdaterModule from './ProductsUpdater';
 
 let ProductsUpdater: typeof ProductsUpdaterModule.ProductsUpdater;
