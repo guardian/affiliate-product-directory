@@ -103,7 +103,7 @@ export class DynamoService {
 		}
 
 		const retryItems = unprocessed
-			.map((req) => req.PutRequest?.Item as Product | undefined)
+			.map((req) => req.PutRequest?.Item)
 			.filter((item): item is Product => item !== undefined);
 
 		await new Promise((resolve) => setTimeout(resolve, 500));
