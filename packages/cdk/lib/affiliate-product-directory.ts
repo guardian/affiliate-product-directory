@@ -197,11 +197,17 @@ export class AffiliateProductDirectory extends GuStack {
 			},
 		);
 
+		const metricPutPolicy = new GuAllowPolicy(this, 'putMetric', {
+			resources: ['*'],
+			actions: ['cloudwatch:PutMetricData'],
+		});
+
 		[
 			productPricingDynamoDBReadPolicy,
 			productPricingDynamoDBWritePolicy,
 			parameterStoreReadPolicy,
 			s3PutPolicy,
+			metricPutPolicy,
 		].forEach((policy) => priceUpdateLambda.role?.attachInlinePolicy(policy));
 
 		[
@@ -209,6 +215,7 @@ export class AffiliateProductDirectory extends GuStack {
 			productPricingDynamoDBWritePolicy,
 			productArticleDynamoDBReadPolicy,
 			productArticleDynamoDBWritePolicy,
+			metricPutPolicy,
 		].forEach((policy) =>
 			directoryUpdateLambda.role?.attachInlinePolicy(policy),
 		);
