@@ -17,13 +17,15 @@ describe('convertProductsToCsv', () => {
 		const products = [
 			buildProduct({
 				productMerchantUrl: 'amazon.com',
+				currency: 'USD',
 			}),
 			buildProduct({
 				productMerchantUrl: 'argos.com',
+				currency: 'GBP',
 			}),
 		];
 		const result = fileWriter().convertProductsToCsv(products);
-		expect(result).toEqual(`amazon.com,9.99
-argos.com,9.99`);
+		expect(result).toEqual(`amazon.com,$9.99
+argos.com,£9.99`);
 	});
 });

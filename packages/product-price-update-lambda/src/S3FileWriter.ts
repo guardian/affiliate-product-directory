@@ -1,9 +1,18 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getBucketName } from '@common/config';
+import { formatPrice, getCurrencySymbol } from '@common/format';
 import type { Product } from '@common/models';
 
 const PRODUCT_PRICES_FILE_KEY = 'product-prices.csv' as const;
 const pathToBucket = getBucketName();
+
+function formatCsvProduct({
+	productMerchantUrl,
+	currency,
+	price,
+}: Product): string {
+	return `${productMerchantUrl},${getCurrencySymbol(currency)}${formatPrice(price)}`;
+}
 
 export class S3FileWriter {
 	constructor(private readonly s3Client = new S3Client({})) {}
@@ -27,9 +36,7 @@ export class S3FileWriter {
 	}
 
 	public convertProductsToCsv(products: Product[]): string {
-		return products
-			.map((product) => [product.productMerchantUrl, product.price].join(','))
-			.join('\n');
+		return products.map(formatCsvProduct).join('\n');
 	}
 
 	public async writeProductsToS3File(products: Product[]) {
