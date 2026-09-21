@@ -61,25 +61,57 @@ export class DynamoService {
 	 * (DynamoDB's BatchWriteItem limit). No retry on unprocessed items —
 	 * any that fail are just dropped for now.
 	 */
-	async batchUpdateProducts({ items }: { items: Product[] }): Promise<void> {
+	async updateProducts({ items }: { items: Product[] }): Promise<void> {
 		const BATCH_SIZE = 25;
 		const batches = chunk(items, BATCH_SIZE);
 
 		await Promise.all(
-			batches.map((batch) =>
-				this.docClient.send(
-					new BatchWriteCommand({
-						RequestItems: {
-							[this.pricingTableName]: batch.map((item) => ({
-								PutRequest: {
-									Item: item,
-								},
-							})),
-						},
-					}),
-				),
-			),
+			batches.map((batch) => this.batchUpdateProducts({ batch, attempt: 1 })),
 		);
+	}
+
+	private async batchUpdateProducts({
+		batch,
+		attempt,
+	}: {
+		batch: Product[];
+		attempt: number;
+	}): Promise<void> {
+		const MAX_ATTEMPTS = 2;
+		const resp = await this.docClient.send(
+			new BatchWriteCommand({
+				RequestItems: {
+					[this.pricingTableName]: batch.map((item) => ({
+						PutRequest: {
+							Item: item,
+						},
+					})),
+				},
+			}),
+		);
+
+		const unprocessed = resp.UnprocessedItems?.[this.pricingTableName];
+
+		if (!unprocessed?.length) {
+			return;
+		}
+
+		if (attempt >= MAX_ATTEMPTS) {
+			throw new Error(
+				`${unprocessed.length} item(s) still unprocessed after ${MAX_ATTEMPTS} attempts writing to ${this.pricingTableName}`,
+			);
+		}
+
+		const retryItems = unprocessed
+			.map((req) => req.PutRequest?.Item)
+			.filter((item): item is Product => item !== undefined);
+
+		await new Promise((resolve) => setTimeout(resolve, 500));
+
+		return this.batchUpdateProducts({
+			batch: retryItems,
+			attempt: attempt + 1,
+		});
 	}
 
 	private async saveToDb(command: UpdateItemCommand): Promise<void> {
