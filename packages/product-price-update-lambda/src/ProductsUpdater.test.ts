@@ -2,8 +2,8 @@ import type * as DatabaseServiceModule from '@common/database-service';
 import { jest } from '@jest/globals';
 import { mockAmazonRefreshPrices } from '@mocks/AmazonPriceProviderMock';
 import {
-	mockBatchUpdateProducts,
 	mockGetAllProducts,
+	mockUpdateProducts,
 } from '@mocks/DatabaseServiceMock';
 import { buildProduct } from '@mocks/ProductFixtures';
 import { mockSkimlinksRefreshPrices } from '@mocks/SkimlinksPriceProviderMock';
@@ -82,7 +82,7 @@ describe('refreshPrices', () => {
 
 		await updater().refreshPrices();
 
-		expect(mockBatchUpdateProducts).toHaveBeenCalledWith({
+		expect(mockUpdateProducts).toHaveBeenCalledWith({
 			items: [amazonUpdated, skimlinksUpdated],
 		});
 	});

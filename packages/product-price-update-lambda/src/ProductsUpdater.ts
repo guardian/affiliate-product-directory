@@ -27,7 +27,7 @@ export class ProductsUpdater {
 		]);
 
 		const allProducts = [...amazonUpdated, ...skimlinksUpdated];
-		await this.dynamoService.batchUpdateProducts({
+		await this.dynamoService.updateProducts({
 			items: allProducts,
 		});
 		await this.s3FileWriter.writeProductsToS3File(allProducts);
