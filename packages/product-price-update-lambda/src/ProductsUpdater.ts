@@ -24,7 +24,7 @@ export class ProductsUpdater {
 			this.skimlinks.refreshPrices(categorised.skimlinks),
 		]);
 
-		await this.dynamoService.batchUpdateProducts({
+		await this.dynamoService.updateProducts({
 			items: [...amazonUpdated, ...skimlinksUpdated],
 		});
 	}

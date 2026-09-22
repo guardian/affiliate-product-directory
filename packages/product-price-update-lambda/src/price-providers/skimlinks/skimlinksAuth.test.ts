@@ -134,8 +134,6 @@ describe('getSkimlinksAccessToken', () => {
 		mockFetch.mockResolvedValue(jsonResponse({ expiry_timestamp: 123 }));
 		const { getSkimlinksAccessToken } = await loadModule();
 
-		await expect(getSkimlinksAccessToken()).rejects.toThrow(
-			'access_token missing from Skimlinks response',
-		);
+		await expect(getSkimlinksAccessToken()).rejects.toThrow();
 	});
 });

@@ -1,3 +1,4 @@
+import { registerMetric } from '@common/cloudwatch';
 import type { Product } from '@common/models';
 import type { SkimlinksProductsResponse } from '@price-update/models';
 import {
@@ -88,6 +89,8 @@ export class SkimlinksPriceProvider extends PriceProvider {
 					`Skimlinks products request failed: ${response.status} ${response.statusText}`,
 				);
 			}
+
+			await registerMetric('SkimlinksProductsFetched', batch.length);
 			return SkimlinksProductsResponseSchema.parse(await response.json());
 		});
 
@@ -104,12 +107,9 @@ export class SkimlinksPriceProvider extends PriceProvider {
 			const match = productData[product.productMerchantUrl]?.[0];
 
 			if (!match) {
-				// ToDo: investigate metrics in cloudwatch
-				console.log('SkimlinksNoData');
 				continue;
 			}
 
-			console.log('SkimlinksDataRetrieved');
 			updated.push(
 				this.applyUpdate(product, {
 					price: match.price,
