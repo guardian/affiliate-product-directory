@@ -65,7 +65,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
                     {
                       "Ref": "AWS::AccountId",
                     },
-                    ":parameter/CODE/frontend/affiliate-product-directory/amazon/*",
+                    ":parameter/TEST/frontend/affiliate-product-directory/amazon/*",
                   ],
                 ],
               },
@@ -1787,7 +1787,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
                     {
                       "Ref": "AWS::AccountId",
                     },
-                    ":parameter/CODE/frontend/affiliate-product-directory/skimlinks/*",
+                    ":parameter/TEST/frontend/affiliate-product-directory/skimlinks/*",
                   ],
                 ],
               },
