@@ -1,11 +1,11 @@
 import type { GuStackProps } from '@guardian/cdk/lib/constructs/core';
 import { GuParameter, GuStack } from '@guardian/cdk/lib/constructs/core';
-import { type App } from 'aws-cdk-lib';
+import type { App } from 'aws-cdk-lib';
 import { Subscription, SubscriptionProtocol, Topic } from 'aws-cdk-lib/aws-sns';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { appName } from '../../common/src/constants';
 import { createAlarms } from './alarms';
-import { createCrier } from './crier';
+import { connectDirectoryUpdateLambdaToCrier, createCrier } from './crier';
 import { createDynamoTables } from './dynamo';
 import { createLambdas } from './lambda';
 import { createPolicies } from './policies';
@@ -83,7 +83,17 @@ export class AffiliateProductDirectory extends GuStack {
 		});
 		updatedPriceQueue.grantSendMessages(priceUpdateLambda);
 
-		createCrier(this, { appName, stage, directoryUpdateLambda });
+		const { crierEventBus, crierDlq } = createCrier(this, {
+			appName,
+			stage,
+		});
+
+		connectDirectoryUpdateLambdaToCrier(this, {
+			stage,
+			lambda: directoryUpdateLambda,
+			eventBus: crierEventBus,
+			deadLetterQueue: crierDlq,
+		});
 
 		createAlarms(this, { appName, alarmActionsEnabled, snsTopic, stage });
 	}
