@@ -5,6 +5,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
   "Metadata": {
     "gu:cdk:constructs": [
       "GuParameter",
+      "GuS3Bucket",
       "GuDistributionBucketParameter",
       "GuScheduledLambda",
       "GuLambdaErrorPercentageAlarm",
@@ -17,6 +18,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       "GuDynamoDBReadPolicy",
       "GuDynamoDBWritePolicy",
       "GuAllowPolicy",
+      "GuPutS3ObjectsPolicy",
       "GuAllowPolicy",
       "GuParameter",
       "GuParameter",
@@ -46,42 +48,6 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
     },
   },
   "Resources": {
-    "AmazonParameterStoreReadPolicy5B049A35": {
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": [
-                "ssm:GetParameter",
-                "ssm:GetParameters",
-                "ssm:GetParametersByPath",
-              ],
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::Join": [
-                  "",
-                  [
-                    "arn:aws:ssm:eu-west-1:",
-                    {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":parameter/TEST/frontend/affiliate-product-directory/amazon/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "AmazonParameterStoreReadPolicy5B049A35",
-        "Roles": [
-          {
-            "Ref": "ProductPriceUpdateLambdaServiceRole34386223",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
     "BackfillConnection25E8AC50": {
       "Properties": {
         "Description": "Connect product-directory-update-lambda TEST to backfill events",
@@ -809,6 +775,42 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       },
       "Type": "AWS::IAM::Policy",
     },
+    "ProductDirectoryBucketAffiliateproductdirectory27104360": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "BucketName": "affiliate-product-directory-test",
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true,
+        },
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-product-directory",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+      },
+      "Type": "AWS::S3::Bucket",
+      "UpdateReplacePolicy": "Retain",
+    },
     "ProductDirectoryErrorsEF25467D": {
       "Properties": {
         "Endpoint": "thefilter.dev@guardian.co.uk",
@@ -818,6 +820,42 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         },
       },
       "Type": "AWS::SNS::Subscription",
+    },
+    "ProductDirectoryParameterStoreReadPolicy21106825": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "ssm:GetParameter",
+                "ssm:GetParameters",
+                "ssm:GetParametersByPath",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:ssm:eu-west-1:",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":parameter/TEST/frontend/affiliate-product-directory/*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "ProductDirectoryParameterStoreReadPolicy21106825",
+        "Roles": [
+          {
+            "Ref": "ProductPriceUpdateLambdaServiceRole34386223",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
     },
     "ProductDirectoryPricingTableB324AD24": {
       "DeletionPolicy": "Retain",
@@ -1302,6 +1340,9 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         "Environment": {
           "Variables": {
             "APP": "product-price-update-lambda",
+            "BUCKET": {
+              "Ref": "ProductDirectoryBucketAffiliateproductdirectory27104360",
+            },
             "STACK": "frontend",
             "STAGE": "TEST",
           },
@@ -1768,26 +1809,22 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       "Type": "AWS::SQS::Queue",
       "UpdateReplacePolicy": "Delete",
     },
-    "SkimlinksParameterStoreReadPolicy8172B98D": {
+    "PutS3ProductDirectoryBucketObjectsPolicy37689081": {
       "Properties": {
         "PolicyDocument": {
           "Statement": [
             {
-              "Action": [
-                "ssm:GetParameter",
-                "ssm:GetParameters",
-                "ssm:GetParametersByPath",
-              ],
+              "Action": "s3:PutObject",
               "Effect": "Allow",
               "Resource": {
                 "Fn::Join": [
                   "",
                   [
-                    "arn:aws:ssm:eu-west-1:",
+                    "arn:aws:s3:::",
                     {
-                      "Ref": "AWS::AccountId",
+                      "Ref": "ProductDirectoryBucketAffiliateproductdirectory27104360",
                     },
-                    ":parameter/TEST/frontend/affiliate-product-directory/skimlinks/*",
+                    "/*",
                   ],
                 ],
               },
@@ -1795,10 +1832,34 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
           ],
           "Version": "2012-10-17",
         },
-        "PolicyName": "SkimlinksParameterStoreReadPolicy8172B98D",
+        "PolicyName": "PutS3ProductDirectoryBucketObjectsPolicy37689081",
         "Roles": [
           {
             "Ref": "ProductPriceUpdateLambdaServiceRole34386223",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "putMetricFA436479": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "cloudwatch:PutMetricData",
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "putMetricFA436479",
+        "Roles": [
+          {
+            "Ref": "ProductPriceUpdateLambdaServiceRole34386223",
+          },
+          {
+            "Ref": "ProductDirectoryUpdateLambdaServiceRoleB5BDC4A1",
           },
         ],
       },

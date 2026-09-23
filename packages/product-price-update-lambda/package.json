@@ -10,7 +10,8 @@
 		"postbuild": "cd dist && zip -r product-price-update-lambda.zip ."
 	},
 	"devDependencies": {
-		"esbuild": "0.28.2"
+		"esbuild": "0.28.2",
+		"@aws-sdk/client-s3": "^3.1123.0"
 	},
 	"dependencies": {
 		"zod": "^4.5.4"

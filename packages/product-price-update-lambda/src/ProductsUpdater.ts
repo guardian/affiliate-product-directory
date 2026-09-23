@@ -2,6 +2,7 @@ import type { DynamoService } from '@common/database-service';
 import type { Product } from '@common/models';
 import { AmazonPriceProvider } from '@price-update/price-providers/amazon/AmazonPriceProvider';
 import { SkimlinksPriceProvider } from '@price-update/price-providers/skimlinks/SkimlinksPriceProvider';
+import { S3FileWriter } from '@price-update/S3FileWriter';
 
 type Partner = 'amazon' | 'skimlinks';
 type CategorisedProducts = Record<Partner, Product[]>;
@@ -9,6 +10,7 @@ type CategorisedProducts = Record<Partner, Product[]>;
 export class ProductsUpdater {
 	private amazon = new AmazonPriceProvider();
 	private skimlinks = new SkimlinksPriceProvider();
+	private s3FileWriter = new S3FileWriter();
 
 	constructor(private readonly dynamoService: DynamoService) {}
 
@@ -24,9 +26,11 @@ export class ProductsUpdater {
 			this.skimlinks.refreshPrices(categorised.skimlinks),
 		]);
 
+		const allProducts = [...amazonUpdated, ...skimlinksUpdated];
 		await this.dynamoService.updateProducts({
-			items: [...amazonUpdated, ...skimlinksUpdated],
+			items: allProducts,
 		});
+		await this.s3FileWriter.writeProductsToS3File(allProducts);
 	}
 
 	public async getProductsFromDB(): Promise<Product[]> {

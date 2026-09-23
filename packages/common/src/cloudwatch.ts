@@ -2,7 +2,7 @@ import {
 	CloudWatchClient,
 	PutMetricDataCommand,
 } from '@aws-sdk/client-cloudwatch';
-import { getConfig } from './config';
+import { getConfig } from '@common/config';
 
 const cloudwatchClient = new CloudWatchClient({
 	region: process.env['AWS_REGION'] ?? 'eu-west-1',
