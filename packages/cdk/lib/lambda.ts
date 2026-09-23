@@ -1,9 +1,18 @@
 import type { GuStack } from '@guardian/cdk/lib/constructs/core';
 import { GuLambdaFunction } from '@guardian/cdk/lib/constructs/lambda';
+import type { GuS3Bucket } from '@guardian/cdk/lib/constructs/s3';
 import { GuScheduledLambda } from '@guardian/cdk/lib/patterns/scheduled-lambda';
 import type { CfnParameter } from 'aws-cdk-lib';
+import type { Policy } from 'aws-cdk-lib/aws-iam';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
 import type { Topic } from 'aws-cdk-lib/aws-sns';
+
+export function attachPoliciesToLambda(
+	lambda: GuLambdaFunction | GuScheduledLambda,
+	policies: Policy[],
+): void {
+	policies.forEach((policy) => lambda.role?.attachInlinePolicy(policy));
+}
 
 export function createLambdas(scope: GuStack, props: CreateLambdasProps) {
 	return {
@@ -18,16 +27,20 @@ export interface CreateLambdasProps {
 	snsTopic: Topic;
 	alarmActionsEnabled: boolean;
 	capiKeyParam: CfnParameter;
+	bucket: GuS3Bucket;
 }
 
 export function createPriceUpdateLambda(
 	scope: GuStack,
-	{ appName, stage, snsTopic, alarmActionsEnabled }: CreateLambdasProps,
+	{ appName, stage, snsTopic, alarmActionsEnabled, bucket }: CreateLambdasProps,
 ): GuScheduledLambda {
 	return new GuScheduledLambda(scope, 'ProductPriceUpdateLambda', {
 		app: 'product-price-update-lambda',
 		fileName: 'product-price-update-lambda.zip',
 		handler: 'index.eventHandler',
+		environment: {
+			BUCKET: bucket.bucketName,
+		},
 		runtime: Runtime.NODEJS_22_X,
 		architecture: Architecture.ARM_64,
 		// Used for defining cron job execution

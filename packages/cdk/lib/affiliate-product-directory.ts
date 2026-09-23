@@ -1,6 +1,5 @@
 import type { GuStackProps } from '@guardian/cdk/lib/constructs/core';
 import { GuParameter, GuStack } from '@guardian/cdk/lib/constructs/core';
-import { GuS3Bucket } from '@guardian/cdk/lib/constructs/s3';
 import { type App } from 'aws-cdk-lib';
 import { Subscription, SubscriptionProtocol, Topic } from 'aws-cdk-lib/aws-sns';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
@@ -8,8 +7,9 @@ import { appName } from '../../common/src/constants';
 import { createAlarms } from './alarms';
 import { connectDirectoryUpdateLambdaToCrier, createCrier } from './crier';
 import { createDynamoTables } from './dynamo';
-import { createLambdas } from './lambda';
+import { attachPoliciesToLambda, createLambdas } from './lambda';
 import { createPolicies } from './policies';
+import { createS3 } from './s3';
 
 export class AffiliateProductDirectory extends GuStack {
 	constructor(scope: App, id: string, props: GuStackProps) {
@@ -29,10 +29,7 @@ export class AffiliateProductDirectory extends GuStack {
 			protocol: SubscriptionProtocol.EMAIL,
 		});
 
-		const bucket = new GuS3Bucket(this, 'ProductDirectoryBucket', {
-			app: appName,
-			bucketName: `${appName}-${stage.toLowerCase()}`,
-		});
+		const { productDirectoryBucket } = createS3(this, { stage, appName });
 
 		const { priceUpdateLambda, directoryUpdateLambda } = createLambdas(this, {
 			appName,
@@ -40,6 +37,7 @@ export class AffiliateProductDirectory extends GuStack {
 			snsTopic,
 			alarmActionsEnabled,
 			capiKeyParam,
+			bucket: productDirectoryBucket,
 		});
 
 		const { productPricingTable, productArticleTable } = createDynamoTables(
@@ -62,27 +60,25 @@ export class AffiliateProductDirectory extends GuStack {
 			productPricingTable,
 			region: this.region,
 			account: this.account,
-			bucket: bucket,
+			bucket: productDirectoryBucket,
 		});
 
 		// Attach policies
-		[
+		attachPoliciesToLambda(priceUpdateLambda, [
 			productPricingDynamoDBReadPolicy,
 			productPricingDynamoDBWritePolicy,
 			parameterStoreReadPolicy,
 			s3PutPolicy,
 			metricPutPolicy,
-		].forEach((policy) => priceUpdateLambda.role?.attachInlinePolicy(policy));
+		]);
 
-		[
+		attachPoliciesToLambda(directoryUpdateLambda, [
 			productPricingDynamoDBReadPolicy,
 			productPricingDynamoDBWritePolicy,
 			productArticleDynamoDBReadPolicy,
 			productArticleDynamoDBWritePolicy,
 			metricPutPolicy,
-		].forEach((policy) =>
-			directoryUpdateLambda.role?.attachInlinePolicy(policy),
-		);
+		]);
 
 		const updatedPriceQueue = new Queue(this, 'ProductPricingUpdateQueue', {
 			queueName: `${appName}-pricing-update-${this.stage}`,
