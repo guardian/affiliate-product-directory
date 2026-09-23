@@ -4,7 +4,9 @@ import {
 	GuAllowPolicy,
 	GuDynamoDBReadPolicy,
 	GuDynamoDBWritePolicy,
+	GuPutS3ObjectsPolicy,
 } from '@guardian/cdk/lib/constructs/iam';
+import type { GuS3Bucket } from '@guardian/cdk/lib/constructs/s3';
 
 export function createPolicies(
 	scope: GuStack,
@@ -13,11 +15,17 @@ export function createPolicies(
 		appName,
 		productPricingTable,
 		productArticleTable,
+		bucket,
+		region,
+		account,
 	}: {
 		stage: string;
 		appName: string;
 		productPricingTable: GuDynamoTable;
 		productArticleTable: GuDynamoTable;
+		bucket: GuS3Bucket;
+		region: string;
+		account: string;
 	},
 ) {
 	const productPricingDynamoDBReadPolicy = new GuDynamoDBReadPolicy(
@@ -44,9 +52,9 @@ export function createPolicies(
 		{ tableName: productArticleTable.tableName },
 	);
 
-	const skimlinksParameterStoreReadPolicy = new GuAllowPolicy(
+	const parameterStoreReadPolicy = new GuAllowPolicy(
 		scope,
-		'SkimlinksParameterStoreReadPolicy',
+		'ProductDirectoryParameterStoreReadPolicy',
 		{
 			actions: [
 				'ssm:GetParameter',
@@ -54,32 +62,31 @@ export function createPolicies(
 				'ssm:GetParametersByPath',
 			],
 			resources: [
-				`arn:aws:ssm:${scope.region}:${scope.account}:parameter/${stage}/frontend/${appName}/skimlinks/*`,
+				`arn:aws:ssm:${region}:${account}:parameter/${stage}/frontend/${appName}/*`,
 			],
 		},
 	);
 
-	const amazonParameterStoreReadPolicy = new GuAllowPolicy(
+	const s3PutPolicy = new GuPutS3ObjectsPolicy(
 		scope,
-		'AmazonParameterStoreReadPolicy',
+		'PutS3ProductDirectoryBucketObjectsPolicy',
 		{
-			actions: [
-				'ssm:GetParameter',
-				'ssm:GetParameters',
-				'ssm:GetParametersByPath',
-			],
-			resources: [
-				`arn:aws:ssm:${scope.region}:${scope.account}:parameter/${stage}/frontend/${appName}/amazon/*`,
-			],
+			bucketName: bucket.bucketName,
 		},
 	);
+
+	const metricPutPolicy = new GuAllowPolicy(scope, 'putMetric', {
+		resources: ['*'],
+		actions: ['cloudwatch:PutMetricData'],
+	});
 
 	return {
 		productPricingDynamoDBReadPolicy,
 		productPricingDynamoDBWritePolicy,
 		productArticleDynamoDBReadPolicy,
 		productArticleDynamoDBWritePolicy,
-		skimlinksParameterStoreReadPolicy,
-		amazonParameterStoreReadPolicy,
+		parameterStoreReadPolicy,
+		s3PutPolicy,
+		metricPutPolicy,
 	};
 }
