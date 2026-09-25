@@ -6,7 +6,6 @@ import {
 	GuDynamoDBWritePolicy,
 	GuPutS3ObjectsPolicy,
 } from '@guardian/cdk/lib/constructs/iam';
-import type { GuS3Bucket } from '@guardian/cdk/lib/constructs/s3';
 
 export function createPolicies(
 	scope: GuStack,
@@ -15,7 +14,7 @@ export function createPolicies(
 		appName,
 		productPricingTable,
 		productArticleTable,
-		bucket,
+		bucketName,
 		region,
 		account,
 	}: {
@@ -23,7 +22,7 @@ export function createPolicies(
 		appName: string;
 		productPricingTable: GuDynamoTable;
 		productArticleTable: GuDynamoTable;
-		bucket: GuS3Bucket;
+		bucketName: string;
 		region: string;
 		account: string;
 	},
@@ -69,9 +68,9 @@ export function createPolicies(
 
 	const s3PutPolicy = new GuPutS3ObjectsPolicy(
 		scope,
-		'PutS3ProductDirectoryBucketObjectsPolicy',
+		'PutS3FrontendStoreBucketObjectsPolicy',
 		{
-			bucketName: bucket.bucketName,
+			bucketName,
 		},
 	);
 
