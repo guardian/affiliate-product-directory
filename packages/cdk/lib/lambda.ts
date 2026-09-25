@@ -1,6 +1,5 @@
 import type { GuStack } from '@guardian/cdk/lib/constructs/core';
 import { GuLambdaFunction } from '@guardian/cdk/lib/constructs/lambda';
-import type { GuS3Bucket } from '@guardian/cdk/lib/constructs/s3';
 import { GuScheduledLambda } from '@guardian/cdk/lib/patterns/scheduled-lambda';
 import type { CfnParameter } from 'aws-cdk-lib';
 import type { Policy } from 'aws-cdk-lib/aws-iam';
@@ -27,19 +26,25 @@ export interface CreateLambdasProps {
 	snsTopic: Topic;
 	alarmActionsEnabled: boolean;
 	capiKeyParam: CfnParameter;
-	bucket: GuS3Bucket;
+	bucketName: string;
 }
 
 export function createPriceUpdateLambda(
 	scope: GuStack,
-	{ appName, stage, snsTopic, alarmActionsEnabled, bucket }: CreateLambdasProps,
+	{
+		appName,
+		stage,
+		snsTopic,
+		alarmActionsEnabled,
+		bucketName,
+	}: CreateLambdasProps,
 ): GuScheduledLambda {
 	return new GuScheduledLambda(scope, 'ProductPriceUpdateLambda', {
 		app: 'product-price-update-lambda',
 		fileName: 'product-price-update-lambda.zip',
 		handler: 'index.eventHandler',
 		environment: {
-			BUCKET: bucket.bucketName,
+			BUCKET: bucketName,
 		},
 		runtime: Runtime.NODEJS_22_X,
 		architecture: Architecture.ARM_64,

@@ -9,7 +9,6 @@ import { connectDirectoryUpdateLambdaToCrier, createCrier } from './crier';
 import { createDynamoTables } from './dynamo';
 import { attachPoliciesToLambda, createLambdas } from './lambda';
 import { createPolicies } from './policies';
-import { createS3 } from './s3';
 
 export class AffiliateProductDirectory extends GuStack {
 	constructor(scope: App, id: string, props: GuStackProps) {
@@ -29,7 +28,7 @@ export class AffiliateProductDirectory extends GuStack {
 			protocol: SubscriptionProtocol.EMAIL,
 		});
 
-		const { productDirectoryBucket } = createS3(this, { stage, appName });
+		const bucketName = 'aws-frontend-store';
 
 		const { priceUpdateLambda, directoryUpdateLambda } = createLambdas(this, {
 			appName,
@@ -37,7 +36,7 @@ export class AffiliateProductDirectory extends GuStack {
 			snsTopic,
 			alarmActionsEnabled,
 			capiKeyParam,
-			bucket: productDirectoryBucket,
+			bucketName,
 		});
 
 		const { productPricingTable, productArticleTable } = createDynamoTables(
@@ -60,7 +59,7 @@ export class AffiliateProductDirectory extends GuStack {
 			productPricingTable,
 			region: this.region,
 			account: this.account,
-			bucket: productDirectoryBucket,
+			bucketName,
 		});
 
 		// Attach policies
