@@ -6,6 +6,7 @@ import {
 	mockUpdateProducts,
 } from '@mocks/DatabaseServiceMock';
 import { buildProduct } from '@mocks/ProductFixtures';
+import { mockShopifyRefreshPrices } from '@mocks/ShopifyPriceProviderMock';
 import { mockSkimlinksRefreshPrices } from '@mocks/SkimlinksPriceProviderMock';
 import '@mocks/S3FileWriterMock';
 import type * as ProductsUpdaterModule from './ProductsUpdater';
@@ -24,6 +25,7 @@ beforeEach(() => {
 	jest.clearAllMocks();
 	mockGetAllProducts.mockResolvedValue([]);
 	mockAmazonRefreshPrices.mockResolvedValue([]);
+	mockShopifyRefreshPrices.mockResolvedValue([]);
 	mockSkimlinksRefreshPrices.mockResolvedValue([]);
 });
 
@@ -48,7 +50,7 @@ describe('getProductsFromDB', () => {
 });
 
 describe('refreshPrices', () => {
-	it('routes amazon products to the amazon provider and the rest to skimlinks', async () => {
+	it('routes amazon products to the amazon provider and the rest to shopify then skimlinks', async () => {
 		const amazonCom = buildProduct({
 			productMerchantUrl: 'https://amazon.com/dp/1',
 		});
@@ -66,7 +68,33 @@ describe('refreshPrices', () => {
 			amazonCom,
 			amazonCoUk,
 		]);
+		expect(mockShopifyRefreshPrices).toHaveBeenCalledWith([other]);
 		expect(mockSkimlinksRefreshPrices).toHaveBeenCalledWith([other]);
+	});
+
+	it('only passes products shopify could not price on to skimlinks', async () => {
+		const shopifyProduct = buildProduct({
+			productMerchantUrl: 'https://shop.example.com/products/1',
+		});
+		const nonShopifyProduct = buildProduct({
+			productMerchantUrl: 'https://www.johnlewis.com/p/2',
+		});
+		mockGetAllProducts.mockResolvedValue([shopifyProduct, nonShopifyProduct]);
+		mockShopifyRefreshPrices.mockResolvedValue([shopifyProduct]);
+		mockSkimlinksRefreshPrices.mockResolvedValue([nonShopifyProduct]);
+
+		await updater().refreshPrices();
+
+		expect(mockShopifyRefreshPrices).toHaveBeenCalledWith([
+			shopifyProduct,
+			nonShopifyProduct,
+		]);
+		expect(mockSkimlinksRefreshPrices).toHaveBeenCalledWith([
+			nonShopifyProduct,
+		]);
+		expect(mockUpdateProducts).toHaveBeenCalledWith({
+			items: [shopifyProduct, nonShopifyProduct],
+		});
 	});
 
 	it('writes the combined updated products back to the table', async () => {
@@ -76,14 +104,16 @@ describe('refreshPrices', () => {
 		]);
 
 		const amazonUpdated = buildProduct({ price: 1 });
-		const skimlinksUpdated = buildProduct({ price: 2 });
+		const shopifyUpdated = buildProduct({ price: 2 });
+		const skimlinksUpdated = buildProduct({ price: 3 });
 		mockAmazonRefreshPrices.mockResolvedValue([amazonUpdated]);
+		mockShopifyRefreshPrices.mockResolvedValue([shopifyUpdated]);
 		mockSkimlinksRefreshPrices.mockResolvedValue([skimlinksUpdated]);
 
 		await updater().refreshPrices();
 
 		expect(mockUpdateProducts).toHaveBeenCalledWith({
-			items: [amazonUpdated, skimlinksUpdated],
+			items: [amazonUpdated, shopifyUpdated, skimlinksUpdated],
 		});
 	});
 });

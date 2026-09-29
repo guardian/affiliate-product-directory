@@ -1,5 +1,7 @@
 import { jest } from '@jest/globals';
 import { mockRegisterMetric } from '@mocks/CloudwatchMock';
+import '@mocks/ConfigMock';
+import { mockGetParametersFromParameterStore } from '@mocks/ParameterStoreMock';
 import { buildProduct } from '@mocks/ProductFixtures';
 import { ZodError } from 'zod';
 import type * as SkimlinksAuthModule from './skimlinksAuth';
@@ -51,6 +53,9 @@ function jsonResponse(body: unknown, ok = true): Response {
 
 beforeEach(() => {
 	jest.clearAllMocks();
+	mockGetParametersFromParameterStore.mockResolvedValue({
+		'/TEST/test-stack/affiliate-product-directory/skimlinks/enabled': 'true',
+	});
 	jest.spyOn(console, 'log').mockImplementation(() => {});
 	mockGetSkimlinksCredentials.mockResolvedValue(credentials);
 	mockGetSkimlinksAccessToken.mockResolvedValue('access-token-1');

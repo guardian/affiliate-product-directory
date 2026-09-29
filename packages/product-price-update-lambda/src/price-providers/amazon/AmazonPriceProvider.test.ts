@@ -1,5 +1,7 @@
 import { jest } from '@jest/globals';
 import { mockRegisterMetric } from '@mocks/CloudwatchMock';
+import '@mocks/ConfigMock';
+import { mockGetParametersFromParameterStore } from '@mocks/ParameterStoreMock';
 import { buildProduct } from '@mocks/ProductFixtures';
 import type * as AmazonAuthModule from './amazonAuth';
 import type * as AmazonPriceProviderModule from './AmazonPriceProvider';
@@ -78,6 +80,9 @@ function requestHeaders(callIndex = 0): Record<string, string> {
 
 beforeEach(() => {
 	jest.clearAllMocks();
+	mockGetParametersFromParameterStore.mockResolvedValue({
+		'/TEST/test-stack/affiliate-product-directory/amazon/enabled': 'true',
+	});
 	jest.spyOn(console, 'log').mockImplementation(() => {});
 	mockGetAmazonCredentials.mockResolvedValue(credentials);
 	mockGetAmazonAccessToken.mockImplementation((region) =>
