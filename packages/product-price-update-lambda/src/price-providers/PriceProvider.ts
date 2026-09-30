@@ -18,16 +18,25 @@ export abstract class PriceProvider {
 		this.enabled = this.fetchEnabled();
 	}
 
-	/** Refresh prices on these products, returning the ones that were updated. Returns none if the provider is disabled. */
-	public async refreshPrices(products: Product[]): Promise<Product[]> {
+	/**
+	 * Refresh prices on these products, splitting them into those that were updated and those that weren't.
+	 * If the provider is disabled, every product is returned as not updated.
+	 */
+	public async refreshPrices(products: Product[]): Promise<PriceRefreshResult> {
 		if (!(await this.enabled)) {
 			console.log(
 				`${this.name} price provider is disabled, skipping ${products.length} products`,
 			);
-			return [];
+			return { updated: [], notUpdated: products };
 		}
 
-		return this.fetchPrices(products);
+		const updated = await this.fetchPrices(products);
+		// applyUpdate mutates in place, so updated products are the same references as the inputs.
+		const updatedSet = new Set(updated);
+		return {
+			updated,
+			notUpdated: products.filter((product) => !updatedSet.has(product)),
+		};
 	}
 
 	/** Provider-specific price refresh, only called when the provider is enabled. */
@@ -72,6 +81,12 @@ export abstract class PriceProvider {
 			return false;
 		}
 	}
+}
+
+/** `updated` were priced by this provider; `notUpdated` should be offered to the next one. */
+export interface PriceRefreshResult {
+	updated: Product[];
+	notUpdated: Product[];
 }
 
 /** Fields a provider is allowed to refresh (identity fields are immutable, timestamp/author are auto-stamped). */

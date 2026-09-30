@@ -24,9 +24,15 @@ beforeAll(async () => {
 beforeEach(() => {
 	jest.clearAllMocks();
 	mockGetAllProducts.mockResolvedValue([]);
-	mockAmazonRefreshPrices.mockResolvedValue([]);
-	mockShopifyRefreshPrices.mockResolvedValue([]);
-	mockSkimlinksRefreshPrices.mockResolvedValue([]);
+	[
+		mockAmazonRefreshPrices,
+		mockShopifyRefreshPrices,
+		mockSkimlinksRefreshPrices,
+	].forEach((mock) =>
+		mock.mockImplementation((products) =>
+			Promise.resolve({ updated: [], notUpdated: products }),
+		),
+	);
 });
 
 function updater() {
@@ -80,8 +86,14 @@ describe('refreshPrices', () => {
 			productMerchantUrl: 'https://www.johnlewis.com/p/2',
 		});
 		mockGetAllProducts.mockResolvedValue([shopifyProduct, nonShopifyProduct]);
-		mockShopifyRefreshPrices.mockResolvedValue([shopifyProduct]);
-		mockSkimlinksRefreshPrices.mockResolvedValue([nonShopifyProduct]);
+		mockShopifyRefreshPrices.mockResolvedValue({
+			updated: [shopifyProduct],
+			notUpdated: [nonShopifyProduct],
+		});
+		mockSkimlinksRefreshPrices.mockResolvedValue({
+			updated: [nonShopifyProduct],
+			notUpdated: [],
+		});
 
 		await updater().refreshPrices();
 
@@ -97,23 +109,56 @@ describe('refreshPrices', () => {
 		});
 	});
 
-	it('writes the combined updated products back to the table', async () => {
-		mockGetAllProducts.mockResolvedValue([
-			buildProduct({ productMerchantUrl: 'https://www.amazon.com/dp/1' }),
-			buildProduct({ productMerchantUrl: 'https://www.target.com/p/2' }),
-		]);
+	it('does not call skimlinks when shopify prices every product', async () => {
+		const shopifyProduct = buildProduct({
+			productMerchantUrl: 'https://shop.example.com/products/1',
+		});
+		mockGetAllProducts.mockResolvedValue([shopifyProduct]);
+		mockShopifyRefreshPrices.mockResolvedValue({
+			updated: [shopifyProduct],
+			notUpdated: [],
+		});
 
-		const amazonUpdated = buildProduct({ price: 1 });
-		const shopifyUpdated = buildProduct({ price: 2 });
-		const skimlinksUpdated = buildProduct({ price: 3 });
-		mockAmazonRefreshPrices.mockResolvedValue([amazonUpdated]);
-		mockShopifyRefreshPrices.mockResolvedValue([shopifyUpdated]);
-		mockSkimlinksRefreshPrices.mockResolvedValue([skimlinksUpdated]);
+		await updater().refreshPrices();
+
+		expect(mockSkimlinksRefreshPrices).not.toHaveBeenCalled();
+		expect(mockUpdateProducts).toHaveBeenCalledWith({
+			items: [shopifyProduct],
+		});
+	});
+
+	it('writes the combined updated products back to the table', async () => {
+		const amazonProduct = buildProduct({
+			productMerchantUrl: 'https://www.amazon.com/dp/1',
+		});
+		const shopifyProduct = buildProduct({
+			productMerchantUrl: 'https://shop.example.com/products/2',
+		});
+		const skimlinksProduct = buildProduct({
+			productMerchantUrl: 'https://www.target.com/p/3',
+		});
+		mockGetAllProducts.mockResolvedValue([
+			amazonProduct,
+			shopifyProduct,
+			skimlinksProduct,
+		]);
+		mockAmazonRefreshPrices.mockResolvedValue({
+			updated: [amazonProduct],
+			notUpdated: [],
+		});
+		mockShopifyRefreshPrices.mockResolvedValue({
+			updated: [shopifyProduct],
+			notUpdated: [skimlinksProduct],
+		});
+		mockSkimlinksRefreshPrices.mockResolvedValue({
+			updated: [skimlinksProduct],
+			notUpdated: [],
+		});
 
 		await updater().refreshPrices();
 
 		expect(mockUpdateProducts).toHaveBeenCalledWith({
-			items: [amazonUpdated, shopifyUpdated, skimlinksUpdated],
+			items: [amazonProduct, shopifyProduct, skimlinksProduct],
 		});
 	});
 });

@@ -58,11 +58,9 @@ export class ProductsUpdater {
 				break;
 			}
 
-			const providerUpdated = await provider.refreshPrices(remaining);
-			updated.push(...providerUpdated);
-
-			const updatedSet = new Set(providerUpdated);
-			remaining = remaining.filter((product) => !updatedSet.has(product));
+			const result = await provider.refreshPrices(remaining);
+			updated.push(...result.updated);
+			remaining = result.notUpdated;
 		}
 
 		return updated;

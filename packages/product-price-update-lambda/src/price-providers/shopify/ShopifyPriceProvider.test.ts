@@ -68,7 +68,9 @@ describe('refreshPrices', () => {
 			jsonResponse(shopifyProduct(['24.50', '30.00'], 'USD')),
 		);
 
-		const [updated] = await provider().refreshPrices([product]);
+		const {
+			updated: [updated],
+		} = await provider().refreshPrices([product]);
 
 		expect(updated).toMatchObject({
 			productMerchantUrl: 'https://shop.example.com/products/thing',
@@ -89,7 +91,10 @@ describe('refreshPrices', () => {
 		});
 		mockFetch.mockResolvedValue(jsonResponse({}, 404));
 
-		await expect(provider().refreshPrices([product])).resolves.toEqual([]);
+		await expect(provider().refreshPrices([product])).resolves.toEqual({
+			updated: [],
+			notUpdated: [product],
+		});
 		expect(mockFetch).toHaveBeenCalledTimes(1);
 	});
 
@@ -99,7 +104,10 @@ describe('refreshPrices', () => {
 		});
 		mockFetch.mockResolvedValue(jsonResponse({ something: 'else' }));
 
-		await expect(provider().refreshPrices([product])).resolves.toEqual([]);
+		await expect(provider().refreshPrices([product])).resolves.toEqual({
+			updated: [],
+			notUpdated: [product],
+		});
 	});
 
 	it('skips links that return a non-json body without retrying', async () => {
@@ -108,7 +116,10 @@ describe('refreshPrices', () => {
 		});
 		mockFetch.mockResolvedValue(new Response('<html></html>', { status: 200 }));
 
-		await expect(provider().refreshPrices([product])).resolves.toEqual([]);
+		await expect(provider().refreshPrices([product])).resolves.toEqual({
+			updated: [],
+			notUpdated: [product],
+		});
 		expect(mockFetch).toHaveBeenCalledTimes(1);
 	});
 
@@ -125,13 +136,16 @@ describe('refreshPrices', () => {
 
 		await expect(
 			provider().refreshPrices([noVariants, badPrice]),
-		).resolves.toEqual([]);
+		).resolves.toEqual({ updated: [], notUpdated: [noVariants, badPrice] });
 	});
 
 	it('skips products with an invalid url without fetching', async () => {
 		const product = buildProduct({ productMerchantUrl: 'not a url' });
 
-		await expect(provider().refreshPrices([product])).resolves.toEqual([]);
+		await expect(provider().refreshPrices([product])).resolves.toEqual({
+			updated: [],
+			notUpdated: [product],
+		});
 		expect(mockFetch).not.toHaveBeenCalled();
 	});
 });
@@ -175,7 +189,9 @@ describe('retry behaviour', () => {
 
 		const pending = provider().refreshPrices([product]);
 		await jest.advanceTimersByTimeAsync(3000);
-		const [updated] = await pending;
+		const {
+			updated: [updated],
+		} = await pending;
 
 		expect(mockFetch).toHaveBeenCalledTimes(2);
 		expect(updated).toMatchObject({ price: 7, currency: 'GBP' });
@@ -191,7 +207,10 @@ describe('retry behaviour', () => {
 		const pending = provider().refreshPrices([product]);
 		await jest.advanceTimersByTimeAsync(3000);
 
-		await expect(pending).resolves.toEqual([]);
+		await expect(pending).resolves.toEqual({
+			updated: [],
+			notUpdated: [product],
+		});
 		expect(mockFetch).toHaveBeenCalledTimes(2);
 		expect(mockRegisterMetric).toHaveBeenCalledWith(
 			'ShopifyProductsFetched',

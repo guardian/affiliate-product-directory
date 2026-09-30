@@ -129,7 +129,9 @@ describe('refreshPrices', () => {
 
 		const pending = provider().refreshPrices([product]);
 		await flushThrottle();
-		const [updated] = await pending;
+		const {
+			updated: [updated],
+		} = await pending;
 
 		expect(updated).toMatchObject({
 			productMerchantUrl: 'https://www.amazon.co.uk/dp/B0C3HCD34R',
@@ -148,7 +150,7 @@ describe('refreshPrices', () => {
 
 		const result = await provider().refreshPrices([noAsin]);
 
-		expect(result).toEqual([]);
+		expect(result).toEqual({ updated: [], notUpdated: [noAsin] });
 		expect(mockFetch).not.toHaveBeenCalled();
 	});
 
@@ -184,7 +186,9 @@ describe('refreshPrices', () => {
 
 		const pending = provider().refreshPrices([product]);
 		await flushThrottle();
-		const [updated] = await pending;
+		const {
+			updated: [updated],
+		} = await pending;
 
 		expect(updated).toMatchObject({ price: 29.99, currency: 'USD' });
 	});
@@ -211,7 +215,10 @@ describe('refreshPrices', () => {
 		const pending = provider().refreshPrices([product]);
 		await flushThrottle();
 
-		await expect(pending).resolves.toEqual([]);
+		await expect(pending).resolves.toEqual({
+			updated: [],
+			notUpdated: [product],
+		});
 	});
 
 	it('skips products the API returns no item for', async () => {
@@ -224,7 +231,10 @@ describe('refreshPrices', () => {
 		const pending = provider().refreshPrices([product]);
 		await flushThrottle();
 
-		await expect(pending).resolves.toEqual([]);
+		await expect(pending).resolves.toEqual({
+			updated: [],
+			notUpdated: [product],
+		});
 	});
 
 	it('sends a separate request per region with that region marketplace and token', async () => {
@@ -355,7 +365,9 @@ describe('retry behaviour', () => {
 		const pending = provider().refreshPrices([product]);
 		await jest.advanceTimersByTimeAsync(3000);
 		await flushThrottle();
-		const [updated] = await pending;
+		const {
+			updated: [updated],
+		} = await pending;
 
 		expect(mockFetch).toHaveBeenCalledTimes(2);
 		expect(updated).toMatchObject({ price: 7, currency: 'GBP' });
@@ -374,6 +386,6 @@ describe('retry behaviour', () => {
 		const result = await pending;
 
 		expect(mockFetch).toHaveBeenCalledTimes(2);
-		expect(result).toEqual([]);
+		expect(result).toEqual({ updated: [], notUpdated: [product] });
 	});
 });

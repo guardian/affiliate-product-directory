@@ -55,20 +55,39 @@ describe('enabled parameter', () => {
 
 		await expect(
 			new TestPriceProvider().refreshPrices([product]),
-		).resolves.toEqual([product]);
+		).resolves.toEqual({ updated: [product], notUpdated: [] });
 		expect(mockFetchPrices).toHaveBeenCalledWith([product]);
 	});
 
+	it('returns the products fetchPrices did not update as notUpdated', async () => {
+		mockGetParametersFromParameterStore.mockResolvedValue({
+			[enabledKey]: 'true',
+		});
+		const priced = buildProduct();
+		const unpriced = buildProduct();
+		mockFetchPrices.mockResolvedValue([priced]);
+
+		const result = await new TestPriceProvider().refreshPrices([
+			priced,
+			unpriced,
+		]);
+
+		expect(result.updated).toEqual([priced]);
+		expect(result.notUpdated).toHaveLength(1);
+		expect(result.notUpdated[0]).toBe(unpriced);
+	});
+
 	it.each(['false', 'TRUE', 'yes', ''])(
-		'returns no products when enabled is %p',
+		'returns every product as notUpdated when enabled is false',
 		async (value) => {
 			mockGetParametersFromParameterStore.mockResolvedValue({
 				[enabledKey]: value,
 			});
+			const product = buildProduct();
 
 			await expect(
-				new TestPriceProvider().refreshPrices([buildProduct()]),
-			).resolves.toEqual([]);
+				new TestPriceProvider().refreshPrices([product]),
+			).resolves.toEqual({ updated: [], notUpdated: [product] });
 			expect(mockFetchPrices).not.toHaveBeenCalled();
 			expect(console.log).toHaveBeenCalledWith(
 				'test price provider is disabled, skipping 1 products',
@@ -81,9 +100,11 @@ describe('enabled parameter', () => {
 			new Error('Parameters not found or have no value'),
 		);
 
+		const product = buildProduct();
+
 		await expect(
-			new TestPriceProvider().refreshPrices([buildProduct()]),
-		).resolves.toEqual([]);
+			new TestPriceProvider().refreshPrices([product]),
+		).resolves.toEqual({ updated: [], notUpdated: [product] });
 		expect(mockFetchPrices).not.toHaveBeenCalled();
 	});
 
@@ -100,7 +121,12 @@ describe('enabled parameter', () => {
 		});
 		const second = new TestPriceProvider();
 
-		await expect(second.refreshPrices([buildProduct()])).resolves.toEqual([]);
+		const product = buildProduct();
+
+		await expect(second.refreshPrices([product])).resolves.toEqual({
+			updated: [],
+			notUpdated: [product],
+		});
 		expect(mockGetParametersFromParameterStore).toHaveBeenCalledTimes(2);
 	});
 });
