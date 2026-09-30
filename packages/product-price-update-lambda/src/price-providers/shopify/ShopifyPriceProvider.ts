@@ -11,6 +11,9 @@ import {
  * so no auth is needed. Links that aren't Shopify product pages are skipped.
  */
 export class ShopifyPriceProvider extends PriceProvider {
+	/** Max concurrent requests, so we don't fire every product's request at once. */
+	private readonly batchSize = 50;
+
 	constructor() {
 		super('shopify');
 	}
@@ -18,10 +21,16 @@ export class ShopifyPriceProvider extends PriceProvider {
 	protected async fetchPrices(products: Product[]): Promise<Product[]> {
 		console.log(`Fetching Shopify prices for ${products.length} products`);
 
-		// importantly promise.all preserves index order, regardless of promise time
-		const variants = await Promise.all(
-			products.map((product) => this.fetchFirstVariant(product)),
-		);
+		// Batches run sequentially and promise.all preserves index order within each,
+		// so variants[i] still lines up with products[i].
+		const variants: Array<ShopifyVariant | undefined> = [];
+		for (const batch of this.chunk(products, this.batchSize)) {
+			variants.push(
+				...(await Promise.all(
+					batch.map((product) => this.fetchFirstVariant(product)),
+				)),
+			);
+		}
 
 		const fetchedCount = variants.filter(Boolean).length;
 		await registerMetric('ShopifyProductsFetched', fetchedCount);
