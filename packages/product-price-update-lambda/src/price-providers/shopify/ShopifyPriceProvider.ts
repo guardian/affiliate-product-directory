@@ -77,7 +77,7 @@ export class ShopifyPriceProvider extends PriceProvider {
 			});
 		} catch (error) {
 			// One product failing shouldn't sink every other product's update.
-			console.log('ShopifyRequestFailed', product.productMerchantUrl, error);
+			console.log('ShopifyRequestFailed', product.productMerchantUrl);
 			return undefined;
 		}
 	}

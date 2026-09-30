@@ -3,7 +3,7 @@ import { z } from 'zod';
 const ShopifyVariantSchema = z.object({
 	id: z.number().optional(),
 	price: z.string(),
-	price_currency: z.string(),
+	price_currency: z.enum(['GBP', 'USD']),
 });
 
 /** The shape of a Shopify storefront's `/products/<handle>.json` response. */
