@@ -31,11 +31,10 @@ export abstract class PriceProvider {
 		}
 
 		const updated = await this.fetchPrices(products);
-		// applyUpdate mutates in place, so updated products are the same references as the inputs.
-		const updatedSet = new Set(updated);
+		const updatedIds = new Set(updated.map((p) => p.productMerchantUrl));
 		return {
 			updated,
-			notUpdated: products.filter((product) => !updatedSet.has(product)),
+			notUpdated: products.filter((p) => !updatedIds.has(p.productMerchantUrl)),
 		};
 	}
 
