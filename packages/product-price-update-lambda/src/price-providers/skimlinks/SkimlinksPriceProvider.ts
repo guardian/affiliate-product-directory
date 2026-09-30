@@ -14,10 +14,13 @@ import {
 } from '@price-update/price-providers/skimlinks/skimlinksAuth';
 
 export class SkimlinksPriceProvider extends PriceProvider {
-	protected readonly name = 'skimlinks';
 	private readonly batchSize = 100;
 
-	public async refreshPrices(products: Product[]): Promise<Product[]> {
+	constructor() {
+		super('skimlinks');
+	}
+
+	protected async fetchPrices(products: Product[]): Promise<Product[]> {
 		console.log(`Fetching Skimlinks prices for ${products.length} products`);
 		const productData = await this.fetchProductData(products);
 		return this.updateProducts(products, productData);

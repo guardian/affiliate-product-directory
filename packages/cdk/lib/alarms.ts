@@ -87,4 +87,26 @@ export function createAlarms(
 		snsTopicName: snsTopic.topicName,
 		actionsEnabled: alarmActionsEnabled,
 	});
+
+	const shopifyProductsFetchedMetric = new Metric({
+		namespace: 'AffiliateProductDirectory',
+		metricName: 'ShopifyProductsFetched',
+		dimensionsMap: { Stage: stage },
+		period: Duration.hours(24),
+		statistic: 'Sum',
+	});
+
+	new GuAlarm(scope, 'NoShopifyProductsFetchedAlarm', {
+		app: appName,
+		alarmName: `${appName}-no-shopify-products-fetched-${stage}`,
+		alarmDescription:
+			'No shopify products have been fetched in the last 24 hours',
+		metric: shopifyProductsFetchedMetric,
+		comparisonOperator: ComparisonOperator.LESS_THAN_OR_EQUAL_TO_THRESHOLD,
+		threshold: 0,
+		evaluationPeriods: 1,
+		treatMissingData: TreatMissingData.BREACHING,
+		snsTopicName: snsTopic.topicName,
+		actionsEnabled: alarmActionsEnabled,
+	});
 }
