@@ -11,7 +11,8 @@ const cloudwatchClient = new CloudWatchClient({
 export type KnownMetric =
 	| 'ArticleProductsUpdated'
 	| 'SkimlinksProductsFetched'
-	| 'AmazonProductsFetched';
+	| 'AmazonProductsFetched'
+	| 'ShopifyProductsFetched';
 
 export async function registerMetric(metricName: KnownMetric, value: number) {
 	const { stack, stage } = getConfig();

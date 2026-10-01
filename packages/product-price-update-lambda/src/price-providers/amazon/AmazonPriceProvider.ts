@@ -23,13 +23,16 @@ interface ProductWithAsin {
 }
 
 export class AmazonPriceProvider extends PriceProvider {
-	protected readonly name = 'amazon';
 	private readonly batchSize = 10;
 	private readonly minMsBetweenRequests = 1000;
 
 	private static readonly ASIN_REGEX = /\/(?:dp|gp\/product)\/([A-Z0-9]{10})/;
 
-	public async refreshPrices(products: Product[]): Promise<Product[]> {
+	constructor() {
+		super('amazon');
+	}
+
+	protected async fetchPrices(products: Product[]): Promise<Product[]> {
 		console.log(`Fetching Amazon prices for ${products.length} products`);
 		const withAsin = this.extractAsins(products);
 		const itemsByAsin = await this.fetchItemData(withAsin);
