@@ -1,6 +1,6 @@
 import { registerMetric } from '@common/cloudwatch';
-import type { Product } from '@common/models';
-import { type Region, regionOf, REGIONS } from '@price-update/models';
+import type { Product, Region } from '@common/models';
+import { REGIONS } from '@price-update/models';
 import {
 	getAmazonAccessToken,
 	getAmazonCredentials,
@@ -13,7 +13,7 @@ import { PriceProvider } from '@price-update/price-providers/PriceProvider';
 
 const AMAZON_CREATORS_API_BASE_URL = 'https://creatorsapi.amazon/catalog/v1';
 const MARKETPLACE: Record<Region, string> = {
-	UK: 'www.amazon.co.uk',
+	GB: 'www.amazon.co.uk',
 	US: 'www.amazon.com',
 };
 
@@ -66,7 +66,7 @@ export class AmazonPriceProvider extends PriceProvider {
 
 		for (const region of REGIONS) {
 			const regionEntries = withAsin.filter(
-				({ product }) => regionOf(product) === region,
+				({ product }) => product.region === region,
 			);
 			if (regionEntries.length === 0) {
 				continue;

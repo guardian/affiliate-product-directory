@@ -50,9 +50,9 @@ describe('getAmazonCredentials', () => {
 		const { getAmazonCredentials } = await loadModule();
 
 		await expect(getAmazonCredentials()).resolves.toEqual({
-			clientId: { UK: 'uk-client-id', US: 'us-client-id' },
-			clientSecret: { UK: 'uk-client-secret', US: 'us-client-secret' },
-			partnerTag: { UK: 'uk-partner-tag', US: 'us-partner-tag' },
+			clientId: { GB: 'uk-client-id', US: 'us-client-id' },
+			clientSecret: { GB: 'uk-client-secret', US: 'us-client-secret' },
+			partnerTag: { GB: 'uk-partner-tag', US: 'us-partner-tag' },
 		});
 
 		expect(mockGetParametersFromParameterStore).toHaveBeenCalledWith([
@@ -91,7 +91,7 @@ describe('getAmazonAccessToken', () => {
 		);
 		const { getAmazonAccessToken } = await loadModule();
 
-		await expect(getAmazonAccessToken('UK')).resolves.toBe('uk-token');
+		await expect(getAmazonAccessToken('GB')).resolves.toBe('uk-token');
 
 		expect(mockFetch).toHaveBeenCalledWith(
 			'https://api.amazon.co.uk/auth/o2/token',
@@ -114,8 +114,8 @@ describe('getAmazonAccessToken', () => {
 		);
 		const { getAmazonAccessToken } = await loadModule();
 
-		await getAmazonAccessToken('UK');
-		await getAmazonAccessToken('UK');
+		await getAmazonAccessToken('GB');
+		await getAmazonAccessToken('GB');
 
 		expect(mockFetch).toHaveBeenCalledTimes(1);
 	});
@@ -130,7 +130,7 @@ describe('getAmazonAccessToken', () => {
 			);
 		const { getAmazonAccessToken } = await loadModule();
 
-		await expect(getAmazonAccessToken('UK')).resolves.toBe('uk-token');
+		await expect(getAmazonAccessToken('GB')).resolves.toBe('uk-token');
 		await expect(getAmazonAccessToken('US')).resolves.toBe('us-token');
 
 		expect(mockFetch).toHaveBeenCalledTimes(2);
@@ -167,7 +167,7 @@ describe('getAmazonAccessToken', () => {
 		);
 		const { getAmazonAccessToken } = await loadModule();
 
-		await expect(getAmazonAccessToken('UK')).rejects.toThrow(
+		await expect(getAmazonAccessToken('GB')).rejects.toThrow(
 			'Failed to fetch Amazon credentials',
 		);
 		expect(consoleLog).toHaveBeenCalledWith(
@@ -181,6 +181,6 @@ describe('getAmazonAccessToken', () => {
 		mockFetch.mockResolvedValue(jsonResponse({ expires_in: 3600 }));
 		const { getAmazonAccessToken } = await loadModule();
 
-		await expect(getAmazonAccessToken('UK')).rejects.toThrow();
+		await expect(getAmazonAccessToken('GB')).rejects.toThrow();
 	});
 });

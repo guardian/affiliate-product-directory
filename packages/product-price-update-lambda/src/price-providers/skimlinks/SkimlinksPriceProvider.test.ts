@@ -31,7 +31,7 @@ const credentials = {
 	publisherId: 'pub-1',
 	clientId: 'client-1',
 	clientSecret: 'secret-1',
-	publisherDomainId: { UK: 'uk-domain', US: 'us-domain' },
+	publisherDomainId: { GB: 'uk-domain', US: 'us-domain' },
 };
 
 const originalFetch = globalThis.fetch;
@@ -81,7 +81,7 @@ describe('refreshPrices', () => {
 		const staleUpdatedAt = Date.now() - 60_000;
 		const product = buildProduct({
 			productMerchantUrl: 'https://johnlewis.com/p/1',
-			region: 'UK',
+			region: 'GB',
 			price: 10,
 			currency: 'GBP',
 			updatedAt: staleUpdatedAt,
@@ -103,7 +103,7 @@ describe('refreshPrices', () => {
 
 		expect(updated).toMatchObject({
 			productMerchantUrl: 'https://johnlewis.com/p/1',
-			region: 'UK',
+			region: 'GB',
 			price: 24.5,
 			currency: 'GBP',
 			updatedBy: 'skimlinks',
@@ -115,7 +115,7 @@ describe('refreshPrices', () => {
 		const staleUpdatedAt = Date.now() - 60_000;
 		const product = buildProduct({
 			productMerchantUrl: 'https://johnlewis.com/p/1',
-			region: 'UK',
+			region: 'GB',
 			price: 10,
 			currency: 'GBP',
 			updatedAt: staleUpdatedAt,
@@ -180,7 +180,7 @@ describe('request construction', () => {
 	it('posts the product merchant urls with the auth and query parameters', async () => {
 		const product = buildProduct({
 			productMerchantUrl: 'https://johnlewis.com/p/1',
-			region: 'UK',
+			region: 'GB',
 		});
 		mockFetch.mockResolvedValue(jsonResponse({ results: {} }));
 
@@ -214,7 +214,7 @@ describe('request construction', () => {
 	it("sends a separate request per region with that region's domain id and country code", async () => {
 		const uk = buildProduct({
 			productMerchantUrl: 'https://johnlewis.com/uk',
-			region: 'UK',
+			region: 'GB',
 		});
 		const us = buildProduct({
 			productMerchantUrl: 'https://target.com/us',
@@ -240,7 +240,7 @@ describe('request construction', () => {
 		const products = Array.from({ length: 150 }, (_, i) =>
 			buildProduct({
 				productMerchantUrl: `https://johnlewis.com/p/${i}`,
-				region: 'UK',
+				region: 'GB',
 			}),
 		);
 		mockFetch
