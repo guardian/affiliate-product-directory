@@ -60,7 +60,7 @@ beforeEach(() => {
 	mockGetSkimlinksCredentials.mockResolvedValue(credentials);
 	mockGetSkimlinksAccessToken.mockResolvedValue('access-token-1');
 	mockFetch = jest.fn<typeof fetch>();
-	globalThis.fetch = mockFetch as unknown as typeof fetch;
+	globalThis.fetch = mockFetch;
 });
 
 afterEach(() => {
