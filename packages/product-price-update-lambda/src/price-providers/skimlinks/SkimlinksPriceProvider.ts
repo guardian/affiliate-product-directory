@@ -1,3 +1,4 @@
+import { registerMetric } from '@common/cloudwatch';
 import type { Product } from '@common/models';
 import type { SkimlinksProductsResponse } from '@price-update/models';
 import {
@@ -13,10 +14,13 @@ import {
 } from '@price-update/price-providers/skimlinks/skimlinksAuth';
 
 export class SkimlinksPriceProvider extends PriceProvider {
-	protected readonly name = 'skimlinks';
 	private readonly batchSize = 100;
 
-	public async refreshPrices(products: Product[]): Promise<Product[]> {
+	constructor() {
+		super('skimlinks');
+	}
+
+	protected async fetchPrices(products: Product[]): Promise<Product[]> {
 		console.log(`Fetching Skimlinks prices for ${products.length} products`);
 		const productData = await this.fetchProductData(products);
 		return this.updateProducts(products, productData);
@@ -88,6 +92,8 @@ export class SkimlinksPriceProvider extends PriceProvider {
 					`Skimlinks products request failed: ${response.status} ${response.statusText}`,
 				);
 			}
+
+			await registerMetric('SkimlinksProductsFetched', batch.length);
 			return SkimlinksProductsResponseSchema.parse(await response.json());
 		});
 
@@ -104,12 +110,9 @@ export class SkimlinksPriceProvider extends PriceProvider {
 			const match = productData[product.productMerchantUrl]?.[0];
 
 			if (!match) {
-				// ToDo: investigate metrics in cloudwatch
-				console.log('SkimlinksNoData');
 				continue;
 			}
 
-			console.log('SkimlinksDataRetrieved');
 			updated.push(
 				this.applyUpdate(product, {
 					price: match.price,

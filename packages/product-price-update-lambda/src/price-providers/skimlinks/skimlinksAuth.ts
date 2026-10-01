@@ -1,6 +1,7 @@
 import { getConfig } from '@common/config';
 import { appName } from '@common/constants';
 import { getParametersFromParameterStore } from '@common/parameterStore';
+import { z } from 'zod';
 import type { Region } from '@price-update/models';
 
 const config = getConfig();
@@ -71,15 +72,13 @@ export async function getSkimlinksAccessToken(): Promise<string> {
 		throw new Error('Failed to fetch Skimlinks credentials');
 	}
 
-	const data = (await resp.json()) as Partial<{
-		access_token: string;
-		expiry_timestamp: number;
-		timestamp: number;
-	}>;
+	const TokenResponseSchema = z.object({
+		access_token: z.string(),
+		expiry_timestamp: z.number().optional(),
+		timestamp: z.number().optional(),
+	});
 
-	if (!data.access_token) {
-		throw new Error('access_token missing from Skimlinks response');
-	}
+	const data = TokenResponseSchema.parse(await resp.json());
 
 	cachedAccessToken = data.access_token;
 	return cachedAccessToken;

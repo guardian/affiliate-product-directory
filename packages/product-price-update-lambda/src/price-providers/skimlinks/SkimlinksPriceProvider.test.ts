@@ -1,4 +1,7 @@
 import { jest } from '@jest/globals';
+import { mockRegisterMetric } from '@mocks/CloudwatchMock';
+import '@mocks/ConfigMock';
+import { mockGetParametersFromParameterStore } from '@mocks/ParameterStoreMock';
 import { buildProduct } from '@mocks/ProductFixtures';
 import { ZodError } from 'zod';
 import type * as SkimlinksAuthModule from './skimlinksAuth';
@@ -21,6 +24,7 @@ let SkimlinksPriceProvider: typeof SkimlinksPriceProviderModule.SkimlinksPricePr
 
 beforeAll(async () => {
 	({ SkimlinksPriceProvider } = await import('./SkimlinksPriceProvider'));
+	mockRegisterMetric.mockResolvedValue();
 });
 
 const credentials = {
@@ -49,6 +53,9 @@ function jsonResponse(body: unknown, ok = true): Response {
 
 beforeEach(() => {
 	jest.clearAllMocks();
+	mockGetParametersFromParameterStore.mockResolvedValue({
+		'/TEST/test-stack/affiliate-product-directory/skimlinks/enabled': 'true',
+	});
 	jest.spyOn(console, 'log').mockImplementation(() => {});
 	mockGetSkimlinksCredentials.mockResolvedValue(credentials);
 	mockGetSkimlinksAccessToken.mockResolvedValue('access-token-1');
@@ -85,7 +92,14 @@ describe('refreshPrices', () => {
 			}),
 		);
 
-		const [updated] = await provider().refreshPrices([product]);
+		const {
+			updated: [updated],
+		} = await provider().refreshPrices([product]);
+
+		expect(mockRegisterMetric).toHaveBeenCalledWith(
+			'SkimlinksProductsFetched',
+			1,
+		);
 
 		expect(updated).toMatchObject({
 			productMerchantUrl: 'https://johnlewis.com/p/1',
@@ -117,6 +131,7 @@ describe('refreshPrices', () => {
 			}),
 		);
 
+		expect(mockRegisterMetric).not.toHaveBeenCalled();
 		await expect(provider().refreshPrices([product])).rejects.toThrow(ZodError);
 	});
 
@@ -135,7 +150,11 @@ describe('refreshPrices', () => {
 
 		const result = await provider().refreshPrices([matched, unmatched]);
 
-		expect(result).toEqual([matched]);
+		expect(mockRegisterMetric).toHaveBeenCalledWith(
+			'SkimlinksProductsFetched',
+			2,
+		);
+		expect(result).toEqual({ updated: [matched], notUpdated: [unmatched] });
 	});
 
 	it('skips products that come back with an empty match array', async () => {
@@ -146,7 +165,14 @@ describe('refreshPrices', () => {
 			jsonResponse({ results: { 'https://johnlewis.com/p/1': [] } }),
 		);
 
-		await expect(provider().refreshPrices([product])).resolves.toEqual([]);
+		await expect(provider().refreshPrices([product])).resolves.toEqual({
+			updated: [],
+			notUpdated: [product],
+		});
+		expect(mockRegisterMetric).toHaveBeenCalledWith(
+			'SkimlinksProductsFetched',
+			1,
+		);
 	});
 });
 
@@ -232,7 +258,7 @@ describe('request construction', () => {
 		const result = await provider().refreshPrices(products);
 
 		expect(
-			result.map((p) => [p.productMerchantUrl, p.price, p.currency]),
+			result.updated.map((p) => [p.productMerchantUrl, p.price, p.currency]),
 		).toEqual([
 			['https://johnlewis.com/p/0', 1, 'GBP'],
 			['https://johnlewis.com/p/149', 2, 'USD'],
@@ -256,7 +282,9 @@ describe('retry behaviour', () => {
 
 		const pending = provider().refreshPrices([product]);
 		await jest.advanceTimersByTimeAsync(3000);
-		const [updated] = await pending;
+		const {
+			updated: [updated],
+		} = await pending;
 
 		expect(mockFetch).toHaveBeenCalledTimes(2);
 		expect(updated).toMatchObject({ price: 7, currency: 'GBP' });

@@ -15,6 +15,7 @@ mockGetConfig.mockImplementation(() => {
 jest.unstable_mockModule('@common/config', () => {
 	return {
 		getConfig: mockGetConfig,
+		getBucketName: jest.fn(),
 	};
 });
 
