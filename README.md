@@ -108,3 +108,7 @@ which have a specific meaning in the context of the project. If there is any dou
 `The Filter`
 
 - The Filter is a section on the Guardian [UK](https://www.theguardian.com/uk/thefilter) and [US](https://www.theguardian.com/thefilter-us) editions that serve product reviews and other product oriented journalism. The Filter makes money by having affiliate links embedded in the content.
+
+`Region`
+
+- The market a product belongs to, either `GB` or `US`. The price update lambda uses it to group products and to choose the matching marketplace and credentials from each price provider. We use `GB` rather than `UK` because `GB` is the ISO 3166-1 country code.
