@@ -26,9 +26,9 @@ beforeAll(async () => {
 });
 
 const credentials = {
-	clientId: { UK: 'uk-client-id', US: 'us-client-id' },
-	clientSecret: { UK: 'uk-client-secret', US: 'us-client-secret' },
-	partnerTag: { UK: 'uk-partner-tag', US: 'us-partner-tag' },
+	clientId: { GB: 'uk-client-id', US: 'us-client-id' },
+	clientSecret: { GB: 'uk-client-secret', US: 'us-client-secret' },
+	partnerTag: { GB: 'uk-partner-tag', US: 'us-partner-tag' },
 };
 
 const originalFetch = globalThis.fetch;
@@ -114,7 +114,7 @@ describe('refreshPrices', () => {
 		const staleUpdatedAt = Date.now() - 60_000;
 		const product = buildProduct({
 			productMerchantUrl: 'https://www.amazon.co.uk/dp/B0C3HCD34R',
-			region: 'UK',
+			region: 'GB',
 			price: 10,
 			currency: 'GBP',
 			updatedAt: staleUpdatedAt,
@@ -241,7 +241,7 @@ describe('refreshPrices', () => {
 		jest.useFakeTimers();
 		const uk = buildProduct({
 			productMerchantUrl: 'https://www.amazon.co.uk/dp/B0UKPROD01',
-			region: 'UK',
+			region: 'GB',
 		});
 		const us = buildProduct({
 			productMerchantUrl: 'https://www.amazon.com/dp/B0USPROD01',
@@ -260,7 +260,7 @@ describe('refreshPrices', () => {
 			partnerTag: 'uk-partner-tag',
 		});
 		expect(requestHeaders(0)).toMatchObject({
-			Authorization: 'Bearer uk-token',
+			Authorization: 'Bearer gb-token',
 			'x-marketplace': 'www.amazon.co.uk',
 		});
 		expect(requestBody(1)).toMatchObject({
@@ -278,7 +278,7 @@ describe('refreshPrices', () => {
 		const products = Array.from({ length: 15 }, (_, i) =>
 			buildProduct({
 				productMerchantUrl: `https://www.amazon.co.uk/dp/B0BATCH${String(i).padStart(3, '0')}`,
-				region: 'UK',
+				region: 'GB',
 			}),
 		);
 		mockFetch.mockResolvedValue(jsonResponse({ itemsResult: { items: [] } }));
@@ -308,7 +308,7 @@ describe('request construction', () => {
 		jest.useFakeTimers();
 		const product = buildProduct({
 			productMerchantUrl: 'https://www.amazon.co.uk/dp/B0C3HCD34R',
-			region: 'UK',
+			region: 'GB',
 		});
 		mockFetch.mockResolvedValue(jsonResponse({ itemsResult: { items: [] } }));
 
@@ -325,7 +325,7 @@ describe('request construction', () => {
 		});
 		expect(requestHeaders()).toMatchObject({
 			'Content-Type': 'application/json',
-			Authorization: 'Bearer uk-token',
+			Authorization: 'Bearer gb-token',
 			'x-marketplace': 'www.amazon.co.uk',
 		});
 	});
