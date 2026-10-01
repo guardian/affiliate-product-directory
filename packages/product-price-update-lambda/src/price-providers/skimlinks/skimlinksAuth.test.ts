@@ -51,7 +51,7 @@ describe('getSkimlinksCredentials', () => {
 			publisherId: 'publisher-id',
 			clientId: 'client-id',
 			clientSecret: 'client-secret',
-			publisherDomainId: { UK: 'uk-domain-id', US: 'us-domain-id' },
+			publisherDomainId: { GB: 'uk-domain-id', US: 'us-domain-id' },
 		});
 
 		expect(mockGetParametersFromParameterStore).toHaveBeenCalledWith([
