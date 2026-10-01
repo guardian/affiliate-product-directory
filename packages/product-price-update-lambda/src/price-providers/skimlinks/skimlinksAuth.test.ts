@@ -36,7 +36,7 @@ beforeEach(() => {
 	jest.clearAllMocks();
 	mockGetParametersFromParameterStore.mockResolvedValue(parameters);
 	mockFetch = jest.fn<typeof fetch>();
-	globalThis.fetch = mockFetch as unknown as typeof fetch;
+	globalThis.fetch = mockFetch;
 });
 
 afterEach(() => {
