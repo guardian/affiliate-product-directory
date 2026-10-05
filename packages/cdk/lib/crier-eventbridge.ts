@@ -7,6 +7,7 @@ import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 
 export class CrierEventbridge extends Construct {
+	public crierEventBusName: string;
 	constructor(scope: GuStack, name: string) {
 		super(scope, name);
 
@@ -38,5 +39,6 @@ export class CrierEventbridge extends Construct {
 			parameterName: `/${scope.stage}/frontend/frontend-shared-infra/crier-event-bus`,
 			stringValue: bus.eventBusName,
 		});
+		this.crierEventBusName = bus.eventBusName;
 	}
 }
