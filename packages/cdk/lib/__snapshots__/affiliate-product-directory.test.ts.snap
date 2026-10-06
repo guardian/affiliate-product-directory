@@ -1518,6 +1518,66 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       },
       "Type": "AWS::CloudWatch::Alarm",
     },
+    "ProductPriceUpdateLambdaProductPriceUpdateLambdacron0120AllowEventRuleAffiliateProductDirectoryLambdaProductPriceUpdateLambda78318FDA22A84BA3": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ProductPriceUpdateLambda911BBAB1",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "ProductPriceUpdateLambdaProductPriceUpdateLambdacron0120DBDA0627",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "ProductPriceUpdateLambdaProductPriceUpdateLambdacron0120DBDA0627": {
+      "Properties": {
+        "Description": "affiliate-product-directory price update lambda cron",
+        "ScheduleExpression": "cron(0 12 * * ? *)",
+        "State": "ENABLED",
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "product-price-update-lambda",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "ProductPriceUpdateLambda911BBAB1",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
     "ProductPriceUpdateLambdaServiceRole34386223": {
       "Properties": {
         "AssumeRolePolicyDocument": {
