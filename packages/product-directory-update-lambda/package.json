@@ -10,7 +10,7 @@
 		"postbuild": "cd dist && zip -r product-directory-update-lambda.zip ."
 	},
 	"dependencies": {
-		"@guardian/content-api-models": "50.0.0"
+		"@guardian/content-api-models": "52.0.0"
 	},
 	"devDependencies": {
 		"@types/aws-lambda": "^8.10.125",
