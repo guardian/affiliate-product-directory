@@ -79,6 +79,11 @@ See its [README](packages/product-directory-update-lambda//README.md) for more d
 This lambda is responsible for handling product price updates and it runs at a set interval triggered by an Eventbridge rule.
 See its [README](packages/product-price-update-lambda//README.md) for more detail.
 
+### `affiliate-products-client`
+
+A single page React app for browsing the directory. It is currently deployed to CODE only, at https://affiliate-products.code.dev-gutools.co.uk.
+See its [README](packages/affiliate-products-client/README.md) for more detail.
+
 ## 4. Useful Links
 
 <!---

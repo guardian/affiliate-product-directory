@@ -50,6 +50,15 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Served by actions-static-site at /_prout without auth, so the deployed commit can be checked
+      - name: Write the current git hash to the affiliate-products-client build
+        run: git rev-parse HEAD > packages/affiliate-products-client/build/_prout
+
+      - name: Upload affiliate-products-client artifact
+        uses: actions/upload-artifact@v4
+        with:
+          path: packages/affiliate-products-client/build
+
       - name: Synth CDK
         run: npm -w cdk run synth
 
@@ -68,3 +77,22 @@ jobs:
               - packages/product-price-update-lambda/dist/product-price-update-lambda.zip
             product-directory-update-lambda:
               - packages/product-directory-update-lambda/dist/product-directory-update-lambda.zip
+
+  # Deploys the affiliate-products-client to the Deploy Tools account, behind Google auth.
+  # See https://github.com/guardian/actions-static-site
+  static-site-CODE:
+    needs: CI
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+
+    steps:
+      - uses: guardian/actions-static-site@v3
+        with:
+          app: affiliate-products-CODE
+          domain: affiliate-products.code.dev-gutools.co.uk
+          roleArn: ${{ secrets.GU_RIFF_RAFF_ROLE_ARN }}
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
