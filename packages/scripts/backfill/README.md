@@ -15,7 +15,7 @@ First run the script:
 
 `export CAPI_KEY=<key here> && npx tsx packages/scripts/backfill/create-backfill-events.ts <stack>`
 
-This script calls CAPI to get all articles in "The Filter" section and their IDs. It should generate the JSON file which is referenced below.
+This script calls CAPI to get all articles in "The Filter" and "The Filter US" section and their IDs. It will generate the JSON file which is referenced below.
 
 Run the AWS CLI put events command, replacing STAGE which whichever environment you are backfilling:
 
