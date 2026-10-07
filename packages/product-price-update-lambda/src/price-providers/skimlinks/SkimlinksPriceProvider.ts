@@ -14,6 +14,8 @@ import {
 
 export class SkimlinksPriceProvider extends PriceProvider {
 	private readonly batchSize = 100;
+	// Skimlinks allows 20 requests per minute.
+	private readonly minMsBetweenRequests = 60_000 / 20;
 
 	constructor() {
 		super('skimlinks');
@@ -44,6 +46,10 @@ export class SkimlinksPriceProvider extends PriceProvider {
 				});
 
 				Object.assign(productData, results);
+
+				await new Promise((resolve) =>
+					setTimeout(resolve, this.minMsBetweenRequests),
+				);
 			}
 		}
 
