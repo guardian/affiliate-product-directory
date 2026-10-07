@@ -3,6 +3,7 @@
 !jest.setup.js
 !.eslintrc.js
 *.d.ts
+.DS_Store
 node_modules
 dist
 
