@@ -38,8 +38,8 @@ const originalFetch = globalThis.fetch;
 let mockFetch: jest.Mock<typeof fetch>;
 
 /** A single Skimlinks match for a product. */
-function match(price: number, currency: string, inputUrl = 'x') {
-	return { input_url: inputUrl, price, currency };
+function match(price: number, currency: string) {
+	return { price, currency };
 }
 
 function jsonResponse(body: unknown, ok = true): Response {
@@ -124,8 +124,8 @@ describe('refreshPrices', () => {
 			jsonResponse({
 				results: {
 					'https://johnlewis.com/p/1': [
-						{ input_url: 'url1', price: 25, currency: 'madeup' },
-						{ input_urla: 'url1', price: 25, currency: 'madeup' },
+						{ price: 25, currency: 'madeup' },
+						{ pricea: 25, currency: 'madeup' },
 					],
 				},
 			}),
