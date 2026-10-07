@@ -273,6 +273,50 @@ describe('refreshPrices', () => {
 		});
 	});
 
+	it('matches items to products by region when the same ASIN exists in multiple regions', async () => {
+		jest.useFakeTimers();
+		const uk = buildProduct({
+			productMerchantUrl: 'https://www.amazon.co.uk/dp/B0SHARED01',
+			region: 'GB',
+		});
+		const us = buildProduct({
+			productMerchantUrl: 'https://www.amazon.com/dp/B0SHARED01',
+			region: 'US',
+		});
+		mockFetch
+			.mockResolvedValueOnce(
+				jsonResponse({
+					itemsResult: {
+						items: [item('B0SHARED01', { price: 19.99, currency: 'GBP' })],
+					},
+				}),
+			)
+			.mockResolvedValueOnce(
+				jsonResponse({
+					itemsResult: {
+						items: [item('B0SHARED01', { price: 24.99, currency: 'USD' })],
+					},
+				}),
+			);
+
+		const pending = provider().refreshPrices([uk, us]);
+		await flushThrottle(2);
+		const { updated } = await pending;
+
+		expect(updated).toEqual([
+			expect.objectContaining({
+				region: 'GB',
+				price: 19.99,
+				currency: 'GBP',
+			}),
+			expect.objectContaining({
+				region: 'US',
+				price: 24.99,
+				currency: 'USD',
+			}),
+		]);
+	});
+
 	it('splits a region into batches of 10 ASINs', async () => {
 		jest.useFakeTimers();
 		const products = Array.from({ length: 15 }, (_, i) =>

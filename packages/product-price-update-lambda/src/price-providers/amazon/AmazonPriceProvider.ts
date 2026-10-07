@@ -35,8 +35,14 @@ export class AmazonPriceProvider extends PriceProvider {
 	protected async fetchPrices(products: Product[]): Promise<Product[]> {
 		console.log(`Fetching Amazon prices for ${products.length} products`);
 		const withAsin = this.extractAsins(products);
-		const itemsByAsin = await this.fetchItemData(withAsin);
-		return this.updateProducts(withAsin, itemsByAsin);
+		const itemsByKey = await this.fetchItemData(withAsin);
+		return this.updateProducts(withAsin, itemsByKey);
+	}
+
+	// The same ASIN can exist in multiple marketplaces with different prices and
+	// currencies, so items must be keyed by region as well as ASIN.
+	private static itemKey(region: Region, asin: string): string {
+		return `${region}:${asin}`;
 	}
 
 	private extractAsins(products: Product[]): ProductWithAsin[] {
@@ -62,7 +68,7 @@ export class AmazonPriceProvider extends PriceProvider {
 		withAsin: ProductWithAsin[],
 	): Promise<Record<string, AmazonItem>> {
 		const credentials = await getAmazonCredentials();
-		const itemsByAsin: Record<string, AmazonItem> = {};
+		const itemsByKey: Record<string, AmazonItem> = {};
 
 		for (const region of REGIONS) {
 			const regionEntries = withAsin.filter(
@@ -84,7 +90,7 @@ export class AmazonPriceProvider extends PriceProvider {
 					});
 
 					for (const item of items) {
-						itemsByAsin[item.asin] = item;
+						itemsByKey[AmazonPriceProvider.itemKey(region, item.asin)] = item;
 					}
 				} catch (error) {
 					// A single batch failing shouldn't sink every other product's update.
@@ -95,7 +101,7 @@ export class AmazonPriceProvider extends PriceProvider {
 			}
 		}
 
-		return itemsByAsin;
+		return itemsByKey;
 	}
 
 	private async batchRequest({
@@ -154,12 +160,14 @@ export class AmazonPriceProvider extends PriceProvider {
 
 	private updateProducts(
 		withAsin: ProductWithAsin[],
-		itemsByAsin: Record<string, AmazonItem>,
+		itemsByKey: Record<string, AmazonItem>,
 	): Product[] {
 		const updated: Product[] = [];
 
 		for (const { product, asin } of withAsin) {
-			const listing = itemsByAsin[asin]?.offersV2?.listings?.find(
+			const item =
+				itemsByKey[AmazonPriceProvider.itemKey(product.region, asin)];
+			const listing = item?.offersV2?.listings?.find(
 				(candidate) => candidate.isBuyBoxWinner === true,
 			);
 			const money = listing?.price?.money;
