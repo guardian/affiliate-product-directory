@@ -1,7 +1,7 @@
 import type { GuStack } from '@guardian/cdk/lib/constructs/core';
 import { GuLambdaFunction } from '@guardian/cdk/lib/constructs/lambda';
 import { GuScheduledLambda } from '@guardian/cdk/lib/patterns/scheduled-lambda';
-import type { CfnParameter } from 'aws-cdk-lib';
+import { type CfnParameter, Duration } from 'aws-cdk-lib';
 import { Schedule } from 'aws-cdk-lib/aws-events';
 import type { Policy } from 'aws-cdk-lib/aws-iam';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
@@ -47,6 +47,7 @@ export function createPriceUpdateLambda(
 		environment: {
 			BUCKET: bucketName,
 		},
+		timeout: Duration.seconds(300),
 		runtime: Runtime.NODEJS_22_X,
 		architecture: Architecture.ARM_64,
 		// Used for defining cron job execution
