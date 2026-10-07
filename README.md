@@ -79,6 +79,10 @@ See its [README](packages/product-directory-update-lambda//README.md) for more d
 This lambda is responsible for handling product price updates and it runs at a set interval triggered by an Eventbridge rule.
 See its [README](packages/product-price-update-lambda//README.md) for more detail.
 
+### Backfill
+
+The directory was initially populated using a backfill script that finds articles with a section of Filter or Filter US and sends these article IDs as a mock Crier event. See the script [README](packages/scripts/backfill/README.md) for more.
+
 ## 4. Useful Links
 
 <!---
