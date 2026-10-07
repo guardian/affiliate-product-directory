@@ -14,7 +14,6 @@ export const groupByRegion = (
 };
 
 const SkimlinksMatchSchema = z.object({
-	input_url: z.string(),
 	price: z.number(),
 	currency: z.string(),
 });
