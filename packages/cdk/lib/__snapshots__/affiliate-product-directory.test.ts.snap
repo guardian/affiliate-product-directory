@@ -361,6 +361,15 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         "DeploymentId": {
           "Ref": "AffiliateProductsToolAffiliateProductsToolApiDeploymentBDABE07A3aaf24e78f2a916491a200533aa6aed2",
         },
+        "MethodSettings": [
+          {
+            "DataTraceEnabled": false,
+            "HttpMethod": "*",
+            "ResourcePath": "/*",
+            "ThrottlingBurstLimit": 50,
+            "ThrottlingRateLimit": 20,
+          },
+        ],
         "RestApiId": {
           "Ref": "AffiliateProductsToolAffiliateProductsToolApi641AB241",
         },

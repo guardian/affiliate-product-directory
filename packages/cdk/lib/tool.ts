@@ -29,6 +29,12 @@ export function createTool(
 		monitoringConfiguration: { noMonitoring: true },
 		api: {
 			id: 'AffiliateProductsToolApi',
+			// Rate limits every route here rather than in Express, where limits would only
+			// apply per Lambda instance. Sized for an internal tool with a handful of users.
+			deployOptions: {
+				throttlingRateLimit: 20,
+				throttlingBurstLimit: 50,
+			},
 			// Lets the Lambda return binary files such as the favicon. Only responses the
 			// Lambda base64-encodes are converted, so text responses are unaffected.
 			binaryMediaTypes: ['*/*'],
