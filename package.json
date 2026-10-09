@@ -6,7 +6,8 @@
     "test": "npm run test --workspaces --if-present",
     "lint": "eslint packages/** --ext .ts --no-error-on-unmatched-pattern",
     "format": "prettier --write packages/**/*.ts",
-    "build": "npm run build --workspaces --if-present"
+    "build": "npm run build --workspaces --if-present",
+    "affiliate-products-dev": "npm -w affiliate-products-server start & npm -w affiliate-products-client start"
   },
   "workspaces": [
     "packages/*"
