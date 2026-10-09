@@ -24,8 +24,35 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       "GuAlarm",
       "GuAlarm",
       "GuAlarm",
+      "GuCertificate",
+      "GuApiLambda",
+      "GuCname",
     ],
     "gu:cdk:version": "TEST",
+  },
+  "Outputs": {
+    "AffiliateProductsToolAffiliateProductsToolApiEndpointDE228296": {
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "https://",
+            {
+              "Ref": "AffiliateProductsToolAffiliateProductsToolApi641AB241",
+            },
+            ".execute-api.eu-west-1.",
+            {
+              "Ref": "AWS::URLSuffix",
+            },
+            "/",
+            {
+              "Ref": "AffiliateProductsToolAffiliateProductsToolApiDeploymentStageprodFDECAD93",
+            },
+            "/",
+          ],
+        ],
+      },
+    },
   },
   "Parameters": {
     "CapiAcctParam": {
@@ -43,6 +70,669 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
     },
   },
   "Resources": {
+    "AffiliateProductsToolAffiliateProductsToolApi641AB241": {
+      "Properties": {
+        "BinaryMediaTypes": [
+          "*/*",
+        ],
+        "EndpointConfiguration": {
+          "Types": [
+            "REGIONAL",
+          ],
+        },
+        "Name": "frontend-TEST-AffiliateProductsToolApi",
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-products-tool",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+      },
+      "Type": "AWS::ApiGateway::RestApi",
+    },
+    "AffiliateProductsToolAffiliateProductsToolApiANY631C6A84": {
+      "Properties": {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "ANY",
+        "Integration": {
+          "IntegrationHttpMethod": "POST",
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:eu-west-1:lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "AffiliateProductsToolF751CC93",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "ResourceId": {
+          "Fn::GetAtt": [
+            "AffiliateProductsToolAffiliateProductsToolApi641AB241",
+            "RootResourceId",
+          ],
+        },
+        "RestApiId": {
+          "Ref": "AffiliateProductsToolAffiliateProductsToolApi641AB241",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "AffiliateProductsToolAffiliateProductsToolApiANYApiPermissionAffiliateProductDirectoryLambdaAffiliateProductsToolAffiliateProductsToolApi7A84643BANY72DE9768": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "AffiliateProductsToolF751CC93",
+            "Arn",
+          ],
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":execute-api:eu-west-1:",
+              {
+                "Ref": "AWS::AccountId",
+              },
+              ":",
+              {
+                "Ref": "AffiliateProductsToolAffiliateProductsToolApi641AB241",
+              },
+              "/",
+              {
+                "Ref": "AffiliateProductsToolAffiliateProductsToolApiDeploymentStageprodFDECAD93",
+              },
+              "/*/",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "AffiliateProductsToolAffiliateProductsToolApiANYApiPermissionTestAffiliateProductDirectoryLambdaAffiliateProductsToolAffiliateProductsToolApi7A84643BANY36FAB482": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "AffiliateProductsToolF751CC93",
+            "Arn",
+          ],
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":execute-api:eu-west-1:",
+              {
+                "Ref": "AWS::AccountId",
+              },
+              ":",
+              {
+                "Ref": "AffiliateProductsToolAffiliateProductsToolApi641AB241",
+              },
+              "/test-invoke-stage/*/",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "AffiliateProductsToolAffiliateProductsToolApiAccountF1F00413": {
+      "DeletionPolicy": "Retain",
+      "DependsOn": [
+        "AffiliateProductsToolAffiliateProductsToolApi641AB241",
+      ],
+      "Properties": {
+        "CloudWatchRoleArn": {
+          "Fn::GetAtt": [
+            "AffiliateProductsToolAffiliateProductsToolApiCloudWatchRole2FAC61CA",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::ApiGateway::Account",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "AffiliateProductsToolAffiliateProductsToolApiCloudWatchRole2FAC61CA": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "apigateway.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs",
+              ],
+            ],
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-products-tool",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "AffiliateProductsToolAffiliateProductsToolApiCustomDomainFD157EDB": {
+      "Properties": {
+        "DomainName": "affiliate-products.test.dev-gutools.co.uk",
+        "EndpointConfiguration": {
+          "Types": [
+            "REGIONAL",
+          ],
+        },
+        "RegionalCertificateArn": {
+          "Ref": "CertificateAffiliateproductstool76A091F3",
+        },
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-products-tool",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+      },
+      "Type": "AWS::ApiGateway::DomainName",
+    },
+    "AffiliateProductsToolAffiliateProductsToolApiCustomDomainMapAffiliateProductDirectoryLambdaAffiliateProductsToolAffiliateProductsToolApi7A84643BD742A24D": {
+      "Properties": {
+        "DomainName": {
+          "Ref": "AffiliateProductsToolAffiliateProductsToolApiCustomDomainFD157EDB",
+        },
+        "RestApiId": {
+          "Ref": "AffiliateProductsToolAffiliateProductsToolApi641AB241",
+        },
+        "Stage": {
+          "Ref": "AffiliateProductsToolAffiliateProductsToolApiDeploymentStageprodFDECAD93",
+        },
+      },
+      "Type": "AWS::ApiGateway::BasePathMapping",
+    },
+    "AffiliateProductsToolAffiliateProductsToolApiDeploymentBDABE07A3aaf24e78f2a916491a200533aa6aed2": {
+      "DependsOn": [
+        "AffiliateProductsToolAffiliateProductsToolApiproxyANY6E14D4CB",
+        "AffiliateProductsToolAffiliateProductsToolApiproxy72B7A77B",
+        "AffiliateProductsToolAffiliateProductsToolApiANY631C6A84",
+      ],
+      "Metadata": {
+        "aws:cdk:do-not-refactor": true,
+      },
+      "Properties": {
+        "Description": "Automatically created by the RestApi construct",
+        "RestApiId": {
+          "Ref": "AffiliateProductsToolAffiliateProductsToolApi641AB241",
+        },
+      },
+      "Type": "AWS::ApiGateway::Deployment",
+    },
+    "AffiliateProductsToolAffiliateProductsToolApiDeploymentStageprodFDECAD93": {
+      "DependsOn": [
+        "AffiliateProductsToolAffiliateProductsToolApiAccountF1F00413",
+      ],
+      "Properties": {
+        "DeploymentId": {
+          "Ref": "AffiliateProductsToolAffiliateProductsToolApiDeploymentBDABE07A3aaf24e78f2a916491a200533aa6aed2",
+        },
+        "RestApiId": {
+          "Ref": "AffiliateProductsToolAffiliateProductsToolApi641AB241",
+        },
+        "StageName": "prod",
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-products-tool",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+      },
+      "Type": "AWS::ApiGateway::Stage",
+    },
+    "AffiliateProductsToolAffiliateProductsToolApiproxy72B7A77B": {
+      "Properties": {
+        "ParentId": {
+          "Fn::GetAtt": [
+            "AffiliateProductsToolAffiliateProductsToolApi641AB241",
+            "RootResourceId",
+          ],
+        },
+        "PathPart": "{proxy+}",
+        "RestApiId": {
+          "Ref": "AffiliateProductsToolAffiliateProductsToolApi641AB241",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "AffiliateProductsToolAffiliateProductsToolApiproxyANY6E14D4CB": {
+      "Properties": {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "ANY",
+        "Integration": {
+          "IntegrationHttpMethod": "POST",
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:eu-west-1:lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "AffiliateProductsToolF751CC93",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "ResourceId": {
+          "Ref": "AffiliateProductsToolAffiliateProductsToolApiproxy72B7A77B",
+        },
+        "RestApiId": {
+          "Ref": "AffiliateProductsToolAffiliateProductsToolApi641AB241",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "AffiliateProductsToolAffiliateProductsToolApiproxyANYApiPermissionAffiliateProductDirectoryLambdaAffiliateProductsToolAffiliateProductsToolApi7A84643BANYproxy659BC33D": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "AffiliateProductsToolF751CC93",
+            "Arn",
+          ],
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":execute-api:eu-west-1:",
+              {
+                "Ref": "AWS::AccountId",
+              },
+              ":",
+              {
+                "Ref": "AffiliateProductsToolAffiliateProductsToolApi641AB241",
+              },
+              "/",
+              {
+                "Ref": "AffiliateProductsToolAffiliateProductsToolApiDeploymentStageprodFDECAD93",
+              },
+              "/*/*",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "AffiliateProductsToolAffiliateProductsToolApiproxyANYApiPermissionTestAffiliateProductDirectoryLambdaAffiliateProductsToolAffiliateProductsToolApi7A84643BANYproxyA61C90D3": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "AffiliateProductsToolF751CC93",
+            "Arn",
+          ],
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":execute-api:eu-west-1:",
+              {
+                "Ref": "AWS::AccountId",
+              },
+              ":",
+              {
+                "Ref": "AffiliateProductsToolAffiliateProductsToolApi641AB241",
+              },
+              "/test-invoke-stage/*/*",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "AffiliateProductsToolCname": {
+      "Properties": {
+        "Name": "affiliate-products.test.dev-gutools.co.uk",
+        "RecordType": "CNAME",
+        "ResourceRecords": [
+          {
+            "Fn::GetAtt": [
+              "AffiliateProductsToolAffiliateProductsToolApiCustomDomainFD157EDB",
+              "RegionalDomainName",
+            ],
+          },
+        ],
+        "Stage": "TEST",
+        "TTL": 3600,
+      },
+      "Type": "Guardian::DNS::RecordSet",
+    },
+    "AffiliateProductsToolF751CC93": {
+      "DependsOn": [
+        "AffiliateProductsToolServiceRoleDefaultPolicy88629214",
+        "AffiliateProductsToolServiceRole931B917D",
+      ],
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Ref": "DistributionBucketName",
+          },
+          "S3Key": "frontend/TEST/affiliate-products-tool/affiliate-products-tool.zip",
+        },
+        "Environment": {
+          "Variables": {
+            "APP": "affiliate-products-tool",
+            "STACK": "frontend",
+            "STAGE": "TEST",
+          },
+        },
+        "Handler": "index.handler",
+        "LoggingConfig": {
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
+        "Role": {
+          "Fn::GetAtt": [
+            "AffiliateProductsToolServiceRole931B917D",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs22.x",
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-products-tool",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+        "Timeout": 30,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "AffiliateProductsToolServiceRole931B917D": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-products-tool",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "AffiliateProductsToolServiceRoleDefaultPolicy88629214": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::",
+                      {
+                        "Ref": "DistributionBucketName",
+                      },
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::",
+                      {
+                        "Ref": "DistributionBucketName",
+                      },
+                      "/frontend/TEST/affiliate-products-tool/affiliate-products-tool.zip",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "ssm:GetParametersByPath",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:ssm:eu-west-1:",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":parameter/TEST/frontend/affiliate-products-tool",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "ssm:GetParameters",
+                "ssm:GetParameter",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:ssm:eu-west-1:",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":parameter/TEST/frontend/affiliate-products-tool/*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "AffiliateProductsToolServiceRoleDefaultPolicy88629214",
+        "Roles": [
+          {
+            "Ref": "AffiliateProductsToolServiceRole931B917D",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
     "BackfillConnection25E8AC50": {
       "Properties": {
         "Description": "Connect product-directory-update-lambda TEST to backfill events",
@@ -109,6 +799,41 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         },
       },
       "Type": "AWS::Lambda::Permission",
+    },
+    "CertificateAffiliateproductstool76A091F3": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "DomainName": "affiliate-products.test.dev-gutools.co.uk",
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-products-tool",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Name",
+            "Value": "AffiliateProductDirectoryLambda/CertificateAffiliateproductstool",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+        "ValidationMethod": "DNS",
+      },
+      "Type": "AWS::CertificateManager::Certificate",
+      "UpdateReplacePolicy": "Retain",
     },
     "CrierConnectionAllowEventRuleAffiliateProductDirectoryLambdaProductDirectoryUpdateLambdaDE4E02F3FB48C0C0": {
       "Properties": {

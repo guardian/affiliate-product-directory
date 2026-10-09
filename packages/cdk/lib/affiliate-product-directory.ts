@@ -9,9 +9,15 @@ import { connectDirectoryUpdateLambdaToCrier, createCrier } from './crier';
 import { createDynamoTables } from './dynamo';
 import { attachPoliciesToLambda, createLambdas } from './lambda';
 import { createPolicies } from './policies';
+import { createTool } from './tool';
+
+interface AffiliateProductDirectoryProps extends GuStackProps {
+	/** The affiliate products tool is only created in stages given a domain for it. */
+	toolDomainName?: string;
+}
 
 export class AffiliateProductDirectory extends GuStack {
-	constructor(scope: App, id: string, props: GuStackProps) {
+	constructor(scope: App, id: string, props: AffiliateProductDirectoryProps) {
 		super(scope, id, props);
 		const { stage } = this;
 
@@ -103,5 +109,9 @@ export class AffiliateProductDirectory extends GuStack {
 		});
 
 		createAlarms(this, { appName, alarmActionsEnabled, snsTopic, stage });
+
+		if (props.toolDomainName) {
+			createTool(this, { domainName: props.toolDomainName });
+		}
 	}
 }

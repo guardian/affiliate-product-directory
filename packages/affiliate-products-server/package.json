@@ -1,0 +1,23 @@
+{
+	"name": "affiliate-products-server",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"test": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" npx jest --detectOpenHandles --config ../../jest.config.js --selectProjects affiliate-products-server",
+		"start": "tsx src/local.ts",
+		"prebuild": "rm -rf dist",
+		"build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outdir=dist",
+		"postbuild": "cp -r ../affiliate-products-client/build dist/client && cd dist && zip -r affiliate-products-tool.zip ."
+	},
+	"dependencies": {
+		"@codegenie/serverless-express": "5.0.0",
+		"express": "5.2.1"
+	},
+	"devDependencies": {
+		"@types/express": "5.0.6",
+		"@types/supertest": "7.2.1",
+		"esbuild": "0.28.2",
+		"supertest": "7.3.1"
+	}
+}
