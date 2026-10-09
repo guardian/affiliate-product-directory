@@ -4,6 +4,7 @@ import { GuCname } from '@guardian/cdk/lib/constructs/dns';
 import { GuApiLambda } from '@guardian/cdk/lib/patterns/api-lambda';
 import { Duration } from 'aws-cdk-lib';
 import { EndpointType } from 'aws-cdk-lib/aws-apigateway';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
 
 const app = 'affiliate-products-tool';
@@ -46,6 +47,22 @@ export function createTool(
 			},
 		},
 	});
+
+	// The public key for checking Panda cookies, which is all this tool needs from that bucket.
+	toolLambda.addToRolePolicy(
+		new PolicyStatement({
+			actions: ['s3:GetObject'],
+			resources: ['arn:aws:s3:::pan-domain-auth-settings/*.settings.public'],
+		}),
+	);
+
+	// Users' permissions, as cached by the permissions service.
+	toolLambda.addToRolePolicy(
+		new PolicyStatement({
+			actions: ['s3:GetObject'],
+			resources: [`arn:aws:s3:::permissions-cache/${scope.stage}/*`],
+		}),
+	);
 
 	new GuCname(scope, 'AffiliateProductsToolCname', {
 		app,

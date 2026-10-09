@@ -23,33 +23,77 @@ const mainStyles = css`
 	padding: ${space[6]}px;
 `;
 
-type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated' | 'error';
+interface User {
+	email: string;
+	firstName: string;
+	lastName: string;
+	avatarUrl?: string;
+}
 
-const authStatusText: Record<AuthStatus, string> = {
-	loading: 'Checking…',
-	authenticated: 'yes',
-	unauthenticated: 'no',
-	error: 'could not reach the API',
+type AuthState =
+	| { status: 'loading' }
+	| { status: 'authenticated'; user: User; permissions: string[] }
+	// The Panda cookie has expired since the page loaded.
+	| { status: 'unauthenticated' }
+	| { status: 'error' };
+
+const fetchAuthState = async (): Promise<AuthState> => {
+	const response = await fetch('/api/auth');
+	if (response.status === 401) {
+		return { status: 'unauthenticated' };
+	}
+	if (!response.ok) {
+		return { status: 'error' };
+	}
+	const { user, permissions } = (await response.json()) as {
+		user: User;
+		permissions: string[];
+	};
+	return { status: 'authenticated', user, permissions };
 };
 
-const fetchAuthStatus = async (): Promise<AuthStatus> => {
-	const response = await fetch('/api/auth');
-	if (!response.ok) {
-		return 'error';
+const AuthDetails = ({ auth }: { auth: AuthState }) => {
+	switch (auth.status) {
+		case 'loading':
+			return <p>Checking who you are…</p>;
+		case 'unauthenticated':
+			return (
+				<p>
+					Your login has expired. <a href="/">Reload the page</a> to log in
+					again.
+				</p>
+			);
+		case 'error':
+			return <p>Could not reach the API.</p>;
+		case 'authenticated':
+			return (
+				<>
+					<p>
+						Logged in as {auth.user.firstName} {auth.user.lastName} (
+						{auth.user.email})
+					</p>
+					<p>Your permissions:</p>
+					{auth.permissions.length > 0 ? (
+						<ul>
+							{auth.permissions.map((permission) => (
+								<li key={permission}>{permission}</li>
+							))}
+						</ul>
+					) : (
+						<p>None</p>
+					)}
+				</>
+			);
 	}
-	const { authenticated } = (await response.json()) as {
-		authenticated: boolean;
-	};
-	return authenticated ? 'authenticated' : 'unauthenticated';
 };
 
 export const App = () => {
-	const [authStatus, setAuthStatus] = useState<AuthStatus>('loading');
+	const [auth, setAuth] = useState<AuthState>({ status: 'loading' });
 
 	useEffect(() => {
-		fetchAuthStatus()
-			.then(setAuthStatus)
-			.catch(() => setAuthStatus('error'));
+		fetchAuthState()
+			.then(setAuth)
+			.catch(() => setAuth({ status: 'error' }));
 	}, []);
 
 	return (
@@ -59,7 +103,7 @@ export const App = () => {
 			</header>
 			<main css={mainStyles}>
 				<p>Coming soon.</p>
-				<p>Authenticated: {authStatusText[authStatus]}</p>
+				<AuthDetails auth={auth} />
 			</main>
 		</>
 	);
