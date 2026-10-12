@@ -1,3 +1,4 @@
+import type { ExtractedDirectoryProduct } from '@common/models';
 import type { Block } from '@guardian/content-api-models/v1/block';
 import type { BlockElement } from '@guardian/content-api-models/v1/blockElement';
 import type { Blocks } from '@guardian/content-api-models/v1/blocks';
@@ -6,7 +7,6 @@ import { ContentType } from '@guardian/content-api-models/v1/contentType';
 import { ElementType } from '@guardian/content-api-models/v1/elementType';
 import { LinkType } from '@guardian/content-api-models/v1/linkType';
 import type { ProductCTA } from '@guardian/content-api-models/v1/productCTA';
-import type { ExtractedDirectoryProduct } from './models';
 import { getRegionFromTags } from './tag-utils';
 
 export function extractAllProductsFromArticle(

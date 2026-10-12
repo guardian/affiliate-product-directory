@@ -2,6 +2,7 @@ import type { AttributeValue } from '@aws-sdk/client-dynamodb';
 import {
 	ConditionalCheckFailedException,
 	DynamoDBClient,
+	GetItemCommand,
 	QueryCommand,
 	ReturnValue,
 	UpdateItemCommand,
@@ -12,12 +13,13 @@ import {
 	ScanCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { dynamoConfig } from '@directory-update/aws-config';
-import {
-	type ExtractedDirectoryProduct,
-	getDirectoryArticleFromDynamoRecord,
-} from '@directory-update/models';
 import { chunk } from '@common/chunk';
 import type { Product } from '@common/models';
+import {
+	type ExtractedDirectoryProduct,
+	getArticleProductFromDynamoRecord,
+	getPriceProductFromDynamoRecord,
+} from './models';
 
 export class DynamoService {
 	constructor(
@@ -56,6 +58,23 @@ export class DynamoService {
 			lastEvaluatedKey: response.LastEvaluatedKey,
 		});
 		return [...items, ...remainingItems];
+	}
+
+	async getProductPrice(
+		productMerchantUrl: string,
+	): Promise<Product | undefined> {
+		const response = await this.client.send(
+			new GetItemCommand({
+				TableName: this.pricingTableName,
+				Key: {
+					productMerchantUrl: { S: productMerchantUrl },
+				},
+			}),
+		);
+
+		return response.Item
+			? getPriceProductFromDynamoRecord(response.Item)
+			: undefined;
 	}
 
 	/**
@@ -198,7 +217,7 @@ export class DynamoService {
 
 		const response = await this.client.send(req);
 		if (response.Items && response.Items.length > 0) {
-			const articles = response.Items.map(getDirectoryArticleFromDynamoRecord);
+			const articles = response.Items.map(getArticleProductFromDynamoRecord);
 			return articles
 				.filter((article) => !article.removed)
 				.map((article) => article.productMerchantUrl);
@@ -218,7 +237,7 @@ export class DynamoService {
 
 		const response = await this.client.send(req);
 		if (response.Items && response.Items.length > 0) {
-			const articles = response.Items.map(getDirectoryArticleFromDynamoRecord);
+			const articles = response.Items.map(getArticleProductFromDynamoRecord);
 			return articles
 				.filter((article) => !article.removed)
 				.map((article) => article.articleUrl);
