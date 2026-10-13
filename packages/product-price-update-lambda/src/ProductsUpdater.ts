@@ -64,6 +64,13 @@ export class ProductsUpdater {
 		return updated;
 	}
 
+	private shouldSkipManualPrice(product: Product): boolean {
+		return (
+			product.updatedBy === 'manualOverride' &&
+			(product.expiresAt === undefined || product.expiresAt > Date.now())
+		);
+	}
+
 	private categoriseProducts(products: Product[]): CategorisedProducts {
 		const categorised: CategorisedProducts = { amazon: [], other: [] };
 		const amazonHosts = new Set([
@@ -79,7 +86,13 @@ export class ProductsUpdater {
 					product.productMerchantUrl,
 				).hostname.toLowerCase();
 				const partner: Partner = amazonHosts.has(hostname) ? 'amazon' : 'other';
-				categorised[partner].push(product);
+				if (this.shouldSkipManualPrice(product)) {
+					console.log(
+						`Skipping ${product.productMerchantUrl} as it has manual override ${product.expiresAt ? `until ${product.expiresAt}` : ''}`,
+					);
+				} else {
+					categorised[partner].push(product);
+				}
 			} catch {
 				console.log(
 					`Received invalid URL ${product.productMerchantUrl} - could not determine best affiliate partner`,
