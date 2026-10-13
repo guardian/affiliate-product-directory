@@ -1,12 +1,12 @@
 import path from 'path';
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
+import type { DynamoService } from '../../common/src/database-service';
 import type { Auth, User } from './auth';
 import {
 	handleOverrideDeleteRequest,
 	handleOverrideRequest,
-} from './manual-override/manualOverride';
-import type { DynamoService } from '../../common/src/database-service';
+} from './manual-override/manualOverrideHandlers';
 
 /**
  * Serves the affiliate-products-client build and its API from a single origin,

@@ -2,7 +2,7 @@ import type { DynamoService } from '../../../common/src/database-service';
 import {
 	ManualOverrideDeleteRequestSchema,
 	ManualOverrideRequestSchema,
-} from './request';
+} from './requestSchemas';
 
 export async function handleOverrideRequest(
 	request: unknown,
