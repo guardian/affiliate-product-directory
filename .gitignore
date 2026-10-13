@@ -10,3 +10,5 @@ tsconfig.tsbuildinfo
 packages/scripts/backfill/output
 
 .env
+
+build
