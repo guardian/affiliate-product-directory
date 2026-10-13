@@ -15,15 +15,8 @@ interface AffiliateProductDirectoryProps extends GuStackProps {
 	/** The affiliate products tool is only created in stages given a domain for it. */
 	toolDomainName?: string;
 }
-import { createTool } from './tool';
-
-interface AffiliateProductDirectoryProps extends GuStackProps {
-	/** The affiliate products tool is only created in stages given a domain for it. */
-	toolDomainName?: string;
-}
 
 export class AffiliateProductDirectory extends GuStack {
-	constructor(scope: App, id: string, props: AffiliateProductDirectoryProps) {
 	constructor(scope: App, id: string, props: AffiliateProductDirectoryProps) {
 		super(scope, id, props);
 		const { stage } = this;
