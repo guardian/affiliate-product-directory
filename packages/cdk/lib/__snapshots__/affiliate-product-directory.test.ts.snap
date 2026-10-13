@@ -27,8 +27,35 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       "GuCertificate",
       "GuApiLambda",
       "GuCname",
+      "GuCertificate",
+      "GuApiLambda",
+      "GuCname",
     ],
     "gu:cdk:version": "TEST",
+  },
+  "Outputs": {
+    "AffiliateProductsToolAffiliateProductsToolApiEndpointDE228296": {
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "https://",
+            {
+              "Ref": "AffiliateProductsToolAffiliateProductsToolApi641AB241",
+            },
+            ".execute-api.eu-west-1.",
+            {
+              "Ref": "AWS::URLSuffix",
+            },
+            "/",
+            {
+              "Ref": "AffiliateProductsToolAffiliateProductsToolApiDeploymentStageprodFDECAD93",
+            },
+            "/",
+          ],
+        ],
+      },
+    },
   },
   "Outputs": {
     "AffiliateProductsToolAffiliateProductsToolApiEndpointDE228296": {
@@ -827,6 +854,41 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         },
       },
       "Type": "AWS::Lambda::Permission",
+    },
+    "CertificateAffiliateproductstool76A091F3": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "DomainName": "affiliate-products.test.dev-gutools.co.uk",
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-products-tool",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Name",
+            "Value": "AffiliateProductDirectoryLambda/CertificateAffiliateproductstool",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+        "ValidationMethod": "DNS",
+      },
+      "Type": "AWS::CertificateManager::Certificate",
+      "UpdateReplacePolicy": "Retain",
     },
     "CertificateAffiliateproductstool76A091F3": {
       "DeletionPolicy": "Retain",
