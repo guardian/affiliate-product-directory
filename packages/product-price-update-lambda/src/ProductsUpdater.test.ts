@@ -147,6 +147,42 @@ describe('refreshPrices', () => {
 		expect(mockWriteProductsToS3Files).toHaveBeenCalledWith([firstPriced]);
 	});
 
+	it("does not give the file writer a product priced in another region's currency", async () => {
+		const ukInPounds = buildProduct({
+			productMerchantUrl: 'https://www.johnlewis.com/p/1',
+			region: 'GB',
+			currency: 'GBP',
+		});
+		const usInDollars = buildProduct({
+			productMerchantUrl: 'https://www.target.com/p/2',
+			region: 'US',
+			currency: 'USD',
+		});
+		const ukInDollars = buildProduct({
+			productMerchantUrl: 'https://www.johnlewis.com/p/3',
+			region: 'GB',
+			currency: 'USD',
+		});
+		const usInPounds = buildProduct({
+			productMerchantUrl: 'https://www.target.com/p/4',
+			region: 'US',
+			currency: 'GBP',
+		});
+		mockGetAllProducts.mockResolvedValue([
+			ukInPounds,
+			usInDollars,
+			ukInDollars,
+			usInPounds,
+		]);
+
+		await updater().refreshPrices();
+
+		expect(mockWriteProductsToS3Files).toHaveBeenCalledWith([
+			ukInPounds,
+			usInDollars,
+		]);
+	});
+
 	it('routes amazon products to the amazon provider and the rest to shopify then skimlinks', async () => {
 		const amazonCom = buildProduct({
 			productMerchantUrl: 'https://amazon.com/dp/1',
