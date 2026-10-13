@@ -1,4 +1,3 @@
-import { REGION_CURRENCY } from '@common/currency';
 import type { DynamoService } from '@common/database-service';
 import type { PricedProduct, Product } from '@common/models';
 import { AmazonPriceProvider } from '@price-update/price-providers/amazon/AmazonPriceProvider';
@@ -54,8 +53,7 @@ export class ProductsUpdater {
 
 	/**
 	 * The active products that have a price, as they are after this run: each product priced
-	 * in it replaces its old item. Products that have never been priced are left out, as are
-	 * any priced in a currency other than their region's.
+	 * in it replaces its old item. Products that have never been priced are left out.
 	 */
 	private getLatestPricedProducts({
 		enabledProducts,
@@ -72,7 +70,7 @@ export class ProductsUpdater {
 		);
 		return [...productsByUrl.values()].filter(
 			(v): v is PricedProduct =>
-				v.price !== undefined && v.currency === REGION_CURRENCY[v.region],
+				v.price !== undefined && v.currency !== undefined,
 		);
 	}
 
