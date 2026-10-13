@@ -30,8 +30,6 @@ export function createTool(
 		monitoringConfiguration: { noMonitoring: true },
 		api: {
 			id: 'AffiliateProductsToolApi',
-			// Rate limits every route here rather than in Express, where limits would only
-			// apply per Lambda instance. Sized for an internal tool with a handful of users.
 			deployOptions: {
 				throttlingRateLimit: 20,
 				throttlingBurstLimit: 50,
@@ -48,7 +46,7 @@ export function createTool(
 		},
 	});
 
-	// The public key for checking Panda cookies, which is all this tool needs from that bucket.
+	// The public key for checking Panda cookies for Auth. verification.
 	toolLambda.addToRolePolicy(
 		new PolicyStatement({
 			actions: ['s3:GetObject'],
@@ -67,7 +65,6 @@ export function createTool(
 	new GuCname(scope, 'AffiliateProductsToolCname', {
 		app,
 		domainName,
-		// Always set, as the API is given a domainName above.
 		resourceRecord: toolLambda.api.domainName!.domainNameAliasDomainName,
 		ttl: Duration.hours(1),
 	});
