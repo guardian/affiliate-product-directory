@@ -2,7 +2,7 @@ import { GuCertificate } from '@guardian/cdk/lib/constructs/acm';
 import type { GuStack } from '@guardian/cdk/lib/constructs/core';
 import { GuCname } from '@guardian/cdk/lib/constructs/dns';
 import { GuApiLambda } from '@guardian/cdk/lib/patterns/api-lambda';
-import { Duration } from 'aws-cdk-lib';
+import { type CfnParameter, Duration } from 'aws-cdk-lib';
 import { EndpointType } from 'aws-cdk-lib/aws-apigateway';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
@@ -15,7 +15,10 @@ const app = 'affiliate-products-tool';
  */
 export function createTool(
 	scope: GuStack,
-	{ domainName }: { domainName: string },
+	{
+		domainName,
+		capiKeyParam,
+	}: { domainName: string; capiKeyParam: CfnParameter },
 ): GuApiLambda {
 	// dev-gutools.co.uk isn't in Route 53, so the first deploy waits until the
 	// certificate's DNS validation record has been added manually.
@@ -25,6 +28,9 @@ export function createTool(
 		app,
 		fileName: `${app}.zip`,
 		handler: 'index.handler',
+		environment: {
+			CAPI_KEY: capiKeyParam.valueAsString,
+		},
 		runtime: Runtime.NODEJS_22_X,
 		architecture: Architecture.ARM_64,
 		monitoringConfiguration: { noMonitoring: true },

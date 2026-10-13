@@ -555,6 +555,9 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         "Environment": {
           "Variables": {
             "APP": "affiliate-products-tool",
+            "CAPI_KEY": {
+              "Ref": "capiKey",
+            },
             "STACK": "frontend",
             "STAGE": "TEST",
           },
