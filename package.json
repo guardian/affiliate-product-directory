@@ -7,7 +7,7 @@
     "lint": "eslint packages/** --ext .ts --no-error-on-unmatched-pattern",
     "format": "prettier --write packages/**/*.ts",
     "build": "npm run build --workspaces --if-present",
-    "affiliate-products-dev": "npm -w affiliate-products-server start & npm -w affiliate-products-client start"
+    "affiliate-products-dev": "concurrently --kill-others --names server,client --prefix-colors blue,green \"npm -w affiliate-products-server start\" \"npm -w affiliate-products-client start\""
   },
   "workspaces": [
     "packages/*"
@@ -19,6 +19,7 @@
     "@jest/globals": "30.3.0",
     "@types/jest": "30.0.0",
     "@types/node": "25.3.3",
+    "concurrently": "10.0.6",
     "eslint": "9.39.2",
     "eslint-plugin-prettier": "5.5.6",
     "jest": "30.5.2",

@@ -1,5 +1,5 @@
 import type { DynamoService } from '@common/database-service';
-import type { Product } from '@common/models';
+import type { PricedProduct, Product } from '@common/models';
 import { AmazonPriceProvider } from '@price-update/price-providers/amazon/AmazonPriceProvider';
 import type { PriceProvider } from '@price-update/price-providers/PriceProvider';
 import { ShopifyPriceProvider } from '@price-update/price-providers/shopify/ShopifyPriceProvider';
@@ -24,24 +24,53 @@ export class ProductsUpdater {
 	 *  and check affiliate partners for the latest prices, and lastly updated the DB
 	 */
 	public async refreshPrices() {
-		const categorised = this.categoriseProducts(await this.getProductsFromDB());
+		const enabledProducts = await this.getProductsFromDB();
+		const categorised = this.categoriseProducts(enabledProducts);
 
 		const [amazonUpdated, otherUpdated] = await Promise.all([
 			this.refreshWithFallback(categorised.amazon, this.providers.amazon),
 			this.refreshWithFallback(categorised.other, this.providers.other),
 		]);
 
-		const allProducts = [...amazonUpdated, ...otherUpdated];
+		const updatedPriceProducts = [...amazonUpdated, ...otherUpdated];
 		await this.dynamoService.updateProducts({
-			items: allProducts,
+			items: updatedPriceProducts,
 		});
-		await this.s3FileWriter.writeProductsToS3File(allProducts);
+
+		// we write to S3 the latest data we have for every active product that has a price
+		// this includes products that were not updated this run
+		await this.s3FileWriter.writeProductsToS3Files(
+			this.getLatestPricedProducts({ enabledProducts, updatedPriceProducts }),
+		);
 	}
 
 	public async getProductsFromDB(): Promise<Product[]> {
 		// only update products that are active
 		return (await this.dynamoService.getAllProducts({})).filter(
 			(v) => v.removed !== 'true',
+		);
+	}
+
+	/**
+	 * The active products that have a price, as they are after this run: each product priced
+	 * in it replaces its old item. Products that have never been priced are left out.
+	 */
+	private getLatestPricedProducts({
+		enabledProducts,
+		updatedPriceProducts,
+	}: {
+		enabledProducts: Product[];
+		updatedPriceProducts: Product[];
+	}): PricedProduct[] {
+		const productsByUrl = new Map(
+			enabledProducts.map((product) => [product.productMerchantUrl, product]),
+		);
+		updatedPriceProducts.forEach((product) =>
+			productsByUrl.set(product.productMerchantUrl, product),
+		);
+		return [...productsByUrl.values()].filter(
+			(v): v is PricedProduct =>
+				v.price !== undefined && v.currency !== undefined,
 		);
 	}
 

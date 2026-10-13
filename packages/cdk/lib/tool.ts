@@ -6,6 +6,7 @@ import { type CfnParameter, Duration } from 'aws-cdk-lib';
 import { EndpointType } from 'aws-cdk-lib/aws-apigateway';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
+import { getCachedProductPricesKey } from '../../common/src/constants';
 
 const app = 'affiliate-products-tool';
 
@@ -18,7 +19,8 @@ export function createTool(
 	{
 		domainName,
 		capiKeyParam,
-	}: { domainName: string; capiKeyParam: CfnParameter },
+		bucketName,
+	}: { domainName: string; capiKeyParam: CfnParameter; bucketName: string },
 ): GuApiLambda {
 	// dev-gutools.co.uk isn't in Route 53, so the first deploy waits until the
 	// certificate's DNS validation record has been added manually.
@@ -30,6 +32,7 @@ export function createTool(
 		handler: 'index.handler',
 		environment: {
 			CAPI_KEY: capiKeyParam.valueAsString,
+			BUCKET: bucketName,
 		},
 		runtime: Runtime.NODEJS_22_X,
 		architecture: Architecture.ARM_64,
@@ -65,6 +68,16 @@ export function createTool(
 		new PolicyStatement({
 			actions: ['s3:GetObject'],
 			resources: [`arn:aws:s3:::permissions-cache/${scope.stage}/*`],
+		}),
+	);
+
+	// The products' prices, as cached by the price update Lambda.
+	toolLambda.addToRolePolicy(
+		new PolicyStatement({
+			actions: ['s3:GetObject'],
+			resources: [
+				`arn:aws:s3:::${bucketName}/${getCachedProductPricesKey(scope.stage)}`,
+			],
 		}),
 	);
 

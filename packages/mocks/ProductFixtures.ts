@@ -1,7 +1,9 @@
 import { randomUUID } from 'crypto';
-import type { Product } from '@common/models';
+import type { PricedProduct } from '@common/models';
 
-export function buildProduct(overrides: Partial<Product> = {}): Product {
+export function buildProduct(
+	overrides: Partial<PricedProduct> = {},
+): PricedProduct {
 	return {
 		productMerchantUrl: `https://example.com/product-${randomUUID()}`,
 		createdAt: Date.now(),

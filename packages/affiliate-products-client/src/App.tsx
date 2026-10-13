@@ -1,110 +1,111 @@
-import { css } from '@emotion/react';
-import {
-	headlineBold34,
-	palette,
-	space,
-	textSans17,
-} from '@guardian/source/foundations';
+import { css, Global } from '@emotion/react';
+import { space, textSans15 } from '@guardian/source/foundations';
+import { InlineError, Spinner } from '@guardian/source/react-components';
 import { useEffect, useState } from 'react';
+import { fetchArticles } from './api/articles';
+import { fetchUserName } from './api/auth';
+import { ArticleList } from './ArticleList';
+import { useListParams } from './hooks/useListParams';
+import { Pagination } from './Pagination';
+import { Sidebar } from './Sidebar';
+import { toolPalette } from './style';
+import { TopToolbar } from './TopToolbar';
+import type { ArticlesState, ListParams } from './types';
 
-const headerStyles = css`
-	background-color: ${palette.brand[400]};
-	color: ${palette.neutral[100]};
-	padding: ${space[4]}px ${space[6]}px;
+const globalStyles = css`
+	body {
+		${textSans15};
+		margin: 0;
+		color: ${toolPalette.text};
+		background-color: #fff;
+	}
 `;
 
-const headingStyles = css`
-	${headlineBold34};
-	margin: 0;
+const bodyStyles = css`
+	display: flex;
+	align-items: flex-start;
 `;
 
 const mainStyles = css`
-	${textSans17};
-	padding: ${space[6]}px;
+	flex: 1 1 auto;
+	min-width: 0;
+	padding: 0 ${space[4]}px;
 `;
 
-interface User {
-	email: string;
-	firstName: string;
-	lastName: string;
-	avatarUrl?: string;
-}
-
-type AuthState =
-	| { status: 'loading' }
-	| { status: 'authenticated'; user: User; permissions: string[] }
-	// The Panda cookie has expired since the page loaded.
-	| { status: 'unauthenticated' }
-	| { status: 'error' };
-
-const fetchAuthState = async (): Promise<AuthState> => {
-	const response = await fetch('/api/auth');
-	if (response.status === 401) {
-		return { status: 'unauthenticated' };
-	}
-	if (!response.ok) {
-		return { status: 'error' };
-	}
-	const { user, permissions } = (await response.json()) as {
-		user: User;
-		permissions: string[];
-	};
-	return { status: 'authenticated', user, permissions };
-};
-
-const AuthDetails = ({ auth }: { auth: AuthState }) => {
-	switch (auth.status) {
-		case 'loading':
-			return <p>Checking who you are…</p>;
-		case 'unauthenticated':
-			return (
-				<p>
-					Your login has expired. <a href="/">Reload the page</a> to log in
-					again.
-				</p>
-			);
-		case 'error':
-			return <p>Could not reach the API.</p>;
-		case 'authenticated':
-			return (
-				<>
-					<p>
-						Logged in as {auth.user.firstName} {auth.user.lastName} (
-						{auth.user.email})
-					</p>
-					<p>Your permissions:</p>
-					{auth.permissions.length > 0 ? (
-						<ul>
-							{auth.permissions.map((permission) => (
-								<li key={permission}>{permission}</li>
-							))}
-						</ul>
-					) : (
-						<p>None</p>
-					)}
-				</>
-			);
-	}
-};
-
 export const App = () => {
-	const [auth, setAuth] = useState<AuthState>({ status: 'loading' });
+	const [userName, setUserName] = useState<string>();
+	const { page, section, setPage, setSection } = useListParams();
+	const [fetched, setFetched] = useState<{
+		params: ListParams;
+		state: ArticlesState;
+	}>();
 
 	useEffect(() => {
-		fetchAuthState()
-			.then(setAuth)
-			.catch(() => setAuth({ status: 'error' }));
+		// The name is only shown in the toolbar, so there's nothing to show if this fails.
+		fetchUserName()
+			.then(setUserName)
+			.catch(() => undefined);
 	}, []);
+
+	useEffect(() => {
+		const controller = new AbortController();
+		const params = { page, section };
+		fetchArticles(page, section, controller.signal)
+			.then((state) => setFetched({ params, state }))
+			.catch(() => {
+				if (!controller.signal.aborted) {
+					setFetched({ params, state: { status: 'error' } });
+				}
+			});
+		return () => controller.abort();
+	}, [page, section]);
+
+	// Whatever was fetched last is for a previous view until the current one's articles arrive.
+	const articles: ArticlesState =
+		fetched?.params.page === page && fetched.params.section === section
+			? fetched.state
+			: { status: 'loading' };
+
+	const changePage = (newPage: number) => {
+		setPage(newPage);
+		window.scrollTo(0, 0);
+	};
+
+	const renderArticles = () => {
+		switch (articles.status) {
+			case 'loading':
+				return <Spinner size="small" />;
+			case 'unauthenticated':
+				return (
+					<p>
+						Your login has expired.{' '}
+						<a href={`${window.location.pathname}${window.location.search}`}>
+							Reload the page
+						</a>{' '}
+						to log in again.
+					</p>
+				);
+			case 'error':
+				return <InlineError>Could not load articles.</InlineError>;
+			case 'loaded':
+				return (
+					<>
+						<Pagination page={articles.page} onChange={changePage} />
+						<ArticleList articles={articles.page.articles} />
+						<Pagination page={articles.page} onChange={changePage} />
+					</>
+				);
+		}
+	};
 
 	return (
 		<>
-			<header css={headerStyles}>
-				<h1 css={headingStyles}>Affiliate Products</h1>
-			</header>
-			<main css={mainStyles}>
-				<p>Coming soon.</p>
-				<AuthDetails auth={auth} />
-			</main>
+			<Global styles={globalStyles} />
+			<TopToolbar userName={userName} />
+			<div css={bodyStyles}>
+				<Sidebar section={section} onSectionChange={setSection} />
+				<main css={mainStyles}>{renderArticles()}</main>
+			</div>
 		</>
 	);
 };

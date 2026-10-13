@@ -1,10 +1,17 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
+import { ArticlesPageSchema, AuthResponseSchema } from '@common/tool-models';
+import type { ArticlesPage, User } from '@common/tool-models';
 import { jest } from '@jest/globals';
 import request from 'supertest';
 import { createApp } from './app';
-import type { Auth, User } from './auth';
+import type {
+	Auth,
+	GetProductPrices,
+	ListArticles,
+	ProductPrices,
+} from './types';
 
 describe('createApp', () => {
 	let clientDir: string;
@@ -31,6 +38,7 @@ describe('createApp', () => {
 
 	const loggedIn: Auth = {
 		authenticate: () => Promise.resolve(user),
+		hasAccess: (email) => Promise.resolve(email === user.email),
 		listPermissions: (email) =>
 			Promise.resolve(email === user.email ? ['some_permission'] : []),
 		loginUrl: 'https://login.example.com/login',
@@ -41,7 +49,139 @@ describe('createApp', () => {
 		authenticate: () => Promise.resolve(undefined),
 	};
 
-	const app = (auth: Auth = loggedIn) => createApp({ clientDir, auth });
+	const loggedInWithoutAccess: Auth = {
+		...loggedIn,
+		hasAccess: () => Promise.resolve(false),
+	};
+
+	const articlesPage = (page: number): ArticlesPage => ({
+		articles: [
+			{
+				id: 'thefilter/2026/oct/06/an-article',
+				sectionId: 'thefilter',
+				webPublicationDate: '2026-10-06T09:00:00Z',
+				webTitle: 'An article',
+				webUrl: 'https://www.theguardian.com/thefilter/2026/oct/06/an-article',
+				composerUrl: 'https://composer.example.com/content/abc123',
+				ophanUrl:
+					'https://dashboard.ophan.co.uk/info?capi-id=thefilter%2F2026%2Foct%2F06%2Fan-article',
+				products: [
+					{
+						url: 'https://shop.example/a-product',
+						label: '£27 at Shop',
+						productName: 'A product',
+						basePrice: { currencySymbol: '£', amount: 27 },
+					},
+				],
+			},
+		],
+		currentPage: page,
+		pages: 3,
+		total: 250,
+	});
+
+	const listArticles: ListArticles = (page) =>
+		Promise.resolve(articlesPage(page));
+
+	// The directory has none of the articles' products unless a test says otherwise.
+	const noProductPrices: GetProductPrices = () =>
+		Promise.resolve<ProductPrices>(new Map());
+
+	const app = (
+		auth: Auth = loggedIn,
+		getProductPrices: GetProductPrices = noProductPrices,
+	) => createApp({ clientDir, auth, listArticles, getProductPrices });
+
+	it.each([
+		['/api/articles', 1],
+		['/api/articles?page=2', 2],
+	])('returns the articles for %s', async (url, page) => {
+		const response = await request(app()).get(url);
+
+		expect(response.status).toBe(200);
+		expect(response.body).toEqual(articlesPage(page));
+	});
+
+	it("adds the directory's price to the articles' products", async () => {
+		const directoryPrice = {
+			currency: 'GBP',
+			price: 24.5,
+			updatedAt: 1760000000000,
+			updatedBy: 'skimlinks',
+		};
+		const getProductPrices: GetProductPrices = () =>
+			Promise.resolve(
+				new Map([['https://shop.example/a-product', directoryPrice]]),
+			);
+
+		const response = await request(app(loggedIn, getProductPrices)).get(
+			'/api/articles',
+		);
+
+		expect(response.status).toBe(200);
+		expect(
+			ArticlesPageSchema.parse(response.body).articles[0]?.products,
+		).toEqual([
+			{
+				url: 'https://shop.example/a-product',
+				label: '£27 at Shop',
+				productName: 'A product',
+				basePrice: { currencySymbol: '£', amount: 27 },
+				...directoryPrice,
+			},
+		]);
+	});
+
+	it('fails, hiding the details, when the product prices cannot be read', async () => {
+		const failing: GetProductPrices = () =>
+			Promise.reject(new Error('secret details'));
+		jest.spyOn(console, 'error').mockImplementation(() => {});
+
+		const response = await request(app(loggedIn, failing)).get('/api/articles');
+
+		expect(response.status).toBe(500);
+		expect(response.text).toBe('Internal server error');
+	});
+
+	it.each(['0', '-1', 'abc', '1.5', ''])('rejects page=%s', async (page) => {
+		const response = await request(app()).get(`/api/articles?page=${page}`);
+
+		expect(response.status).toBe(400);
+	});
+
+	it.each([
+		['/api/articles?page=2', undefined],
+		['/api/articles?page=2&section=thefilter', 'thefilter'],
+		['/api/articles?page=2&section=thefilter-us', 'thefilter-us'],
+	])('passes the section from %s', async (url, section) => {
+		const requests: Array<[number, string | undefined]> = [];
+		const recordingListArticles: ListArticles = (page, requestedSection) => {
+			requests.push([page, requestedSection]);
+			return Promise.resolve(articlesPage(page));
+		};
+
+		await request(
+			createApp({
+				clientDir,
+				auth: loggedIn,
+				listArticles: recordingListArticles,
+				getProductPrices: noProductPrices,
+			}),
+		).get(url);
+
+		expect(requests).toEqual([[2, section]]);
+	});
+
+	it.each(['uk', 'us', 'sport', 'TheFilter', '', 'thefilter,thefilter-us'])(
+		'rejects section=%s',
+		async (section) => {
+			const response = await request(app()).get(
+				`/api/articles?section=${section}`,
+			);
+
+			expect(response.status).toBe(400);
+		},
+	);
 
 	it('returns the logged-in user and their permissions', async () => {
 		const response = await request(app()).get('/api/auth');
@@ -51,6 +191,12 @@ describe('createApp', () => {
 			user,
 			permissions: ['some_permission'],
 		});
+	});
+
+	it('returns an auth response the client accepts', async () => {
+		const response = await request(app()).get('/api/auth');
+
+		expect(AuthResponseSchema.safeParse(response.body).success).toBe(true);
 	});
 
 	it('passes the request cookies to authenticate', async () => {
@@ -82,12 +228,37 @@ describe('createApp', () => {
 		},
 	);
 
-	it.each(['/api/auth', '/api/unknown'])(
+	it.each(['/api/auth', '/api/articles', '/api/unknown'])(
 		'returns 401 rather than redirecting for %s when logged out',
 		async (url) => {
 			const response = await request(app(loggedOut)).get(url);
 
 			expect(response.status).toBe(401);
+		},
+	);
+
+	it.each(['/', '/assets/index-abc123.js'])(
+		'tells logged-in users without access that they lack permission at %s',
+		async (url) => {
+			const response = await request(app(loggedInWithoutAccess)).get(url);
+
+			expect(response.status).toBe(403);
+			expect(response.text).toBe(
+				"You don't have permission to access the affiliate products tool.",
+			);
+		},
+	);
+
+	it.each(['/api/auth', '/api/articles'])(
+		'returns 403 from %s for logged-in users without access',
+		async (url) => {
+			const response = await request(app(loggedInWithoutAccess)).get(url);
+
+			expect(response.status).toBe(403);
+			expect(response.body).toEqual({
+				error:
+					"You don't have permission to access the affiliate products tool.",
+			});
 		},
 	);
 
@@ -123,7 +294,12 @@ describe('createApp', () => {
 	it('serves the app when given a relative client directory', async () => {
 		const relativeClientDir = path.relative(process.cwd(), clientDir);
 		const response = await request(
-			createApp({ clientDir: relativeClientDir, auth: loggedIn }),
+			createApp({
+				clientDir: relativeClientDir,
+				auth: loggedIn,
+				listArticles,
+				getProductPrices: noProductPrices,
+			}),
 		).get('/some/deep/link');
 
 		expect(response.status).toBe(200);

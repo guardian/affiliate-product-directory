@@ -1,4 +1,5 @@
 import type * as DatabaseServiceModule from '@common/database-service';
+import type { Product } from '@common/models';
 import { jest } from '@jest/globals';
 import { mockAmazonRefreshPrices } from '@mocks/AmazonPriceProviderMock';
 import {
@@ -6,9 +7,9 @@ import {
 	mockUpdateProducts,
 } from '@mocks/DatabaseServiceMock';
 import { buildProduct } from '@mocks/ProductFixtures';
+import { mockWriteProductsToS3Files } from '@mocks/S3FileWriterMock';
 import { mockShopifyRefreshPrices } from '@mocks/ShopifyPriceProviderMock';
 import { mockSkimlinksRefreshPrices } from '@mocks/SkimlinksPriceProviderMock';
-import '@mocks/S3FileWriterMock';
 import type * as ProductsUpdaterModule from './ProductsUpdater';
 
 let ProductsUpdater: typeof ProductsUpdaterModule.ProductsUpdater;
@@ -56,6 +57,96 @@ describe('getProductsFromDB', () => {
 });
 
 describe('refreshPrices', () => {
+	it('does not offer removed products to any provider', async () => {
+		const active = buildProduct({
+			productMerchantUrl: 'https://www.johnlewis.com/p/1',
+		});
+		const removedAmazon = buildProduct({
+			productMerchantUrl: 'https://www.amazon.com/dp/2',
+			removed: 'true',
+		});
+		const removedOther = buildProduct({
+			productMerchantUrl: 'https://www.target.com/p/3',
+			removed: 'true',
+		});
+		mockGetAllProducts.mockResolvedValue([active, removedAmazon, removedOther]);
+
+		await updater().refreshPrices();
+
+		expect(mockAmazonRefreshPrices).not.toHaveBeenCalled();
+		expect(mockShopifyRefreshPrices).toHaveBeenCalledWith([active]);
+		expect(mockSkimlinksRefreshPrices).toHaveBeenCalledWith([active]);
+	});
+
+	it('gives the file writer the latest data for every active product that has a price', async () => {
+		const priced = buildProduct({
+			productMerchantUrl: 'https://shop.example.com/products/1',
+			price: 10,
+		});
+		// Keeps the price an earlier run gave it.
+		const notRepriced = buildProduct({
+			productMerchantUrl: 'https://www.johnlewis.com/p/2',
+		});
+		// As the directory adds a product, before any provider has priced it.
+		const neverPriced: Product = {
+			productMerchantUrl: 'https://www.argos.co.uk/product/4',
+			region: 'GB',
+			createdAt: 1,
+			updatedAt: 1,
+			updatedBy: 'test',
+		};
+		const removed = buildProduct({
+			productMerchantUrl: 'https://www.target.com/p/3',
+			removed: 'true',
+			removedAt: 1,
+		});
+		const repriced = { ...priced, price: 8, updatedBy: 'shopify' };
+		mockGetAllProducts.mockResolvedValue([
+			priced,
+			notRepriced,
+			neverPriced,
+			removed,
+		]);
+		mockShopifyRefreshPrices.mockResolvedValue({
+			updated: [repriced],
+			notUpdated: [notRepriced, neverPriced],
+		});
+
+		await updater().refreshPrices();
+
+		expect(mockWriteProductsToS3Files).toHaveBeenCalledTimes(1);
+		// Not the product without a price, nor the removed one.
+		expect(mockWriteProductsToS3Files).toHaveBeenCalledWith([
+			repriced,
+			notRepriced,
+		]);
+	});
+
+	it('gives the file writer a product once a provider first prices it', async () => {
+		const neverPriced: Product = {
+			productMerchantUrl: 'https://www.argos.co.uk/product/4',
+			region: 'GB',
+			createdAt: 1,
+			updatedAt: 1,
+			updatedBy: 'test',
+		};
+		const firstPriced = {
+			...neverPriced,
+			price: 12,
+			currency: 'GBP',
+			updatedBy: 'skimlinks',
+		};
+		mockGetAllProducts.mockResolvedValue([neverPriced]);
+		mockSkimlinksRefreshPrices.mockResolvedValue({
+			updated: [firstPriced],
+			notUpdated: [],
+		});
+
+		await updater().refreshPrices();
+
+		expect(mockWriteProductsToS3Files).toHaveBeenCalledWith([firstPriced]);
+	});
+
 	it('routes amazon products to the amazon provider and the rest to shopify then skimlinks', async () => {
 		const amazonCom = buildProduct({
 			productMerchantUrl: 'https://amazon.com/dp/1',

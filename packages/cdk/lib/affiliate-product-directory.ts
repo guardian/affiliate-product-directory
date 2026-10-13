@@ -111,7 +111,11 @@ export class AffiliateProductDirectory extends GuStack {
 		createAlarms(this, { appName, alarmActionsEnabled, snsTopic, stage });
 
 		if (props.toolDomainName) {
-			createTool(this, { domainName: props.toolDomainName, capiKeyParam });
+			createTool(this, {
+				domainName: props.toolDomainName,
+				capiKeyParam,
+				bucketName,
+			});
 		}
 	}
 }
