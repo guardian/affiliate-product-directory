@@ -53,11 +53,10 @@ export function getPriceProductFromDynamoRecord(
 		region: (raw['region']?.S ?? 'GB') as Region,
 		updatedAt: Number(raw['updatedAt']?.N ?? 0),
 		updatedBy: raw['updatedBy']?.S ?? '',
-		removed: raw['removed']?.S,
-		removedAt:
-			raw['removedAt']?.N === undefined
-				? undefined
-				: Number(raw['removedAt'].N),
+		...(raw['removed']?.S === undefined ? {} : { removed: raw['removed'].S }),
+		...(raw['removedAt']?.N === undefined
+			? {}
+			: { removedAt: Number(raw['removedAt'].N) }),
 		price: Number(raw['price']?.N ?? 0),
 		currency: raw['currency']?.S ?? '',
 	};

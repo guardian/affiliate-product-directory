@@ -45,13 +45,21 @@ export function createApp({
 	});
 
 	app.post('/api/manualOverride', async (req, res) => {
-		await handleOverrideRequest(req.body, dynamoService);
-		res.sendStatus(204);
+		// ToDo: check user has permission to perform this
+		const result = await handleOverrideRequest(req.body, dynamoService);
+		if (!result.ok) {
+			return res.status(result.status).json({ error: result.error });
+		}
+		return res.sendStatus(204);
 	});
 
 	app.delete('/api/manualOverride', async (req, res) => {
-		await handleOverrideDeleteRequest(req.body, dynamoService);
-		res.sendStatus(204);
+		// ToDo: check user has permission to perform this
+		const result = await handleOverrideDeleteRequest(req.body, dynamoService);
+		if (!result.ok) {
+			return res.status(result.status).json({ error: result.error });
+		}
+		return res.sendStatus(204);
 	});
 
 	// Unknown API paths shouldn't fall through to the SPA's index.html.
