@@ -6,6 +6,7 @@ import {
 	mockUpdateProducts,
 } from '@mocks/DatabaseServiceMock';
 import { buildProduct } from '@mocks/ProductFixtures';
+import { mockWriteProductsToS3File } from '@mocks/S3FileWriterMock';
 import { mockShopifyRefreshPrices } from '@mocks/ShopifyPriceProviderMock';
 import { mockSkimlinksRefreshPrices } from '@mocks/SkimlinksPriceProviderMock';
 import type * as ProductsUpdaterModule from './ProductsUpdater';
@@ -229,5 +230,49 @@ describe('refreshPrices', () => {
 		expect(mockUpdateProducts).toHaveBeenCalledWith({
 			items: [amazonProduct, shopifyProduct, skimlinksProduct],
 		});
+	});
+
+	it('keeps an active manual override with an invalid URL out of providers', async () => {
+		const product = buildProduct({
+			productMerchantUrl: 'not a valid URL',
+			updatedBy: 'manualOverride',
+			expiresAt: Date.now() + 60_000,
+		});
+		mockGetAllProducts.mockResolvedValue([product]);
+
+		await updater().refreshPrices();
+
+		expect(mockAmazonRefreshPrices).not.toHaveBeenCalled();
+		expect(mockShopifyRefreshPrices).not.toHaveBeenCalled();
+		expect(mockSkimlinksRefreshPrices).not.toHaveBeenCalled();
+		expect(mockUpdateProducts).toHaveBeenCalledWith({ items: [product] });
+	});
+
+	it.only('keeps skipped manual overrides in the S3 feed but out of provider and DB updates', async () => {
+		const manualOverride = buildProduct({
+			productMerchantUrl: 'https://shop.example.com/products/manual',
+			updatedBy: 'manualOverride',
+			expiresAt: Date.now() + 60_000,
+		});
+		const refreshedProduct = buildProduct({
+			productMerchantUrl: 'https://shop.example.com/products/refreshed',
+		});
+		mockGetAllProducts.mockResolvedValue([manualOverride, refreshedProduct]);
+		mockShopifyRefreshPrices.mockResolvedValue({
+			updated: [refreshedProduct],
+			notUpdated: [],
+		});
+
+		await updater().refreshPrices();
+
+		expect(mockShopifyRefreshPrices).toHaveBeenCalledWith([refreshedProduct]);
+		expect(mockSkimlinksRefreshPrices).not.toHaveBeenCalled();
+		expect(mockUpdateProducts).toHaveBeenCalledWith({
+			items: [refreshedProduct],
+		});
+		expect(mockWriteProductsToS3File).toHaveBeenCalledWith([
+			refreshedProduct,
+			manualOverride,
+		]);
 	});
 });

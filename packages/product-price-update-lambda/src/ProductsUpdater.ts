@@ -5,7 +5,7 @@ import type { PriceProvider } from '@price-update/price-providers/PriceProvider'
 import { ShopifyPriceProvider } from '@price-update/price-providers/shopify/ShopifyPriceProvider';
 import { SkimlinksPriceProvider } from '@price-update/price-providers/skimlinks/SkimlinksPriceProvider';
 
-type Partner = 'amazon' | 'other';
+type Partner = 'amazon' | 'other' | 'manualOverride';
 type CategorisedProducts = Record<Partner, Product[]>;
 
 export class ProductsUpdater {
@@ -13,6 +13,7 @@ export class ProductsUpdater {
 	private providers: Record<Partner, PriceProvider[]> = {
 		amazon: [new AmazonPriceProvider()],
 		other: [new ShopifyPriceProvider(), new SkimlinksPriceProvider()],
+		manualOverride: [],
 	};
 
 	constructor(private readonly dynamoService: DynamoService) {}
@@ -72,7 +73,11 @@ export class ProductsUpdater {
 	}
 
 	private categoriseProducts(products: Product[]): CategorisedProducts {
-		const categorised: CategorisedProducts = { amazon: [], other: [] };
+		const categorised: CategorisedProducts = {
+			amazon: [],
+			other: [],
+			manualOverride: [],
+		};
 		const amazonHosts = new Set([
 			'amazon.com',
 			'www.amazon.com',
@@ -82,15 +87,20 @@ export class ProductsUpdater {
 
 		products.forEach((product) => {
 			try {
-				const hostname = new URL(
-					product.productMerchantUrl,
-				).hostname.toLowerCase();
-				const partner: Partner = amazonHosts.has(hostname) ? 'amazon' : 'other';
 				if (this.shouldSkipManualPrice(product)) {
 					console.log(
 						`Skipping ${product.productMerchantUrl} as it has manual override ${product.expiresAt ? `until ${product.expiresAt}` : ''}`,
 					);
+					// This is only necessary for the S3 file write
+					categorised['manualOverride'].push(product);
 				} else {
+					const hostname = new URL(
+						product.productMerchantUrl,
+					).hostname.toLowerCase();
+					const partner: Partner = amazonHosts.has(hostname)
+						? 'amazon'
+						: 'other';
+
 					categorised[partner].push(product);
 				}
 			} catch {
