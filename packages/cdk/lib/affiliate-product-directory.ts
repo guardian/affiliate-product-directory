@@ -84,8 +84,10 @@ export class AffiliateProductDirectory extends GuStack {
 			s3PutPolicy,
 		]);
 
-		// Collects up to a minute's changes to the pricing table, then rewrites the CSV once.
-		// Adding the event source also lets the lambda read the table's stream.
+		// Collects up to a minute's changes to the pricing table, then rewrites the CSV. Each
+		// stream shard is batched separately, so a burst of writes arrives as several batches;
+		// csv-publisher.ts skips those an earlier rewrite already covered, which relies on the
+		// minute's wait. Adding the event source also lets the lambda read the table's stream.
 		pricesCsvLambda.addEventSource(
 			new DynamoEventSource(productPricingTable, {
 				startingPosition: StartingPosition.LATEST,

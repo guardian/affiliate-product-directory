@@ -84,7 +84,8 @@ export function createPricesCsvLambda(
 		},
 		timeout: Duration.seconds(60),
 		// One rewrite at a time, so a rewrite from an older read of the table can't
-		// finish after a newer one and overwrite it.
+		// finish after a newer one and overwrite it. csv-publisher.ts also relies on this
+		// to skip batches an earlier rewrite already covered.
 		reservedConcurrentExecutions: 1,
 		runtime: Runtime.NODEJS_22_X,
 		architecture: Architecture.ARM_64,
