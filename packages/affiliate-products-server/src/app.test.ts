@@ -15,6 +15,9 @@ let DynamoService: typeof DatabaseServiceModule.DynamoService;
 
 describe('createApp', () => {
 	let clientDir: string;
+	beforeEach(() => {
+		jest.clearAllMocks();
+	});
 
 	beforeAll(async () => {
 		clientDir = mkdtempSync(path.join(tmpdir(), 'affiliate-products-client-'));
@@ -157,12 +160,14 @@ describe('createApp', () => {
 			currency: 'GBP',
 			price: 10,
 			createdAt: 1,
-			region: 'GB' as const,
+			region: 'GB',
 			updatedAt: 1,
 			updatedBy: 'shopify',
 		};
 		mockGetProductPrice.mockResolvedValueOnce(product);
 		mockUpdateProducts.mockResolvedValueOnce(undefined);
+		const now = Date.parse('2026-10-13T12:00:00.000Z');
+		const dateNow = jest.spyOn(Date, 'now').mockReturnValue(now);
 
 		const response = await request(app()).post('/api/manualOverride').send({
 			productMerchantUrl: product.productMerchantUrl,
@@ -175,16 +180,22 @@ describe('createApp', () => {
 		expect(mockGetProductPrice).toHaveBeenCalledWith(
 			product.productMerchantUrl,
 		);
-		expect(mockUpdateProducts).toHaveBeenCalledWith({
-			items: [
-				expect.objectContaining({
-					...product,
-					price: 12,
-					expiresAt: Date.parse('2030-01-01T00:00:00.000Z'),
-					updatedBy: 'manualOverride',
-				}),
-			],
-		});
+		try {
+			// Send the POST request and make the existing assertions.
+			expect(mockUpdateProducts).toHaveBeenCalledWith({
+				items: [
+					expect.objectContaining({
+						...product,
+						price: 12,
+						expiresAt: Date.parse('2030-01-01T00:00:00.000Z'),
+						updatedBy: 'manualOverride',
+						updatedAt: now,
+					}),
+				],
+			});
+		} finally {
+			dateNow.mockRestore();
+		}
 	});
 
 	it('rejects malformed manual override input', async () => {
