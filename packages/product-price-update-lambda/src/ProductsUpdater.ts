@@ -4,7 +4,6 @@ import { AmazonPriceProvider } from '@price-update/price-providers/amazon/Amazon
 import type { PriceProvider } from '@price-update/price-providers/PriceProvider';
 import { ShopifyPriceProvider } from '@price-update/price-providers/shopify/ShopifyPriceProvider';
 import { SkimlinksPriceProvider } from '@price-update/price-providers/skimlinks/SkimlinksPriceProvider';
-import { S3FileWriter } from '@price-update/S3FileWriter';
 
 type Partner = 'amazon' | 'other';
 type CategorisedProducts = Record<Partner, Product[]>;
@@ -15,13 +14,13 @@ export class ProductsUpdater {
 		amazon: [new AmazonPriceProvider()],
 		other: [new ShopifyPriceProvider(), new SkimlinksPriceProvider()],
 	};
-	private s3FileWriter = new S3FileWriter();
 
 	constructor(private readonly dynamoService: DynamoService) {}
 
 	/**
 	 * This is the main entry point for updating the prices, it will get all products in the DB
-	 *  and check affiliate partners for the latest prices, and lastly updated the DB
+	 *  and check affiliate partners for the latest prices, and lastly updated the DB.
+	 *  Writing to the DB is what updates the prices CSV: see csv-publisher.ts.
 	 */
 	public async refreshPrices() {
 		const categorised = this.categoriseProducts(await this.getProductsFromDB());
@@ -35,7 +34,6 @@ export class ProductsUpdater {
 		await this.dynamoService.updateProducts({
 			items: allProducts,
 		});
-		await this.s3FileWriter.writeProductsToS3File(allProducts);
 	}
 
 	public async getProductsFromDB(): Promise<Product[]> {

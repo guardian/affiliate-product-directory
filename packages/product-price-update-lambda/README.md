@@ -14,6 +14,14 @@ Once an event hits the lambda, the main orchestrator is the `ProductsUpdater.ts`
 
 If a request for product prices is successful (2XX) but no data can be found, this will not throw an error and a log will be made to declare this information.
 
+### Writing the prices CSV
+
+The frontend reads live prices from `<STAGE>/affiliates/product-prices.csv` in the `aws-frontend-store` bucket. This lambda doesn't write it. A second lambda, `product-prices-csv-lambda`, runs `csv-publisher.ts` from this package's zip whenever the pricing table changes, however the change was made.
+
+The pricing table has a DynamoDB stream. Lambda collects up to a minute's changes from it, then invokes `csv-publisher.ts` once. The stream's records only say that something changed: the function reads the whole table, with consistent reads, and rewrites the CSV with every product that hasn't been removed and has a price. Only one of these runs at a time, so an older read of the table can't overwrite a newer CSV.
+
+If a run fails it is retried twice. After that the batch is dropped and the lambda's alarm fires; the next change to the table rewrites the whole CSV again.
+
 ## Price providers
 
 Each price provider extends the `PriceProvider` base class and is given products to process/update.

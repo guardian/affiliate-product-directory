@@ -8,7 +8,6 @@ import {
 import { buildProduct } from '@mocks/ProductFixtures';
 import { mockShopifyRefreshPrices } from '@mocks/ShopifyPriceProviderMock';
 import { mockSkimlinksRefreshPrices } from '@mocks/SkimlinksPriceProviderMock';
-import '@mocks/S3FileWriterMock';
 import type * as ProductsUpdaterModule from './ProductsUpdater';
 
 let ProductsUpdater: typeof ProductsUpdaterModule.ProductsUpdater;
