@@ -109,16 +109,21 @@ describe('createApp', () => {
 			updatedAt: 1760000000000,
 			updatedBy: 'skimlinks',
 		};
-		const getProductPrices: GetProductPrices = () =>
+		const getProductPrices = jest.fn<GetProductPrices>(() =>
 			Promise.resolve(
 				new Map([['https://shop.example/a-product', directoryPrice]]),
-			);
+			),
+		);
 
 		const response = await request(app(loggedIn, getProductPrices)).get(
 			'/api/articles',
 		);
 
 		expect(response.status).toBe(200);
+		// Only the products on the page are looked up.
+		expect(getProductPrices).toHaveBeenCalledWith([
+			'https://shop.example/a-product',
+		]);
 		expect(
 			ArticlesPageSchema.parse(response.body).articles[0]?.products,
 		).toEqual([

@@ -7,7 +7,7 @@ import {
 	mockUpdateProducts,
 } from '@mocks/DatabaseServiceMock';
 import { buildProduct } from '@mocks/ProductFixtures';
-import { mockWriteProductsToS3Files } from '@mocks/S3FileWriterMock';
+import { mockWriteProductsToS3File } from '@mocks/S3FileWriterMock';
 import { mockShopifyRefreshPrices } from '@mocks/ShopifyPriceProviderMock';
 import { mockSkimlinksRefreshPrices } from '@mocks/SkimlinksPriceProviderMock';
 import type * as ProductsUpdaterModule from './ProductsUpdater';
@@ -114,9 +114,9 @@ describe('refreshPrices', () => {
 
 		await updater().refreshPrices();
 
-		expect(mockWriteProductsToS3Files).toHaveBeenCalledTimes(1);
+		expect(mockWriteProductsToS3File).toHaveBeenCalledTimes(1);
 		// Not the product without a price, nor the removed one.
-		expect(mockWriteProductsToS3Files).toHaveBeenCalledWith([
+		expect(mockWriteProductsToS3File).toHaveBeenCalledWith([
 			repriced,
 			notRepriced,
 		]);
@@ -144,7 +144,7 @@ describe('refreshPrices', () => {
 
 		await updater().refreshPrices();
 
-		expect(mockWriteProductsToS3Files).toHaveBeenCalledWith([firstPriced]);
+		expect(mockWriteProductsToS3File).toHaveBeenCalledWith([firstPriced]);
 	});
 
 	it('routes amazon products to the amazon provider and the rest to shopify then skimlinks', async () => {

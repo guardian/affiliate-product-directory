@@ -1,7 +1,7 @@
 import path from 'path';
 import serverlessExpress from '@codegenie/serverless-express';
-import { getBucketName, getCapiBaseUrl, getCapiKey } from '@common/config';
-import { getCachedProductPricesKey } from '@common/constants';
+import { getCapiBaseUrl, getCapiKey } from '@common/config';
+import { DynamoService } from '@common/database-service';
 import { createApp } from './app';
 import { createPandaAuth } from './auth';
 import { createCapiArticles, getComposerBaseUrl } from './capi';
@@ -21,11 +21,11 @@ const listArticles = createCapiArticles({
 	composerBaseUrl: getComposerBaseUrl(stage),
 });
 
-// Also created once per Lambda instance, so warm invocations reuse the cached prices file.
-const getProductPrices = createProductPrices({
-	bucket: getBucketName(),
-	key: getCachedProductPricesKey(stage),
-});
+// Reads the stage's pricing table on every request, so nothing is cached between them.
+const dynamoService = new DynamoService(stage);
+const getProductPrices = createProductPrices((urls) =>
+	dynamoService.getProductsByUrl(urls),
+);
 
 export const handler = serverlessExpress({
 	app: createApp({ clientDir, auth, listArticles, getProductPrices }),

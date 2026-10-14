@@ -3,7 +3,7 @@ import { SectionSchema } from '@common/tool-models';
 import type { AuthResponse, User } from '@common/tool-models';
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
-import { attachProductPrices } from './productPrices';
+import { attachProductPrices, productUrls } from './productPrices';
 import type { Auth, GetProductPrices, ListArticles } from './types';
 
 const noAccessMessage =
@@ -71,10 +71,8 @@ export function createApp({
 			});
 			return;
 		}
-		const [articlesPage, productPrices] = await Promise.all([
-			listArticles(Number(page), section.data),
-			getProductPrices(),
-		]);
+		const articlesPage = await listArticles(Number(page), section.data);
+		const productPrices = await getProductPrices(productUrls(articlesPage));
 		res.json(attachProductPrices(articlesPage, productPrices));
 	});
 

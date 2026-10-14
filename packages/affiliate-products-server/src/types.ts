@@ -1,3 +1,4 @@
+import type { Product } from '@common/models';
 import type { ArticlesPage, Section, User } from '@common/tool-models';
 import { z } from 'zod';
 
@@ -25,28 +26,14 @@ export type ListArticles = (
 	section?: Section,
 ) => Promise<ArticlesPage>;
 
-// An item of the pricing table as the price update Lambda writes it, with only the fields
-// the tool uses.
-const CachedProductPriceSchema = z.object({
-	currency: z.string().optional(),
-	price: z.number().optional(),
-	updatedAt: z.number().optional(),
-	updatedBy: z.string().optional(),
-});
-
-/** The cached prices file: each active product in the pricing table that has a price, by its URL. */
-export const CachedProductPricesSchema = z.record(
-	z.string(),
-	CachedProductPriceSchema,
-);
-
+/** A product's price in the pricing table, with only the fields the tool uses, by its URL. */
 export type ProductPrices = Map<
 	string,
-	z.infer<typeof CachedProductPriceSchema>
+	Pick<Product, 'currency' | 'price' | 'updatedAt' | 'updatedBy'>
 >;
 
-/** Returns the directory's price for each active product that has one, by the product's URL. */
-export type GetProductPrices = () => Promise<ProductPrices>;
+/** Returns the directory's price for each of these URLs that is an active product with one. */
+export type GetProductPrices = (urls: string[]) => Promise<ProductPrices>;
 
 /** A price found in a link's label. */
 export interface ExtractedPrice {

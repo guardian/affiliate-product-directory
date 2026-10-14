@@ -39,7 +39,7 @@ export class ProductsUpdater {
 
 		// we write to S3 the latest data we have for every active product that has a price
 		// this includes products that were not updated this run
-		await this.s3FileWriter.writeProductsToS3Files(
+		await this.s3FileWriter.writeProductsToS3File(
 			this.getLatestPricedProducts({ enabledProducts, updatedPriceProducts }),
 		);
 	}

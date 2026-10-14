@@ -3,6 +3,7 @@ import type {
 	UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
 import type {
+	BatchGetCommand,
 	BatchWriteCommand,
 	DynamoDBDocumentClient,
 	ScanCommand,
@@ -174,6 +175,171 @@ describe('DynamoService', () => {
 			expect(send.mock.calls[1]![0].input).toMatchObject({
 				ExclusiveStartKey: lastEvaluatedKey,
 			});
+		});
+	});
+
+	describe('getProductsByUrl', () => {
+		const pricingTable = 'affiliate-product-directory-pricing-TEST';
+
+		function serviceWith(
+			send: jest.Mock<(command: BatchGetCommand) => Promise<object>>,
+		) {
+			return new DynamoService(
+				'TEST',
+				pricingTable,
+				'affiliate-product-directory-product-article-TEST',
+				{} as unknown as DynamoDBClient,
+				{ send } as unknown as DynamoDBDocumentClient,
+			);
+		}
+
+		const requestedUrls = (command: BatchGetCommand) =>
+			command.input.RequestItems?.[pricingTable]?.Keys?.map(
+				(key) => key.productMerchantUrl as string,
+			);
+
+		it('reads the products with a strongly consistent BatchGetCommand', async () => {
+			const products = [
+				buildProduct({ productMerchantUrl: 'https://example.com/1' }),
+				buildProduct({ productMerchantUrl: 'https://example.com/2' }),
+			];
+			const send = jest
+				.fn<(command: BatchGetCommand) => Promise<object>>()
+				.mockResolvedValue({ Responses: { [pricingTable]: products } });
+
+			await expect(
+				serviceWith(send).getProductsByUrl([
+					'https://example.com/1',
+					'https://example.com/2',
+				]),
+			).resolves.toEqual(products);
+			expect(send).toHaveBeenCalledTimes(1);
+			expect(send.mock.calls[0]![0].input).toEqual({
+				RequestItems: {
+					[pricingTable]: {
+						Keys: [
+							{ productMerchantUrl: 'https://example.com/1' },
+							{ productMerchantUrl: 'https://example.com/2' },
+						],
+						ConsistentRead: true,
+					},
+				},
+			});
+		});
+
+		it('asks for a URL given more than once only once', async () => {
+			const send = jest
+				.fn<(command: BatchGetCommand) => Promise<object>>()
+				.mockResolvedValue({});
+
+			await serviceWith(send).getProductsByUrl([
+				'https://example.com/1',
+				'https://example.com/2',
+				'https://example.com/1',
+			]);
+
+			expect(requestedUrls(send.mock.calls[0]![0])).toEqual([
+				'https://example.com/1',
+				'https://example.com/2',
+			]);
+		});
+
+		it("splits the URLs into requests of 100 (DynamoDB's BatchGetItem limit) and combines the products", async () => {
+			const urls = Array.from(
+				{ length: 150 },
+				(_, i) => `https://example.com/${i}`,
+			);
+			const first = buildProduct({ productMerchantUrl: urls[0] });
+			const last = buildProduct({ productMerchantUrl: urls[149] });
+			const send = jest
+				.fn<(command: BatchGetCommand) => Promise<object>>()
+				.mockResolvedValueOnce({ Responses: { [pricingTable]: [first] } })
+				.mockResolvedValueOnce({ Responses: { [pricingTable]: [last] } });
+
+			await expect(serviceWith(send).getProductsByUrl(urls)).resolves.toEqual([
+				first,
+				last,
+			]);
+			expect(
+				send.mock.calls.map(([command]) => requestedUrls(command)),
+			).toEqual([urls.slice(0, 100), urls.slice(100)]);
+		});
+
+		it('does not call DynamoDB when there are no URLs', async () => {
+			const send = jest.fn<(command: BatchGetCommand) => Promise<object>>();
+
+			await expect(serviceWith(send).getProductsByUrl([])).resolves.toEqual([]);
+			expect(send).not.toHaveBeenCalled();
+		});
+
+		it('asks again for only the unprocessed URLs after a delay', async () => {
+			jest.useFakeTimers();
+			const first = buildProduct({
+				productMerchantUrl: 'https://example.com/1',
+			});
+			const second = buildProduct({
+				productMerchantUrl: 'https://example.com/2',
+			});
+			const send = jest
+				.fn<(command: BatchGetCommand) => Promise<object>>()
+				.mockResolvedValueOnce({
+					Responses: { [pricingTable]: [first] },
+					UnprocessedKeys: {
+						[pricingTable]: {
+							Keys: [{ productMerchantUrl: 'https://example.com/2' }],
+							ConsistentRead: true,
+						},
+					},
+				})
+				.mockResolvedValueOnce({ Responses: { [pricingTable]: [second] } });
+
+			const pending = serviceWith(send).getProductsByUrl([
+				'https://example.com/1',
+				'https://example.com/2',
+			]);
+			await jest.advanceTimersByTimeAsync(500);
+
+			await expect(pending).resolves.toEqual([first, second]);
+			expect(requestedUrls(send.mock.calls[1]![0])).toEqual([
+				'https://example.com/2',
+			]);
+		});
+
+		it('throws once URLs are still unprocessed after the max number of attempts', async () => {
+			jest.useFakeTimers();
+			const send = jest
+				.fn<(command: BatchGetCommand) => Promise<object>>()
+				.mockResolvedValue({
+					UnprocessedKeys: {
+						[pricingTable]: {
+							Keys: [{ productMerchantUrl: 'https://example.com/1' }],
+						},
+					},
+				});
+
+			const pending = serviceWith(send).getProductsByUrl([
+				'https://example.com/1',
+			]);
+			// Swallow the eventual rejection so it isn't reported as unhandled
+			// while we're still advancing timers below.
+			pending.catch(() => {});
+			await jest.advanceTimersByTimeAsync(500);
+
+			await expect(pending).rejects.toThrow(
+				'1 item(s) still unprocessed after 2 attempts reading from affiliate-product-directory-pricing-TEST',
+			);
+			expect(send).toHaveBeenCalledTimes(2);
+		});
+
+		it('propagates a failed read', async () => {
+			const error = new Error('DynamoDB is unavailable');
+			const send = jest
+				.fn<(command: BatchGetCommand) => Promise<object>>()
+				.mockRejectedValue(error);
+
+			await expect(
+				serviceWith(send).getProductsByUrl(['https://example.com/1']),
+			).rejects.toThrow(error);
 		});
 	});
 

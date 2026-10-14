@@ -1,5 +1,5 @@
 import { getCapiBaseUrl, getCapiKey } from '@common/config';
-import { getCachedProductPricesKey } from '@common/constants';
+import { DynamoService } from '@common/database-service';
 import { createApp } from './app';
 import { createCapiArticles, getComposerBaseUrl } from './capi';
 import { createProductPrices } from './productPrices';
@@ -32,15 +32,15 @@ const listArticles = createCapiArticles({
 });
 
 // The prices of the same stage as the articles, as each stage's directory is built from its CAPI.
-const readProductPrices = createProductPrices({
-	bucket: 'aws-frontend-store',
-	key: getCachedProductPricesKey('PROD'),
-});
+const dynamoService = new DynamoService(stage);
+const readProductPrices = createProductPrices((urls) =>
+	dynamoService.getProductsByUrl(urls),
+);
 
-// Reading the file needs AWS credentials for the frontend account. Without them the
+// Reading the table needs AWS credentials for the frontend account. Without them the
 // articles are still listed, but with no prices. The Lambda entry point fails instead.
-const getProductPrices: GetProductPrices = () =>
-	readProductPrices().catch((error: unknown): ProductPrices => {
+const getProductPrices: GetProductPrices = (urls) =>
+	readProductPrices(urls).catch((error: unknown): ProductPrices => {
 		console.warn('Listing articles without prices, as they could not be read');
 		console.warn(error);
 		return new Map();

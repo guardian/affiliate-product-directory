@@ -114,7 +114,7 @@ export class AffiliateProductDirectory extends GuStack {
 			createTool(this, {
 				domainName: props.toolDomainName,
 				capiKeyParam,
-				bucketName,
+				productPricingReadPolicy: productPricingDynamoDBReadPolicy,
 			});
 		}
 	}

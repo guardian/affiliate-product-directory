@@ -1,13 +1,13 @@
 import { jest } from '@jest/globals';
 import type { PricedProduct } from '@common/models';
 
-const mockWriteProductsToS3Files =
+const mockWriteProductsToS3File =
 	jest.fn<(products: PricedProduct[]) => Promise<void>>();
 
 jest.unstable_mockModule('@price-update/S3FileWriter', () => ({
 	S3FileWriter: jest.fn(() => ({
-		writeProductsToS3Files: mockWriteProductsToS3Files,
+		writeProductsToS3File: mockWriteProductsToS3File,
 	})),
 }));
 
-export { mockWriteProductsToS3Files };
+export { mockWriteProductsToS3File };
