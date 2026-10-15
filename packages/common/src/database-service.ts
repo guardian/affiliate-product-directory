@@ -2,7 +2,6 @@ import type { AttributeValue } from '@aws-sdk/client-dynamodb';
 import {
 	ConditionalCheckFailedException,
 	DynamoDBClient,
-	GetItemCommand,
 	QueryCommand,
 	ReturnValue,
 	UpdateItemCommand,
@@ -10,6 +9,7 @@ import {
 import {
 	BatchWriteCommand,
 	DynamoDBDocumentClient,
+	GetCommand,
 	ScanCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { dynamoConfig } from '@directory-update/aws-config';
@@ -63,10 +63,10 @@ export class DynamoService {
 		productMerchantUrl: string,
 	): Promise<Product | undefined> {
 		const response = await this.docClient.send(
-			new GetItemCommand({
+			new GetCommand({
 				TableName: this.pricingTableName,
 				Key: {
-					productMerchantUrl: { S: productMerchantUrl },
+					productMerchantUrl: productMerchantUrl,
 				},
 			}),
 		);
