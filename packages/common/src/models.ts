@@ -44,23 +44,5 @@ export function getArticleProductFromDynamoRecord(
 	};
 }
 
-export function getPriceProductFromDynamoRecord(
-	raw: Record<string, AttributeValue>,
-): Product {
-	return {
-		productMerchantUrl: raw['productMerchantUrl']?.S ?? '',
-		createdAt: Number(raw['createdAt']?.N ?? 0),
-		region: (raw['region']?.S ?? 'GB') as Region,
-		updatedAt: Number(raw['updatedAt']?.N ?? 0),
-		updatedBy: raw['updatedBy']?.S ?? '',
-		...(raw['removed']?.S === undefined ? {} : { removed: raw['removed'].S }),
-		...(raw['removedAt']?.N === undefined
-			? {}
-			: { removedAt: Number(raw['removedAt'].N) }),
-		price: Number(raw['price']?.N ?? 0),
-		currency: raw['currency']?.S ?? '',
-	};
-}
-
 /** A product that a price provider has priced, in the latest run or an earlier one. */
 export type PricedProduct = Product & { price: number; currency: string };
