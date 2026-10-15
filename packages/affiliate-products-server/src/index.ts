@@ -1,7 +1,7 @@
 import path from 'path';
 import serverlessExpress from '@codegenie/serverless-express';
 import { getConfig } from '@common/config';
-import { DynamoService } from '../../common/src/database-service';
+import { DynamoService } from '@common/database-service';
 import { createApp } from './app';
 import { createPandaAuth } from './auth';
 
