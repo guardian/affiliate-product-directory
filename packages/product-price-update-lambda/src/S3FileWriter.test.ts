@@ -25,7 +25,7 @@ describe('convertProductsToCsv', () => {
 			}),
 		];
 		const result = fileWriter().convertProductsToCsv(products);
-		expect(result).toEqual(`amazon.com,$9.99
-argos.com,£9.99`);
+		expect(result).toEqual(`amazon.com,$,9.99
+argos.com,£,9.99`);
 	});
 });

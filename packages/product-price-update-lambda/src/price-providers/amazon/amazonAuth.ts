@@ -1,8 +1,8 @@
 import { getConfig } from '@common/config';
 import { appName } from '@common/constants';
+import type { Region } from '@common/models';
 import { getParametersFromParameterStore } from '@common/parameterStore';
 import { z } from 'zod';
-import type { Region } from '@price-update/models';
 
 const config = getConfig();
 const commonPath = `/${config.stage}/${config.stack}/${appName}/amazon`;
@@ -20,7 +20,7 @@ export interface AmazonCredentials {
 }
 
 const TOKEN_ENDPOINT: Record<Region, string> = {
-	UK: 'https://api.amazon.co.uk/auth/o2/token',
+	GB: 'https://api.amazon.co.uk/auth/o2/token',
 	US: 'https://api.amazon.com/auth/o2/token',
 };
 
@@ -44,15 +44,15 @@ export async function getAmazonCredentials(): Promise<AmazonCredentials> {
 
 	cachedCredentials = {
 		clientId: {
-			UK: parameters[ukClientIdKey]!,
+			GB: parameters[ukClientIdKey]!,
 			US: parameters[usClientIdKey]!,
 		},
 		clientSecret: {
-			UK: parameters[ukClientSecretKey]!,
+			GB: parameters[ukClientSecretKey]!,
 			US: parameters[usClientSecretKey]!,
 		},
 		partnerTag: {
-			UK: parameters[ukPartnerTagKey]!,
+			GB: parameters[ukPartnerTagKey]!,
 			US: parameters[usPartnerTagKey]!,
 		},
 	};

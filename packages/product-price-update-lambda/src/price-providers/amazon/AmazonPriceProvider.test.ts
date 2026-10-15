@@ -26,9 +26,9 @@ beforeAll(async () => {
 });
 
 const credentials = {
-	clientId: { UK: 'uk-client-id', US: 'us-client-id' },
-	clientSecret: { UK: 'uk-client-secret', US: 'us-client-secret' },
-	partnerTag: { UK: 'uk-partner-tag', US: 'us-partner-tag' },
+	clientId: { GB: 'uk-client-id', US: 'us-client-id' },
+	clientSecret: { GB: 'uk-client-secret', US: 'us-client-secret' },
+	partnerTag: { GB: 'uk-partner-tag', US: 'us-partner-tag' },
 };
 
 const originalFetch = globalThis.fetch;
@@ -90,7 +90,7 @@ beforeEach(() => {
 	);
 	mockRegisterMetric.mockResolvedValue();
 	mockFetch = jest.fn<typeof fetch>();
-	globalThis.fetch = mockFetch as unknown as typeof fetch;
+	globalThis.fetch = mockFetch;
 });
 
 afterEach(() => {
@@ -114,7 +114,7 @@ describe('refreshPrices', () => {
 		const staleUpdatedAt = Date.now() - 60_000;
 		const product = buildProduct({
 			productMerchantUrl: 'https://www.amazon.co.uk/dp/B0C3HCD34R',
-			region: 'UK',
+			region: 'GB',
 			price: 10,
 			currency: 'GBP',
 			updatedAt: staleUpdatedAt,
@@ -241,7 +241,7 @@ describe('refreshPrices', () => {
 		jest.useFakeTimers();
 		const uk = buildProduct({
 			productMerchantUrl: 'https://www.amazon.co.uk/dp/B0UKPROD01',
-			region: 'UK',
+			region: 'GB',
 		});
 		const us = buildProduct({
 			productMerchantUrl: 'https://www.amazon.com/dp/B0USPROD01',
@@ -260,7 +260,7 @@ describe('refreshPrices', () => {
 			partnerTag: 'uk-partner-tag',
 		});
 		expect(requestHeaders(0)).toMatchObject({
-			Authorization: 'Bearer uk-token',
+			Authorization: 'Bearer gb-token',
 			'x-marketplace': 'www.amazon.co.uk',
 		});
 		expect(requestBody(1)).toMatchObject({
@@ -273,12 +273,56 @@ describe('refreshPrices', () => {
 		});
 	});
 
+	it('matches items to products by region when the same ASIN exists in multiple regions', async () => {
+		jest.useFakeTimers();
+		const uk = buildProduct({
+			productMerchantUrl: 'https://www.amazon.co.uk/dp/B0SHARED01',
+			region: 'GB',
+		});
+		const us = buildProduct({
+			productMerchantUrl: 'https://www.amazon.com/dp/B0SHARED01',
+			region: 'US',
+		});
+		mockFetch
+			.mockResolvedValueOnce(
+				jsonResponse({
+					itemsResult: {
+						items: [item('B0SHARED01', { price: 19.99, currency: 'GBP' })],
+					},
+				}),
+			)
+			.mockResolvedValueOnce(
+				jsonResponse({
+					itemsResult: {
+						items: [item('B0SHARED01', { price: 24.99, currency: 'USD' })],
+					},
+				}),
+			);
+
+		const pending = provider().refreshPrices([uk, us]);
+		await flushThrottle(2);
+		const { updated } = await pending;
+
+		expect(updated).toEqual([
+			expect.objectContaining({
+				region: 'GB',
+				price: 19.99,
+				currency: 'GBP',
+			}),
+			expect.objectContaining({
+				region: 'US',
+				price: 24.99,
+				currency: 'USD',
+			}),
+		]);
+	});
+
 	it('splits a region into batches of 10 ASINs', async () => {
 		jest.useFakeTimers();
 		const products = Array.from({ length: 15 }, (_, i) =>
 			buildProduct({
 				productMerchantUrl: `https://www.amazon.co.uk/dp/B0BATCH${String(i).padStart(3, '0')}`,
-				region: 'UK',
+				region: 'GB',
 			}),
 		);
 		mockFetch.mockResolvedValue(jsonResponse({ itemsResult: { items: [] } }));
@@ -308,7 +352,7 @@ describe('request construction', () => {
 		jest.useFakeTimers();
 		const product = buildProduct({
 			productMerchantUrl: 'https://www.amazon.co.uk/dp/B0C3HCD34R',
-			region: 'UK',
+			region: 'GB',
 		});
 		mockFetch.mockResolvedValue(jsonResponse({ itemsResult: { items: [] } }));
 
@@ -325,7 +369,7 @@ describe('request construction', () => {
 		});
 		expect(requestHeaders()).toMatchObject({
 			'Content-Type': 'application/json',
-			Authorization: 'Bearer uk-token',
+			Authorization: 'Bearer gb-token',
 			'x-marketplace': 'www.amazon.co.uk',
 		});
 	});

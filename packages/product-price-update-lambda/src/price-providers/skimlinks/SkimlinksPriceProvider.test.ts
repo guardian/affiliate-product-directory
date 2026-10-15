@@ -1,3 +1,4 @@
+import type { Product } from '@common/models';
 import { jest } from '@jest/globals';
 import { mockRegisterMetric } from '@mocks/CloudwatchMock';
 import '@mocks/ConfigMock';
@@ -31,15 +32,15 @@ const credentials = {
 	publisherId: 'pub-1',
 	clientId: 'client-1',
 	clientSecret: 'secret-1',
-	publisherDomainId: { UK: 'uk-domain', US: 'us-domain' },
+	publisherDomainId: { GB: 'uk-domain', US: 'us-domain' },
 };
 
 const originalFetch = globalThis.fetch;
 let mockFetch: jest.Mock<typeof fetch>;
 
 /** A single Skimlinks match for a product. */
-function match(price: number, currency: string, inputUrl = 'x') {
-	return { input_url: inputUrl, price, currency };
+function match(price: number, currency: string) {
+	return { price, currency };
 }
 
 function jsonResponse(body: unknown, ok = true): Response {
@@ -60,16 +61,25 @@ beforeEach(() => {
 	mockGetSkimlinksCredentials.mockResolvedValue(credentials);
 	mockGetSkimlinksAccessToken.mockResolvedValue('access-token-1');
 	mockFetch = jest.fn<typeof fetch>();
-	globalThis.fetch = mockFetch as unknown as typeof fetch;
+	globalThis.fetch = mockFetch;
+	jest.useFakeTimers();
 });
 
 afterEach(() => {
 	globalThis.fetch = originalFetch;
 	jest.restoreAllMocks();
+	jest.useRealTimers();
 });
 
 function provider() {
 	return new SkimlinksPriceProvider();
+}
+
+/** Refreshes prices, advancing past the rate limit wait after each request without waiting in real time. */
+async function refreshPrices(products: Product[], requests = 1) {
+	const pending = provider().refreshPrices(products);
+	await jest.advanceTimersByTimeAsync(3000 * requests);
+	return pending;
 }
 
 function requestedUrl(callIndex = 0): URL {
@@ -81,7 +91,7 @@ describe('refreshPrices', () => {
 		const staleUpdatedAt = Date.now() - 60_000;
 		const product = buildProduct({
 			productMerchantUrl: 'https://johnlewis.com/p/1',
-			region: 'UK',
+			region: 'GB',
 			price: 10,
 			currency: 'GBP',
 			updatedAt: staleUpdatedAt,
@@ -94,7 +104,7 @@ describe('refreshPrices', () => {
 
 		const {
 			updated: [updated],
-		} = await provider().refreshPrices([product]);
+		} = await refreshPrices([product]);
 
 		expect(mockRegisterMetric).toHaveBeenCalledWith(
 			'SkimlinksProductsFetched',
@@ -103,7 +113,7 @@ describe('refreshPrices', () => {
 
 		expect(updated).toMatchObject({
 			productMerchantUrl: 'https://johnlewis.com/p/1',
-			region: 'UK',
+			region: 'GB',
 			price: 24.5,
 			currency: 'GBP',
 			updatedBy: 'skimlinks',
@@ -115,7 +125,7 @@ describe('refreshPrices', () => {
 		const staleUpdatedAt = Date.now() - 60_000;
 		const product = buildProduct({
 			productMerchantUrl: 'https://johnlewis.com/p/1',
-			region: 'UK',
+			region: 'GB',
 			price: 10,
 			currency: 'GBP',
 			updatedAt: staleUpdatedAt,
@@ -124,15 +134,19 @@ describe('refreshPrices', () => {
 			jsonResponse({
 				results: {
 					'https://johnlewis.com/p/1': [
-						{ input_url: 'url1', price: 25, currency: 'madeup' },
-						{ input_urla: 'url1', price: 25, currency: 'madeup' },
+						{ price: 25, currency: 'madeup' },
+						{ pricea: 25, currency: 'madeup' },
 					],
 				},
 			}),
 		);
 
 		expect(mockRegisterMetric).not.toHaveBeenCalled();
-		await expect(provider().refreshPrices([product])).rejects.toThrow(ZodError);
+		const pending = provider().refreshPrices([product]);
+		const assertion = expect(pending).rejects.toThrow(ZodError);
+		// Past the retry delay, since a parse failure is retried like any other error.
+		await jest.advanceTimersByTimeAsync(3000);
+		await assertion;
 	});
 
 	it('skips products the API returns no data for', async () => {
@@ -148,7 +162,7 @@ describe('refreshPrices', () => {
 			}),
 		);
 
-		const result = await provider().refreshPrices([matched, unmatched]);
+		const result = await refreshPrices([matched, unmatched]);
 
 		expect(mockRegisterMetric).toHaveBeenCalledWith(
 			'SkimlinksProductsFetched',
@@ -165,7 +179,7 @@ describe('refreshPrices', () => {
 			jsonResponse({ results: { 'https://johnlewis.com/p/1': [] } }),
 		);
 
-		await expect(provider().refreshPrices([product])).resolves.toEqual({
+		await expect(refreshPrices([product])).resolves.toEqual({
 			updated: [],
 			notUpdated: [product],
 		});
@@ -180,11 +194,11 @@ describe('request construction', () => {
 	it('posts the product merchant urls with the auth and query parameters', async () => {
 		const product = buildProduct({
 			productMerchantUrl: 'https://johnlewis.com/p/1',
-			region: 'UK',
+			region: 'GB',
 		});
 		mockFetch.mockResolvedValue(jsonResponse({ results: {} }));
 
-		await provider().refreshPrices([product]);
+		await refreshPrices([product]);
 
 		expect(mockFetch).toHaveBeenCalledTimes(1);
 		const [, init] = mockFetch.mock.calls[0]!;
@@ -214,7 +228,7 @@ describe('request construction', () => {
 	it("sends a separate request per region with that region's domain id and country code", async () => {
 		const uk = buildProduct({
 			productMerchantUrl: 'https://johnlewis.com/uk',
-			region: 'UK',
+			region: 'GB',
 		});
 		const us = buildProduct({
 			productMerchantUrl: 'https://target.com/us',
@@ -222,7 +236,7 @@ describe('request construction', () => {
 		});
 		mockFetch.mockResolvedValue(jsonResponse({ results: {} }));
 
-		await provider().refreshPrices([us, uk]);
+		await refreshPrices([us, uk], 2);
 
 		expect(mockFetch).toHaveBeenCalledTimes(2);
 		// REGIONS order is UK then US regardless of input order.
@@ -240,7 +254,7 @@ describe('request construction', () => {
 		const products = Array.from({ length: 150 }, (_, i) =>
 			buildProduct({
 				productMerchantUrl: `https://johnlewis.com/p/${i}`,
-				region: 'UK',
+				region: 'GB',
 			}),
 		);
 		mockFetch
@@ -255,7 +269,7 @@ describe('request construction', () => {
 				}),
 			);
 
-		const result = await provider().refreshPrices(products);
+		const result = await refreshPrices(products, 2);
 
 		expect(
 			result.updated.map((p) => [p.productMerchantUrl, p.price, p.currency]),
@@ -266,9 +280,31 @@ describe('request construction', () => {
 	});
 });
 
+describe('rate limiting', () => {
+	it('waits 3 seconds after each request to stay within 20 requests per minute', async () => {
+		const products = Array.from({ length: 150 }, (_, i) =>
+			buildProduct({
+				productMerchantUrl: `https://johnlewis.com/p/${i}`,
+				region: 'GB',
+			}),
+		);
+		mockFetch.mockResolvedValue(jsonResponse({ results: {} }));
+
+		const pending = provider().refreshPrices(products);
+
+		await jest.advanceTimersByTimeAsync(2999);
+		expect(mockFetch).toHaveBeenCalledTimes(1);
+
+		await jest.advanceTimersByTimeAsync(1);
+		expect(mockFetch).toHaveBeenCalledTimes(2);
+
+		await jest.advanceTimersByTimeAsync(3000);
+		await pending;
+	});
+});
+
 describe('retry behaviour', () => {
 	it('retries once when a request fails and succeeds on the second attempt', async () => {
-		jest.useFakeTimers();
 		const product = buildProduct({
 			productMerchantUrl: 'https://johnlewis.com/p/1',
 		});
@@ -280,19 +316,16 @@ describe('retry behaviour', () => {
 				}),
 			);
 
-		const pending = provider().refreshPrices([product]);
-		await jest.advanceTimersByTimeAsync(3000);
+		// Past the retry delay and then the rate limit wait.
 		const {
 			updated: [updated],
-		} = await pending;
+		} = await refreshPrices([product], 2);
 
 		expect(mockFetch).toHaveBeenCalledTimes(2);
 		expect(updated).toMatchObject({ price: 7, currency: 'GBP' });
-		jest.useRealTimers();
 	});
 
 	it('rejects when both attempts fail', async () => {
-		jest.useFakeTimers();
 		const product = buildProduct({
 			productMerchantUrl: 'https://johnlewis.com/p/1',
 		});
@@ -306,6 +339,5 @@ describe('retry behaviour', () => {
 		await assertion;
 
 		expect(mockFetch).toHaveBeenCalledTimes(2);
-		jest.useRealTimers();
 	});
 });

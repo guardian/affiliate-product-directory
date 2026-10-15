@@ -37,8 +37,9 @@ async function getArticleIdsForPage(
 	stage: string,
 	capiKey: string,
 	page: number,
+	region: 'UK' | 'US',
 ): Promise<CapiSearchResponse> {
-	const url = `${getBaseCapiUrl(stage)}/search?section=thefilter&page=${page}&api-key=${capiKey}`;
+	const url = `${getBaseCapiUrl(stage)}/search?section=thefilter${region === 'UK' ? '' : '-us'}&page=${page}&api-key=${capiKey}`;
 
 	const response = await fetch(url);
 	if (!response.ok) {
@@ -51,15 +52,18 @@ async function getArticleIdsForPage(
 	return body;
 }
 
-async function getAllArticleIds(stack: string): Promise<string[]> {
+async function getAllArticleIds(
+	stack: string,
+	region: 'UK' | 'US',
+): Promise<string[]> {
 	const capiKey = getCapiKey();
 	let articleIds: string[] = [];
-	const firstPage = await getArticleIdsForPage(stack, capiKey, 1);
+	const firstPage = await getArticleIdsForPage(stack, capiKey, 1, region);
 	articleIds = articleIds.concat(getArticleIdsFromResponse(firstPage));
 
 	let page = 2;
 	while (page <= firstPage.response.pages) {
-		const nextPage = await getArticleIdsForPage(stack, capiKey, page);
+		const nextPage = await getArticleIdsForPage(stack, capiKey, page, region);
 		articleIds = articleIds.concat(getArticleIdsFromResponse(nextPage));
 		page++;
 	}
@@ -71,24 +75,25 @@ async function main() {
 	let stage = process.argv[2];
 	stage ??= 'CODE';
 
-	const articleIds = await getAllArticleIds(stage);
+	const regions = ['UK', 'US'] as const;
+	const formattedEvents = [];
 
-	const formattedEvents = [
-		{
+	for (const region of regions) {
+		const articleIds = await getAllArticleIds(stage, region);
+		formattedEvents.push({
 			EventBusName: `publication-events-${stage}`,
 			Source: 'backfill',
 			DetailType: 'backfill-request',
-			Detail: JSON.stringify({
-				articleIds,
-			}),
-		},
-	];
+			Detail: JSON.stringify({ articleIds }),
+		});
+		console.log(
+			`Found ${articleIds.length} Filter ${region} ${stage} article IDs`,
+		);
+	}
 
 	const outputPath = `./packages/scripts/backfill/output/backfill-events-${stage}.json`;
 	await writeFile(outputPath, JSON.stringify(formattedEvents, null, 2));
-	console.log(
-		`Wrote ${articleIds.length} ${stage} article IDs to ${outputPath}`,
-	);
+	console.log(`Wrote ${formattedEvents.length} events to ${outputPath}`);
 }
 
 await main();

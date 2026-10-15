@@ -15,6 +15,7 @@ describe('The AffiliateProductDirectoryLambda stack', () => {
 					region: 'eu-west-1',
 				},
 				app: 'affiliate-product-directory',
+				toolDomainName: 'affiliate-products.test.dev-gutools.co.uk',
 			},
 		);
 		const template = Template.fromStack(stack);

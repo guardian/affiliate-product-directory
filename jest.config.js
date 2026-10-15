@@ -51,5 +51,6 @@ export default {
 		subpackage('common'),
 		subpackage('product-directory-update-lambda'),
 		subpackage('product-price-update-lambda'),
+		subpackage('affiliate-products-server'),
 	],
 };

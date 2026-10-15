@@ -16,6 +16,7 @@ new AffiliateProductDirectory(app, 'AffiliateProductDirectoryLambda-CODE', {
 		region: 'eu-west-1',
 	},
 	app: 'affiliate-product-directory',
+	toolDomainName: 'affiliate-products.code.dev-gutools.co.uk',
 });
 new AffiliateProductDirectory(app, 'AffiliateProductDirectoryLambda-PROD', {
 	stack: 'frontend',

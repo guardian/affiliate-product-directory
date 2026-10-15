@@ -79,6 +79,10 @@ See its [README](packages/product-directory-update-lambda//README.md) for more d
 This lambda is responsible for handling product price updates and it runs at a set interval triggered by an Eventbridge rule.
 See its [README](packages/product-price-update-lambda//README.md) for more detail.
 
+### Backfill
+
+The directory was initially populated using a backfill script that finds articles with a section of Filter or Filter US and sends these article IDs as a mock Crier event. See the script [README](packages/scripts/backfill/README.md) for more.
+
 ## 4. Useful Links
 
 <!---
@@ -108,3 +112,7 @@ which have a specific meaning in the context of the project. If there is any dou
 `The Filter`
 
 - The Filter is a section on the Guardian [UK](https://www.theguardian.com/uk/thefilter) and [US](https://www.theguardian.com/thefilter-us) editions that serve product reviews and other product oriented journalism. The Filter makes money by having affiliate links embedded in the content.
+
+`Region`
+
+- The market a product belongs to, either `GB` or `US`. The price update lambda uses it to group products and to choose the matching marketplace and credentials from each price provider. We use `GB` rather than `UK` because `GB` is the ISO 3166-1 country code.

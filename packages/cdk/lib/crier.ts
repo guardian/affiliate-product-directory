@@ -1,6 +1,5 @@
 // constructs/crier-events.ts
 import type { GuStack } from '@guardian/cdk/lib/constructs/core';
-import { GuParameter } from '@guardian/cdk/lib/constructs/core';
 import type { GuLambdaFunction } from '@guardian/cdk/lib/constructs/lambda';
 import { Duration } from 'aws-cdk-lib';
 import type { IEventBus } from 'aws-cdk-lib/aws-events';
@@ -24,17 +23,12 @@ export function createCrier(
 		stage: string;
 	},
 ) {
-	new CrierEventbridge(scope, 'Crier');
-
-	const eventBusParam = new GuParameter(scope, 'EventBus', {
-		fromSSM: true,
-		default: `/${stage}/frontend/frontend-shared-infra/crier-event-bus`,
-	});
+	const crierEventBridge = new CrierEventbridge(scope, 'Crier');
 
 	const crierEventBus = EventBus.fromEventBusName(
 		scope,
 		'CrierEventBus',
-		eventBusParam.valueAsString,
+		crierEventBridge.crierEventBusName,
 	);
 
 	const crierDlq = new Queue(scope, 'CrierConnectionDLQ', {

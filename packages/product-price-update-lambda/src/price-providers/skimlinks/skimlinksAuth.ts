@@ -1,8 +1,8 @@
 import { getConfig } from '@common/config';
 import { appName } from '@common/constants';
+import type { Region } from '@common/models';
 import { getParametersFromParameterStore } from '@common/parameterStore';
 import { z } from 'zod';
-import type { Region } from '@price-update/models';
 
 const config = getConfig();
 const commonPath = `/${config.stage}/${config.stack}/${appName}/skimlinks`;
@@ -41,7 +41,7 @@ export async function getSkimlinksCredentials(): Promise<SkimlinksCredentials> {
 		clientId: parameters[clientIdKey]!,
 		clientSecret: parameters[clientSecretKey]!,
 		publisherDomainId: {
-			UK: parameters[ukPublisherDomainIdKey]!,
+			GB: parameters[ukPublisherDomainIdKey]!,
 			US: parameters[usPublisherDomainIdKey]!,
 		},
 	};

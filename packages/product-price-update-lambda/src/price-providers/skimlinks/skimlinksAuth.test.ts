@@ -36,7 +36,7 @@ beforeEach(() => {
 	jest.clearAllMocks();
 	mockGetParametersFromParameterStore.mockResolvedValue(parameters);
 	mockFetch = jest.fn<typeof fetch>();
-	globalThis.fetch = mockFetch as unknown as typeof fetch;
+	globalThis.fetch = mockFetch;
 });
 
 afterEach(() => {
@@ -51,7 +51,7 @@ describe('getSkimlinksCredentials', () => {
 			publisherId: 'publisher-id',
 			clientId: 'client-id',
 			clientSecret: 'client-secret',
-			publisherDomainId: { UK: 'uk-domain-id', US: 'us-domain-id' },
+			publisherDomainId: { GB: 'uk-domain-id', US: 'us-domain-id' },
 		});
 
 		expect(mockGetParametersFromParameterStore).toHaveBeenCalledWith([

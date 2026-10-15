@@ -1,9 +1,8 @@
 import { registerMetric } from '@common/cloudwatch';
-import type { Product } from '@common/models';
+import type { Product, Region } from '@common/models';
 import type { SkimlinksProductsResponse } from '@price-update/models';
 import {
 	groupByRegion,
-	type Region,
 	REGIONS,
 	SkimlinksProductsResponseSchema,
 } from '@price-update/models';
@@ -15,6 +14,8 @@ import {
 
 export class SkimlinksPriceProvider extends PriceProvider {
 	private readonly batchSize = 100;
+	// Skimlinks allows 20 requests per minute.
+	private readonly minMsBetweenRequests = 60_000 / 20;
 
 	constructor() {
 		super('skimlinks');
@@ -45,6 +46,10 @@ export class SkimlinksPriceProvider extends PriceProvider {
 				});
 
 				Object.assign(productData, results);
+
+				await new Promise((resolve) =>
+					setTimeout(resolve, this.minMsBetweenRequests),
+				);
 			}
 		}
 
@@ -70,7 +75,7 @@ export class SkimlinksPriceProvider extends PriceProvider {
 			exclude_domains: '',
 			referrer_url: 'theguardian.com',
 			per_merchant_limit: '1',
-			country_code: COUNTRY_CODE[region],
+			country_code: SKIMLINKS_COUNTRY_CODE[region],
 			product_id_type: 'asin',
 			alternatives_size: '0',
 		});
@@ -125,4 +130,4 @@ export class SkimlinksPriceProvider extends PriceProvider {
 	}
 }
 
-const COUNTRY_CODE: Record<Region, string> = { UK: 'GB', US: 'US' };
+const SKIMLINKS_COUNTRY_CODE: Record<Region, string> = { GB: 'GB', US: 'US' };
