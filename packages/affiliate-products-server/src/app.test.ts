@@ -8,6 +8,7 @@ import request from 'supertest';
 import { createApp } from './app';
 import type {
 	Auth,
+	DataSource,
 	GetProductPrices,
 	ListArticles,
 	ProductPrices,
@@ -146,6 +147,85 @@ describe('createApp', () => {
 
 		expect(response.status).toBe(500);
 		expect(response.text).toBe('Internal server error');
+	});
+
+	describe('with PROD data', () => {
+		const prodPrice = {
+			currency: 'GBP',
+			price: 30,
+			updatedAt: 1760000000000,
+			updatedBy: 'skimlinks',
+		};
+
+		const prodData = (): DataSource => ({
+			listArticles: jest.fn<ListArticles>((page) =>
+				Promise.resolve({ ...articlesPage(page), total: 999 }),
+			),
+			getProductPrices: jest.fn<GetProductPrices>(() =>
+				Promise.resolve(
+					new Map([['https://shop.example/a-product', prodPrice]]),
+				),
+			),
+		});
+
+		it("lists PROD's articles and prices given prod=true", async () => {
+			const prod = prodData();
+			const getProductPrices = jest.fn(noProductPrices);
+			const listArticlesSpy = jest.fn(listArticles);
+
+			const response = await request(
+				createApp({
+					clientDir,
+					auth: loggedIn,
+					listArticles: listArticlesSpy,
+					getProductPrices,
+					prodData: prod,
+				}),
+			).get('/api/articles?page=2&section=thefilter&prod=true');
+
+			expect(response.status).toBe(200);
+			const page = ArticlesPageSchema.parse(response.body);
+			expect(page.total).toBe(999);
+			expect(page.articles[0]?.products[0]).toMatchObject(prodPrice);
+			expect(prod.listArticles).toHaveBeenCalledWith(2, 'thefilter');
+			expect(prod.getProductPrices).toHaveBeenCalledWith([
+				'https://shop.example/a-product',
+			]);
+			// The stage's own data isn't read.
+			expect(listArticlesSpy).not.toHaveBeenCalled();
+			expect(getProductPrices).not.toHaveBeenCalled();
+		});
+
+		it("lists the stage's own articles without prod=true", async () => {
+			const prod = prodData();
+
+			const response = await request(
+				createApp({
+					clientDir,
+					auth: loggedIn,
+					listArticles,
+					getProductPrices: noProductPrices,
+					prodData: prod,
+				}),
+			).get('/api/articles');
+
+			expect(response.status).toBe(200);
+			expect(response.body).toEqual(articlesPage(1));
+			expect(prod.listArticles).not.toHaveBeenCalled();
+			expect(prod.getProductPrices).not.toHaveBeenCalled();
+		});
+	});
+
+	it("rejects prod=true when PROD's articles can't be listed", async () => {
+		const response = await request(app()).get('/api/articles?prod=true');
+
+		expect(response.status).toBe(400);
+	});
+
+	it.each(['false', '1', 'TRUE', ''])('rejects prod=%s', async (prod) => {
+		const response = await request(app()).get(`/api/articles?prod=${prod}`);
+
+		expect(response.status).toBe(400);
 	});
 
 	it.each(['0', '-1', 'abc', '1.5', ''])('rejects page=%s', async (page) => {

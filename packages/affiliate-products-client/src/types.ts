@@ -14,4 +14,6 @@ export interface ListParams {
 	page: number;
 	/** Undefined when articles from every section are shown. */
 	section: Section | undefined;
+	/** Whether PROD's articles and prices are shown, rather than the stage's own. */
+	prod: boolean;
 }

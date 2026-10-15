@@ -115,6 +115,17 @@ export class AffiliateProductDirectory extends GuStack {
 				domainName: props.toolDomainName,
 				capiKeyParam,
 				productPricingReadPolicy: productPricingDynamoDBReadPolicy,
+				// PROD's tool always shows PROD's data. Elsewhere it can also show PROD's, read-only.
+				prodData:
+					stage === 'PROD'
+						? undefined
+						: {
+								capiKeyParam: new GuParameter(this, 'prodCapiKey', {
+									fromSSM: true,
+									default: `/PROD/${this.stack}/${appName}/capi-key`,
+								}),
+								pricingTableName: `${appName}-pricing-PROD`,
+							},
 			});
 		}
 	}

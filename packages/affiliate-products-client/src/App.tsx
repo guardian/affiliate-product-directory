@@ -34,7 +34,7 @@ const mainStyles = css`
 
 export const App = () => {
 	const [userName, setUserName] = useState<string>();
-	const { page, section, setPage, setSection } = useListParams();
+	const { page, section, prod, setPage, setSection, setProd } = useListParams();
 	const [fetched, setFetched] = useState<{
 		params: ListParams;
 		state: ArticlesState;
@@ -49,8 +49,8 @@ export const App = () => {
 
 	useEffect(() => {
 		const controller = new AbortController();
-		const params = { page, section };
-		fetchArticles(page, section, controller.signal)
+		const params = { page, section, prod };
+		fetchArticles(params, controller.signal)
 			.then((state) => setFetched({ params, state }))
 			.catch(() => {
 				if (!controller.signal.aborted) {
@@ -58,11 +58,13 @@ export const App = () => {
 				}
 			});
 		return () => controller.abort();
-	}, [page, section]);
+	}, [page, section, prod]);
 
 	// Whatever was fetched last is for a previous view until the current one's articles arrive.
 	const articles: ArticlesState =
-		fetched?.params.page === page && fetched.params.section === section
+		fetched?.params.page === page &&
+		fetched.params.section === section &&
+		fetched.params.prod === prod
 			? fetched.state
 			: { status: 'loading' };
 
@@ -103,7 +105,12 @@ export const App = () => {
 			<Global styles={globalStyles} />
 			<TopToolbar userName={userName} />
 			<div css={bodyStyles}>
-				<Sidebar section={section} onSectionChange={setSection} />
+				<Sidebar
+					section={section}
+					onSectionChange={setSection}
+					prod={prod}
+					onProdChange={setProd}
+				/>
 				<main css={mainStyles}>{renderArticles()}</main>
 			</div>
 		</>

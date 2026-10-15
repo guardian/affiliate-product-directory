@@ -18,6 +18,10 @@ Each article comes with its product links: its product buttons and the links on 
 
 Each product link also carries the directory's latest price for its URL: `currency`, `price`, `updatedAt` and `updatedBy` (the price provider that set it). They are missing if the directory doesn't have the URL as an active product, or has it but hasn't priced it yet. On every request the server looks up the page's product URLs in the stage's pricing table, with strongly consistent reads, so the tool always shows the table as it is, including a change made just before. Nothing is cached between requests. If the table can't be read, `/api/articles` fails.
 
+### PROD data
+
+In CODE, the sidebar's Data filter switches the list to PROD's articles and prices, adding `prod=true` to the page's URL and to `/api/articles`. The server then does the same as above, against PROD CAPI (with the PROD `capi-key` SSM parameter, as `PROD_CAPI_KEY`), PROD's Composer, and PROD's pricing table. The tool's role can only `BatchGetItem` from PROD's table, and explicitly denies everything else on it, so it can never write to it. PROD's tool only shows its own data, so the client hides the Data filter on `*.gutools.co.uk`.
+
 Composer links need CAPI's `internalComposerCode` field, which CAPI only returns to internal-tier keys. With a developer-tier key they show as unavailable.
 
 ## Running locally
@@ -29,7 +33,7 @@ npm install
 CAPI_KEY=<a CODE CAPI key> npm run affiliate-products-dev
 ```
 
-The home page lists articles from CODE CAPI, so the server needs a CODE CAPI key. Deployed, it uses the stage's key from the existing `capi-key` SSM parameter.
+The home page lists articles from CODE CAPI, so the server needs a CODE CAPI key. Deployed, it uses the stage's key from the existing `capi-key` SSM parameter. To try the Data filter, also set `PROD_CAPI_KEY` to a PROD CAPI key.
 
 This starts the server on port 3040 and the client's Vite dev server on port 5173; Ctrl+C stops both. Go to http://localhost:5173 for hot reloading. Vite proxies `/api` to the server.
 

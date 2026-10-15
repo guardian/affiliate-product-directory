@@ -1,9 +1,7 @@
-import { getCapiBaseUrl, getCapiKey } from '@common/config';
-import { DynamoService } from '@common/database-service';
+import { getCapiKey } from '@common/config';
 import { createApp } from './app';
-import { createCapiArticles, getComposerBaseUrl } from './capi';
-import { createProductPrices } from './productPrices';
-import type { Auth, GetProductPrices, ProductPrices } from './types';
+import { createDataSource } from './dataSource';
+import type { Auth, DataSource, ProductPrices } from './types';
 
 const port = 3040;
 
@@ -24,33 +22,41 @@ const localAuth: Auth = {
 	loginUrl: '',
 };
 
-// Run with CAPI_KEY set to a CAPI key for that stage.
-const listArticles = createCapiArticles({
-	baseUrl: getCapiBaseUrl(stage),
-	apiKey: getCapiKey(),
-	composerBaseUrl: getComposerBaseUrl(stage),
+// Reading the tables needs AWS credentials for the frontend account. Without them the
+// articles are still listed, but with no prices. The Lambda entry point fails instead.
+const withoutPricesOnError = ({
+	listArticles,
+	getProductPrices,
+}: DataSource): DataSource => ({
+	listArticles,
+	getProductPrices: (urls) =>
+		getProductPrices(urls).catch((error: unknown): ProductPrices => {
+			console.warn(
+				'Listing articles without prices, as they could not be read',
+			);
+			console.warn(error);
+			return new Map();
+		}),
 });
 
-// The prices of the same stage as the articles, as each stage's directory is built from its CAPI.
-const dynamoService = new DynamoService(stage);
-const readProductPrices = createProductPrices((urls) =>
-	dynamoService.getProductsByUrl(urls),
+// Run with CAPI_KEY set to a CAPI key for that stage. The prices are from the same stage
+// as the articles, as each stage's directory is built from its CAPI.
+const { listArticles, getProductPrices } = withoutPricesOnError(
+	createDataSource(stage, getCapiKey()),
 );
 
-// Reading the table needs AWS credentials for the frontend account. Without them the
-// articles are still listed, but with no prices. The Lambda entry point fails instead.
-const getProductPrices: GetProductPrices = (urls) =>
-	readProductPrices(urls).catch((error: unknown): ProductPrices => {
-		console.warn('Listing articles without prices, as they could not be read');
-		console.warn(error);
-		return new Map();
-	});
+// Also set PROD_CAPI_KEY to a PROD CAPI key to be able to list PROD's articles and prices.
+const prodCapiKey = process.env.PROD_CAPI_KEY;
+const prodData = prodCapiKey
+	? withoutPricesOnError(createDataSource('PROD', prodCapiKey))
+	: undefined;
 
 createApp({
 	clientDir: '../affiliate-products-client/build',
 	auth: localAuth,
 	listArticles,
 	getProductPrices,
+	prodData,
 }).listen(port, () => {
 	console.log(`Listening on http://localhost:${port}`);
 });

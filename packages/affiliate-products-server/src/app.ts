@@ -3,8 +3,9 @@ import { SectionSchema } from '@common/tool-models';
 import type { AuthResponse, User } from '@common/tool-models';
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
+import { z } from 'zod';
 import { attachProductPrices, productUrls } from './productPrices';
-import type { Auth, GetProductPrices, ListArticles } from './types';
+import type { Auth, DataSource, GetProductPrices, ListArticles } from './types';
 
 const noAccessMessage =
 	"You don't have permission to access the affiliate products tool.";
@@ -18,11 +19,14 @@ export function createApp({
 	auth,
 	listArticles,
 	getProductPrices,
+	prodData,
 }: {
 	clientDir: string;
 	auth: Auth;
 	listArticles: ListArticles;
 	getProductPrices: GetProductPrices;
+	/** PROD's articles and prices, listed instead of the stage's own when asked for with prod=true. */
+	prodData?: DataSource;
 }) {
 	const app = express();
 
@@ -71,8 +75,26 @@ export function createApp({
 			});
 			return;
 		}
-		const articlesPage = await listArticles(Number(page), section.data);
-		const productPrices = await getProductPrices(productUrls(articlesPage));
+		const prod = z.literal('true').optional().safeParse(req.query.prod);
+		if (!prod.success) {
+			res.status(400).json({ error: 'prod must be true, or left out' });
+			return;
+		}
+		const dataSource = prod.data
+			? prodData
+			: { listArticles, getProductPrices };
+		// Fails rather than listing this stage's articles as if they were PROD's.
+		if (!dataSource) {
+			res.status(400).json({ error: "PROD's articles can't be listed here" });
+			return;
+		}
+		const articlesPage = await dataSource.listArticles(
+			Number(page),
+			section.data,
+		);
+		const productPrices = await dataSource.getProductPrices(
+			productUrls(articlesPage),
+		);
 		res.json(attachProductPrices(articlesPage, productPrices));
 	});
 

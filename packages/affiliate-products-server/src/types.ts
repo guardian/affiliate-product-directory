@@ -35,6 +35,12 @@ export type ProductPrices = Map<
 /** Returns the directory's price for each of these URLs that is an active product with one. */
 export type GetProductPrices = (urls: string[]) => Promise<ProductPrices>;
 
+/** One stage's articles, from its CAPI, and their products' prices, from its pricing table. */
+export interface DataSource {
+	listArticles: ListArticles;
+	getProductPrices: GetProductPrices;
+}
+
 /** A price found in a link's label. */
 export interface ExtractedPrice {
 	entireMatch: string;

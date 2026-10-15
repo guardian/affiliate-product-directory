@@ -1,16 +1,17 @@
 import { ArticlesPageSchema } from '@common/tool-models';
-import type { Section } from '@common/tool-models';
-import type { ArticlesState } from '../types';
+import type { ArticlesState, ListParams } from '../types';
 
-/** Fetches a page of articles from one section, or from both if none is given. */
+/** Fetches a page of articles from one section, or from both if none is given, from PROD if asked. */
 export const fetchArticles = async (
-	page: number,
-	section: Section | undefined,
+	{ page, section, prod }: ListParams,
 	signal: AbortSignal,
 ): Promise<ArticlesState> => {
 	const params = new URLSearchParams({ page: String(page) });
 	if (section) {
 		params.set('section', section);
+	}
+	if (prod) {
+		params.set('prod', 'true');
 	}
 	const response = await fetch(`/api/articles?${params.toString()}`, {
 		signal,

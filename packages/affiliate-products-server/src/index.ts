@@ -1,11 +1,9 @@
 import path from 'path';
 import serverlessExpress from '@codegenie/serverless-express';
-import { getCapiBaseUrl, getCapiKey } from '@common/config';
-import { DynamoService } from '@common/database-service';
+import { getCapiKey } from '@common/config';
 import { createApp } from './app';
 import { createPandaAuth } from './auth';
-import { createCapiArticles, getComposerBaseUrl } from './capi';
-import { createProductPrices } from './productPrices';
+import { createDataSource } from './dataSource';
 
 const stage = process.env.STAGE ?? '';
 
@@ -15,18 +13,25 @@ const clientDir = path.join(process.env.LAMBDA_TASK_ROOT ?? '', 'client');
 // Created once per Lambda instance, so warm invocations reuse the cached Panda key and permissions.
 const auth = createPandaAuth(stage);
 
-const listArticles = createCapiArticles({
-	baseUrl: getCapiBaseUrl(stage),
-	apiKey: getCapiKey(),
-	composerBaseUrl: getComposerBaseUrl(stage),
-});
-
-// Reads the stage's pricing table on every request, so nothing is cached between them.
-const dynamoService = new DynamoService(stage);
-const getProductPrices = createProductPrices((urls) =>
-	dynamoService.getProductsByUrl(urls),
+const { listArticles, getProductPrices } = createDataSource(
+	stage,
+	getCapiKey(),
 );
 
+// Only stages other than PROD are given PROD's CAPI key, and their role can only read
+// PROD's pricing table. PROD always lists its own articles.
+const prodCapiKey = process.env.PROD_CAPI_KEY;
+const prodData =
+	stage !== 'PROD' && prodCapiKey
+		? createDataSource('PROD', prodCapiKey)
+		: undefined;
+
 export const handler = serverlessExpress({
-	app: createApp({ clientDir, auth, listArticles, getProductPrices }),
+	app: createApp({
+		clientDir,
+		auth,
+		listArticles,
+		getProductPrices,
+		prodData,
+	}),
 });
