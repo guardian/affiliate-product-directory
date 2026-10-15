@@ -1,31 +1,32 @@
 {
-  "name": "affiliate-product-directory",
-  "version": "1.0.0",
-  "type": "module",
-  "scripts": {
-    "test": "npm run test --workspaces --if-present",
-    "lint": "eslint packages/** --ext .ts --no-error-on-unmatched-pattern",
-    "format": "prettier --write packages/**/*.ts",
-    "build": "npm run build --workspaces --if-present",
-    "affiliate-products-dev": "npm -w affiliate-products-server start & npm -w affiliate-products-client start"
-  },
-  "workspaces": [
-    "packages/*"
-  ],
-  "devDependencies": {
-    "@guardian/eslint-config": "16.0.0",
-    "@guardian/prettier": "10.0.0",
-    "@guardian/tsconfig": "2.0.0",
-    "@jest/globals": "30.3.0",
-    "@types/jest": "30.0.0",
-    "@types/node": "25.3.3",
-    "eslint": "9.39.2",
-    "eslint-plugin-prettier": "5.5.6",
-    "jest": "30.5.2",
-    "prettier": "3.8.1",
-    "ts-jest": "29.4.12",
-    "tsx": "4.23.13",
-    "typescript": "5.9.3"
-  },
-  "prettier": "@guardian/prettier"
+	"name": "affiliate-product-directory",
+	"version": "1.0.0",
+	"type": "module",
+	"scripts": {
+		"test": "npm run test --workspaces --if-present",
+		"lint": "eslint packages/** --ext .ts --no-error-on-unmatched-pattern",
+		"format": "prettier --write packages/**/*.ts",
+		"type-check": "tsc --noEmit",
+		"build": "npm run build --workspaces --if-present",
+		"affiliate-products-dev": "npm -w affiliate-products-server start & npm -w affiliate-products-client start"
+	},
+	"workspaces": [
+		"packages/*"
+	],
+	"devDependencies": {
+		"@guardian/eslint-config": "16.0.0",
+		"@guardian/prettier": "10.0.0",
+		"@guardian/tsconfig": "2.0.0",
+		"@jest/globals": "30.3.0",
+		"@types/jest": "30.0.0",
+		"@types/node": "25.3.3",
+		"eslint": "9.39.2",
+		"eslint-plugin-prettier": "5.5.6",
+		"jest": "30.5.2",
+		"prettier": "3.8.1",
+		"ts-jest": "29.4.12",
+		"tsx": "4.23.13",
+		"typescript": "5.9.3"
+	},
+	"prettier": "@guardian/prettier"
 }
