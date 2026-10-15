@@ -5,6 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"test": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" npx jest --detectOpenHandles --config ../../jest.config.js --selectProjects affiliate-products-server",
+		"type-check": "tsc --noEmit -p tsconfig.json",
 		"start": "tsx --env-file-if-exists=.env src/local.ts",
 		"prebuild": "rm -rf dist",
 		"build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outdir=dist",
