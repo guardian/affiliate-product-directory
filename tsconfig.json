@@ -5,7 +5,8 @@
       "@mocks/*": ["./packages/mocks/*"],
       "@common/*": ["./packages/common/src/*"],
       "@directory-update/*": ["./packages/product-directory-update-lambda/src/*"],
-      "@price-update/*": ["./packages/product-price-update-lambda/src/*"]
+      "@price-update/*": ["./packages/product-price-update-lambda/src/*"],
+      "@prices-csv/*": ["./packages/product-prices-csv-lambda/src/*"]
     }
   }
 }

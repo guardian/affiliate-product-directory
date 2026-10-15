@@ -20,7 +20,7 @@ export class ProductsUpdater {
 	/**
 	 * This is the main entry point for updating the prices, it will get all products in the DB
 	 *  and check affiliate partners for the latest prices, and lastly updated the DB.
-	 *  Writing to the DB is what updates the prices CSV: see csv-publisher.ts.
+	 *  Writing to the DB is what updates the prices CSV: see product-prices-csv-lambda.
 	 */
 	public async refreshPrices() {
 		const categorised = this.categoriseProducts(await this.getProductsFromDB());

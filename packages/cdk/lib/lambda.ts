@@ -61,10 +61,7 @@ export function createPriceUpdateLambda(
 	});
 }
 
-/**
- * Rewrites the prices CSV from the whole pricing table whenever the table changes. Its
- * code is the price update lambda's zip, with its own handler.
- */
+/** Rewrites the prices CSV from the whole pricing table whenever the table changes. */
 export function createPricesCsvLambda(
 	scope: GuStack,
 	{
@@ -77,8 +74,8 @@ export function createPricesCsvLambda(
 ): GuLambdaFunction {
 	return new GuLambdaFunction(scope, 'ProductPricesCsvLambda', {
 		app: 'product-prices-csv-lambda',
-		fileName: 'product-price-update-lambda.zip',
-		handler: 'csv-publisher.eventHandler',
+		fileName: 'product-prices-csv-lambda.zip',
+		handler: 'index.eventHandler',
 		environment: {
 			BUCKET: bucketName,
 		},

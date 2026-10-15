@@ -16,13 +16,7 @@ If a request for product prices is successful (2XX) but no data can be found, th
 
 ### Writing the prices CSV
 
-The frontend reads live prices from `<STAGE>/affiliates/product-prices.csv` in the `aws-frontend-store` bucket. This lambda doesn't write it. A second lambda, `product-prices-csv-lambda`, runs `csv-publisher.ts` from this package's zip whenever the pricing table changes, however the change was made.
-
-The pricing table has a DynamoDB stream. Lambda collects up to a minute's changes from it, then invokes `csv-publisher.ts`. The stream's records only say that something changed: the function reads the whole table, with consistent reads, and rewrites the CSV with every product that hasn't been removed and has a price. Only one of these runs at a time, so an older read of the table can't overwrite a newer CSV.
-
-The stream is split into shards, one per table partition, and Lambda batches each shard separately. So a burst of writes, like a price run, arrives as several batches, one after another. The function remembers when its last rewrite started reading the table and skips a batch whose changes were all made more than a few seconds before that, because that read already included them. A new lambda instance doesn't know when the last read was, so it always rewrites.
-
-If a run fails it is retried twice. After that the batch is dropped and the lambda's alarm fires; the next change to the table rewrites the whole CSV again.
+This lambda doesn't write the prices CSV the frontend reads. Its writes to the pricing table trigger [product-prices-csv-lambda](../product-prices-csv-lambda), which rewrites it.
 
 ## Price providers
 

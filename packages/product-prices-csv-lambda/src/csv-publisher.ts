@@ -1,8 +1,8 @@
 import { getConfig } from '@common/config';
 import { DynamoService } from '@common/database-service';
 import type { PricedProduct, Product } from '@common/models';
-import type { DynamoDBRecord, DynamoDBStreamHandler } from 'aws-lambda';
-import { S3FileWriter } from '@price-update/S3FileWriter';
+import type { DynamoDBRecord } from 'aws-lambda';
+import { S3FileWriter } from '@prices-csv/S3FileWriter';
 
 // Stream timestamps are rounded down to the second and come from DynamoDB's clock, not
 // this lambda's. Must stay well under the stream's 1-minute batching window, or the extra
@@ -69,10 +69,3 @@ export function createChangeHandler() {
 		lastReadStartedAt = readStartedAt;
 	};
 }
-
-const handleChanges = createChangeHandler();
-
-/** Runs when the pricing table changes, with up to a minute's changes at a time per shard. */
-export const eventHandler: DynamoDBStreamHandler = async (event) => {
-	await handleChanges(event.Records);
-};

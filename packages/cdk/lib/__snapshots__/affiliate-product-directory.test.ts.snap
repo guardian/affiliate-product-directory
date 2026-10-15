@@ -2498,7 +2498,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
           "S3Bucket": {
             "Ref": "DistributionBucketName",
           },
-          "S3Key": "frontend/TEST/product-prices-csv-lambda/product-price-update-lambda.zip",
+          "S3Key": "frontend/TEST/product-prices-csv-lambda/product-prices-csv-lambda.zip",
         },
         "Environment": {
           "Variables": {
@@ -2508,7 +2508,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
             "STAGE": "TEST",
           },
         },
-        "Handler": "csv-publisher.eventHandler",
+        "Handler": "index.eventHandler",
         "LoggingConfig": {
           "LogFormat": "JSON",
         },
@@ -2791,7 +2791,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
                       {
                         "Ref": "DistributionBucketName",
                       },
-                      "/frontend/TEST/product-prices-csv-lambda/product-price-update-lambda.zip",
+                      "/frontend/TEST/product-prices-csv-lambda/product-prices-csv-lambda.zip",
                     ],
                   ],
                 },
