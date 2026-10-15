@@ -7,6 +7,7 @@ import { SkimlinksPriceProvider } from '@price-update/price-providers/skimlinks/
 
 type Partner = 'amazon' | 'other';
 type CategorisedProducts = Record<Partner, Product[]>;
+const IN_FLIGHT_WRITE_MARGIN_MS = 30_000;
 
 export class ProductsUpdater {
 	/** Providers for each category, in priority order. Products a provider can't price fall through to the next. */
@@ -23,6 +24,7 @@ export class ProductsUpdater {
 	 *  Writing to the DB is what updates the prices CSV: see product-prices-csv-lambda.
 	 */
 	public async refreshPrices() {
+		const updatedAtCutoff = Date.now() - IN_FLIGHT_WRITE_MARGIN_MS;
 		const categorised = this.categoriseProducts(await this.getProductsFromDB());
 
 		const [amazonUpdated, otherUpdated] = await Promise.all([
@@ -31,9 +33,15 @@ export class ProductsUpdater {
 		]);
 
 		const allProducts = [...amazonUpdated, ...otherUpdated];
-		await this.dynamoService.updateProducts({
+		const { skipped } = await this.dynamoService.updateProducts({
 			items: allProducts,
+			updatedAtCutoff,
 		});
+		if (skipped.length > 0) {
+			console.log(
+				`Left ${skipped.length} product(s) as they were, as they were changed or removed during this run: ${skipped.join(', ')}`,
+			);
+		}
 	}
 
 	public async getProductsFromDB(): Promise<Product[]> {

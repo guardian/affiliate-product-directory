@@ -20,9 +20,16 @@ beforeAll(async () => {
 	({ DynamoService } = await import('@common/database-service'));
 });
 
+// The time the price run starts.
+const NOW = 1760000000000;
+// Products updated after this, 30 seconds before the run starts, aren't overwritten.
+const CUTOFF = NOW - 30_000;
+
 beforeEach(() => {
 	jest.clearAllMocks();
+	jest.useFakeTimers({ now: NOW });
 	mockGetAllProducts.mockResolvedValue([]);
+	mockUpdateProducts.mockResolvedValue({ skipped: [] });
 	[
 		mockAmazonRefreshPrices,
 		mockShopifyRefreshPrices,
@@ -32,6 +39,10 @@ beforeEach(() => {
 			Promise.resolve({ updated: [], notUpdated: products }),
 		),
 	);
+});
+
+afterEach(() => {
+	jest.useRealTimers();
 });
 
 function updater() {
@@ -175,6 +186,7 @@ describe('refreshPrices', () => {
 		]);
 		expect(mockUpdateProducts).toHaveBeenCalledWith({
 			items: [shopifyProduct, nonShopifyProduct],
+			updatedAtCutoff: CUTOFF,
 		});
 	});
 
@@ -193,6 +205,7 @@ describe('refreshPrices', () => {
 		expect(mockSkimlinksRefreshPrices).not.toHaveBeenCalled();
 		expect(mockUpdateProducts).toHaveBeenCalledWith({
 			items: [shopifyProduct],
+			updatedAtCutoff: CUTOFF,
 		});
 	});
 
@@ -228,6 +241,7 @@ describe('refreshPrices', () => {
 
 		expect(mockUpdateProducts).toHaveBeenCalledWith({
 			items: [amazonProduct, shopifyProduct, skimlinksProduct],
+			updatedAtCutoff: CUTOFF,
 		});
 	});
 
@@ -244,7 +258,10 @@ describe('refreshPrices', () => {
 		expect(mockAmazonRefreshPrices).not.toHaveBeenCalled();
 		expect(mockShopifyRefreshPrices).not.toHaveBeenCalled();
 		expect(mockSkimlinksRefreshPrices).not.toHaveBeenCalled();
-		expect(mockUpdateProducts).toHaveBeenCalledWith({ items: [] });
+		expect(mockUpdateProducts).toHaveBeenCalledWith({
+			items: [],
+			updatedAtCutoff: CUTOFF,
+		});
 	});
 
 	it('keeps skipped manual overrides out of providers', async () => {
@@ -268,6 +285,54 @@ describe('refreshPrices', () => {
 		expect(mockSkimlinksRefreshPrices).not.toHaveBeenCalled();
 		expect(mockUpdateProducts).toHaveBeenCalledWith({
 			items: [refreshedProduct],
+			updatedAtCutoff: CUTOFF,
 		});
+	});
+
+	it('only overwrites products last updated over 30 seconds before the run started', async () => {
+		const product = buildProduct({
+			productMerchantUrl: 'https://shop.example.com/products/1',
+		});
+		// Time passes while the table is read and the providers are called.
+		mockGetAllProducts.mockImplementation(() => {
+			jest.setSystemTime(NOW + 60_000);
+			return Promise.resolve([product]);
+		});
+		mockShopifyRefreshPrices.mockResolvedValue({
+			updated: [product],
+			notUpdated: [],
+		});
+
+		await updater().refreshPrices();
+
+		expect(mockUpdateProducts).toHaveBeenCalledWith({
+			items: [product],
+			updatedAtCutoff: CUTOFF,
+		});
+	});
+
+	it('logs the products left as they were because they changed during the run', async () => {
+		const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+		const product = buildProduct({
+			productMerchantUrl: 'https://shop.example.com/products/1',
+		});
+		mockGetAllProducts.mockResolvedValue([product]);
+		mockShopifyRefreshPrices.mockResolvedValue({
+			updated: [product],
+			notUpdated: [],
+		});
+		mockUpdateProducts.mockResolvedValue({
+			skipped: ['https://shop.example.com/products/1'],
+		});
+
+		try {
+			await updater().refreshPrices();
+
+			expect(log).toHaveBeenCalledWith(
+				expect.stringContaining('https://shop.example.com/products/1'),
+			);
+		} finally {
+			log.mockRestore();
+		}
 	});
 });
