@@ -27,19 +27,6 @@ export async function handleOverrideRequest(
 		return { ok: false, status: 404, error: 'Product not found' };
 	}
 
-	if (
-		currency != productDatabaseEntry.currency &&
-		productDatabaseEntry.currency !== ''
-	) {
-		const errorMessage = `Manual override currency ${currency} does not match stored currency of ${productDatabaseEntry.currency}`;
-		console.error(errorMessage);
-		return {
-			ok: false,
-			status: 400,
-			error: errorMessage,
-		};
-	}
-
 	console.log(
 		`Setting manual override for product ${productMerchantUrl} with ${currency}${price} ${expiryDate ? `with expiry date ${expiryDate.toDateString()}` : ''}`,
 	);
@@ -92,6 +79,8 @@ export async function handleOverrideDeleteRequest(
 			{
 				...productDatabaseEntry,
 				expiresAt: undefined,
+				price: undefined,
+				currency: undefined,
 				updatedBy: 'manualOverrideRemoved',
 				updatedAt: Date.now(),
 			},
