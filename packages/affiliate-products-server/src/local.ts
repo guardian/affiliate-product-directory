@@ -20,7 +20,7 @@ const localAuth: Auth = {
 createApp({
 	clientDir: '../affiliate-products-client/build',
 	auth: localAuth,
-	dynamoService: new DynamoService('TEST'),
+	dynamoService: new DynamoService('CODE'),
 }).listen(port, () => {
 	console.log(`Listening on http://localhost:${port}`);
 });
