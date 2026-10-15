@@ -245,10 +245,11 @@ describe('refreshPrices', () => {
 		expect(mockAmazonRefreshPrices).not.toHaveBeenCalled();
 		expect(mockShopifyRefreshPrices).not.toHaveBeenCalled();
 		expect(mockSkimlinksRefreshPrices).not.toHaveBeenCalled();
-		expect(mockUpdateProducts).toHaveBeenCalledWith({ items: [product] });
+		expect(mockUpdateProducts).toHaveBeenCalledWith({ items: [] });
+		expect(mockWriteProductsToS3File).toHaveBeenCalledWith([product]);
 	});
 
-	it.only('keeps skipped manual overrides in the S3 feed but out of provider and DB updates', async () => {
+	it('keeps skipped manual overrides in the S3 feed but out of provider and DB updates', async () => {
 		const manualOverride = buildProduct({
 			productMerchantUrl: 'https://shop.example.com/products/manual',
 			updatedBy: 'manualOverride',
