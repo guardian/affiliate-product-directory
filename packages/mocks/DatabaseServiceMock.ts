@@ -5,7 +5,7 @@ const mockGetAllProducts =
 	jest.fn<
 		(args: { lastEvaluatedKey?: Record<string, unknown> }) => Promise<unknown[]>
 	>();
-const mockBatchUpdateProducts =
+const mockUpdateProducts =
 	jest.fn<(args: { items: Product[] }) => Promise<void>>();
 const mockSaveProduct = jest.fn<(product: unknown) => Promise<void>>();
 const mockGetProductsInArticle =
@@ -20,7 +20,7 @@ const mockMarkProductAsRemovedInArticle =
 jest.unstable_mockModule('@common/database-service', () => ({
 	DynamoService: jest.fn(() => ({
 		getAllProducts: mockGetAllProducts,
-		batchUpdateProducts: mockBatchUpdateProducts,
+		updateProducts: mockUpdateProducts,
 		saveProduct: mockSaveProduct,
 		getProductsInArticle: mockGetProductsInArticle,
 		getArticlesForProduct: mockGetArticlesForProduct,
@@ -31,7 +31,7 @@ jest.unstable_mockModule('@common/database-service', () => ({
 
 export {
 	mockGetAllProducts,
-	mockBatchUpdateProducts,
+	mockUpdateProducts,
 	mockSaveProduct,
 	mockGetProductsInArticle,
 	mockGetArticlesForProduct,

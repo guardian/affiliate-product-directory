@@ -1,20 +1,14 @@
 import type { GuStackProps } from '@guardian/cdk/lib/constructs/core';
 import { GuParameter, GuStack } from '@guardian/cdk/lib/constructs/core';
-import { GuDynamoTable } from '@guardian/cdk/lib/constructs/dynamodb/index';
-import {
-	GuAllowPolicy,
-	GuDynamoDBReadPolicy,
-	GuDynamoDBWritePolicy,
-} from '@guardian/cdk/lib/constructs/iam';
-import { GuLambdaFunction } from '@guardian/cdk/lib/constructs/lambda';
-import { GuScheduledLambda } from '@guardian/cdk/lib/patterns/scheduled-lambda';
-import { type App, aws_events_targets } from 'aws-cdk-lib';
-import { AttributeType, BillingMode } from 'aws-cdk-lib/aws-dynamodb';
-import { EventBus, Rule } from 'aws-cdk-lib/aws-events';
-import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
+import { type App } from 'aws-cdk-lib';
+import { Subscription, SubscriptionProtocol, Topic } from 'aws-cdk-lib/aws-sns';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { appName } from '../../common/src/constants';
-import { CrierEventbridge } from './crier-eventbridge';
+import { createAlarms } from './alarms';
+import { connectDirectoryUpdateLambdaToCrier, createCrier } from './crier';
+import { createDynamoTables } from './dynamo';
+import { attachPoliciesToLambda, createLambdas } from './lambda';
+import { createPolicies } from './policies';
 
 export class AffiliateProductDirectory extends GuStack {
 	constructor(scope: App, id: string, props: GuStackProps) {
@@ -25,146 +19,65 @@ export class AffiliateProductDirectory extends GuStack {
 			fromSSM: true,
 			default: `/${this.stage}/${this.stack}/${appName}/capi-key`,
 		});
+		const alarmActionsEnabled = stage === 'PROD';
+		const snsTopic = new Topic(this, 'ProductDirectorySnsTopic');
 
-		const priceUpdateLambda = new GuScheduledLambda(
-			this,
-			'ProductPriceUpdateLambda',
-			{
-				app: 'product-price-update-lambda',
-				fileName: 'product-price-update-lambda.zip',
-				handler: 'index.eventHandler',
-				runtime: Runtime.NODEJS_22_X,
-				architecture: Architecture.ARM_64,
-				// Used for defining cron job execution
-				rules: [
-					// {
-					// 	// UTC time
-					// 	schedule: Schedule.cron({ hour: '17', minute: '50' }),
-					// 	description: `${appName} price update lambda cron`,
-					// 	input: undefined,
-					// },
-				],
-				// ToDo: we should add monitoring as part of observability and alarming
-				monitoringConfiguration: { noMonitoring: true },
-			},
-		);
-
-		const directoryUpdateLambda = new GuLambdaFunction(
-			this,
-			'ProductDirectoryUpdateLambda',
-			{
-				app: 'product-directory-update-lambda',
-				fileName: 'product-directory-update-lambda.zip',
-				handler: 'index.eventHandler',
-				environment: {
-					CAPI_KEY: capiKeyParam.valueAsString,
-				},
-				runtime: Runtime.NODEJS_22_X,
-				architecture: Architecture.ARM_64,
-			},
-		);
-
-		const productPricingTable = new GuDynamoTable(
-			this,
-			'ProductDirectoryPricingTable',
-			{
-				billingMode: BillingMode.PAY_PER_REQUEST,
-				devXBackups: { enabled: true },
-				partitionKey: {
-					name: 'productMerchantUrl',
-					type: AttributeType.STRING,
-				},
-				tableName: `${appName}-pricing-${stage}`,
-			},
-		);
-
-		const productArticleTable = new GuDynamoTable(
-			this,
-			'ProductDirectoryProductArticleTable',
-			{
-				billingMode: BillingMode.PAY_PER_REQUEST,
-				devXBackups: { enabled: true },
-				partitionKey: {
-					name: 'productMerchantUrl',
-					type: AttributeType.STRING,
-				},
-				sortKey: {
-					name: 'articleUrl',
-					type: AttributeType.STRING,
-				},
-				tableName: `${appName}-product-article-${stage}`,
-			},
-		);
-
-		productArticleTable.addGlobalSecondaryIndex({
-			indexName: 'articleUrl-index',
-			partitionKey: {
-				name: 'articleUrl',
-				type: AttributeType.STRING,
-			},
+		new Subscription(this, 'ProductDirectoryErrors', {
+			topic: snsTopic,
+			endpoint: 'thefilter.dev@guardian.co.uk',
+			protocol: SubscriptionProtocol.EMAIL,
 		});
 
-		const productPricingDynamoDBReadPolicy = new GuDynamoDBReadPolicy(
+		const bucketName = 'aws-frontend-store';
+
+		const { priceUpdateLambda, directoryUpdateLambda } = createLambdas(this, {
+			appName,
+			stage,
+			snsTopic,
+			alarmActionsEnabled,
+			capiKeyParam,
+			bucketName,
+		});
+
+		const { productPricingTable, productArticleTable } = createDynamoTables(
 			this,
-			'ProductPricingDynamoReadPolicy',
-			{
-				tableName: productPricingTable.tableName,
-			},
+			{ stage, appName },
 		);
 
-		const productPricingDynamoDBWritePolicy = new GuDynamoDBWritePolicy(
-			this,
-			'ProductPricingDynamoWritePolicy',
-			{
-				tableName: productPricingTable.tableName,
-			},
-		);
-
-		const productArticleDynamoDBReadPolicy = new GuDynamoDBReadPolicy(
-			this,
-			'ProductArticleDynamoReadPolicy',
-			{
-				tableName: productArticleTable.tableName,
-			},
-		);
-
-		const productArticleDynamoDBWritePolicy = new GuDynamoDBWritePolicy(
-			this,
-			'ProductArticleDynamoWritePolicy',
-			{
-				tableName: productArticleTable.tableName,
-			},
-		);
-
-		const skimlinksParameterStoreReadPolicy = new GuAllowPolicy(
-			this,
-			'SkimlinksParameterStoreReadPolicy',
-			{
-				actions: [
-					'ssm:GetParameter',
-					'ssm:GetParameters',
-					'ssm:GetParametersByPath',
-				],
-				resources: [
-					`arn:aws:ssm:${this.region}:${this.account}:parameter/CODE/frontend/${appName}/skimlinks/*`,
-				],
-			},
-		);
-
-		[
-			productPricingDynamoDBReadPolicy,
-			productPricingDynamoDBWritePolicy,
-			skimlinksParameterStoreReadPolicy,
-		].forEach((policy) => priceUpdateLambda.role?.attachInlinePolicy(policy));
-
-		[
+		const {
 			productPricingDynamoDBReadPolicy,
 			productPricingDynamoDBWritePolicy,
 			productArticleDynamoDBReadPolicy,
 			productArticleDynamoDBWritePolicy,
-		].forEach((policy) =>
-			directoryUpdateLambda.role?.attachInlinePolicy(policy),
-		);
+			parameterStoreReadPolicy,
+			metricPutPolicy,
+			s3PutPolicy,
+		} = createPolicies(this, {
+			stage,
+			appName,
+			productArticleTable,
+			productPricingTable,
+			region: this.region,
+			account: this.account,
+			bucketName,
+		});
+
+		// Attach policies
+		attachPoliciesToLambda(priceUpdateLambda, [
+			productPricingDynamoDBReadPolicy,
+			productPricingDynamoDBWritePolicy,
+			parameterStoreReadPolicy,
+			s3PutPolicy,
+			metricPutPolicy,
+		]);
+
+		attachPoliciesToLambda(directoryUpdateLambda, [
+			productPricingDynamoDBReadPolicy,
+			productPricingDynamoDBWritePolicy,
+			productArticleDynamoDBReadPolicy,
+			productArticleDynamoDBWritePolicy,
+			metricPutPolicy,
+		]);
 
 		const updatedPriceQueue = new Queue(this, 'ProductPricingUpdateQueue', {
 			queueName: `${appName}-pricing-update-${this.stage}`,
@@ -177,48 +90,18 @@ export class AffiliateProductDirectory extends GuStack {
 		});
 		updatedPriceQueue.grantSendMessages(priceUpdateLambda);
 
-		new CrierEventbridge(this, 'Crier');
-
-		const eventBusParam = new GuParameter(this, 'EventBus', {
-			fromSSM: true,
-			default: `/${this.stage}/frontend/frontend-shared-infra/crier-event-bus`,
+		const { crierEventBus, crierDlq } = createCrier(this, {
+			appName,
+			stage,
 		});
 
-		const crierEventBus = EventBus.fromEventBusName(
-			this,
-			'CrierEventBus',
-			eventBusParam.valueAsString,
-		);
-
-		new Rule(this, 'CrierConnection', {
+		connectDirectoryUpdateLambdaToCrier(this, {
+			stage,
+			lambda: directoryUpdateLambda,
 			eventBus: crierEventBus,
-			description: `Connect product-directory-update-lambda ${this.stage} to Crier`,
-			eventPattern: {
-				source: ['crier'],
-				detailType: [
-					'content-update',
-					'content-delete',
-					'content-retrievableupdate',
-				],
-			},
-			targets: [
-				new aws_events_targets.LambdaFunction(directoryUpdateLambda, {
-					// ToDo: do we want a DLQ?
-				}),
-			],
+			deadLetterQueue: crierDlq,
 		});
 
-		new Rule(this, 'BackfillConnection', {
-			eventBus: crierEventBus,
-			description: `Connect product-directory-update-lambda ${this.stage} to backfill events`,
-			eventPattern: {
-				source: ['backfill'],
-			},
-			targets: [
-				new aws_events_targets.LambdaFunction(directoryUpdateLambda, {
-					// ToDo: do we want a DLQ?
-				}),
-			],
-		});
+		createAlarms(this, { appName, alarmActionsEnabled, snsTopic, stage });
 	}
 }

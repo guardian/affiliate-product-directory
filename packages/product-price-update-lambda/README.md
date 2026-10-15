@@ -14,6 +14,42 @@ Once an event hits the lambda, the main orchestrator is the `ProductsUpdater.ts`
 
 If a request for product prices is successful (2XX) but no data can be found, this will not throw an error and a log will be made to declare this information.
 
+## Price providers
+
+Each price provider extends the `PriceProvider` base class and is given products to process/update.
+
+- **amazon** (`amazon.com`, `amazon.co.uk`) → Amazon
+- **other** (everything else) → Shopify, then Skimlinks
+
+Within a category the providers are tried in priority order, and any products a provider couldn't price fall through to the next one.  
+For example, if Shopify does not have price data, we will try Skimlinks.
+
+Credentials and config are stored in AWS SSM Parameter Store under `/<STAGE>/<STACK>/affiliate-product-directory/<provider>/...`.
+
+### Enabling/disabling a provider
+
+Each provider can be switched on or off without a deploy using this SSM parameter:
+
+```
+/<STAGE>/<STACK>/affiliate-product-directory/<provider>/enabled
+```
+
+where `<provider>` is `amazon`, `shopify` or `skimlinks`. The provider only runs when the value is `true`. A disabled provider passes all of its products on to the next provider in its category.
+
+### Amazon
+
+Uses the Amazon Creators API.
+
+### Shopify
+
+Shopify storefronts expose a public JSON version of any product page when `.json` is added to the product URL, e.g. `https://shop.com/products/foo` → `https://shop.com/products/foo.json`. **No auth is needed**, so `enabled` is the only SSM parameter for this provider.
+
+The response has the same shape as Shopify's product resource. See the [Shopify product API docs](https://shopify.dev/docs/api/admin-rest/latest/resources/product#get-products-product-id). Those docs describe the authenticated Admin API. We only use the public storefront `.json` endpoint, which returns a subset of those fields.
+
+### Skimlinks
+
+Uses the Skimlinks Product API (`https://products.skimapis.com/v1/publisher/<publisherId>/products`). Product URLs are sent per region (UK/US) in batches of 100.
+
 ## Dev setup
 
 Run the tests with

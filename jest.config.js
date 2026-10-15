@@ -17,6 +17,24 @@ const esmTsTransform = [
 	},
 ];
 
+const subpackage = (packageName) => ({
+	displayName: packageName,
+	extensionsToTreatAsEsm: ['.ts'],
+	transform: {
+		'^.+\\.tsx?$': esmTsTransform,
+	},
+	moduleNameMapper: {
+		'^@mocks/(.*)$': '<rootDir>/packages/mocks/$1',
+		'^@common/(.*)$': '<rootDir>/packages/common/src/$1',
+		'^@directory-update/(.*)$':
+			'<rootDir>/packages/product-directory-update-lambda/src/$1',
+		'^@price-update/(.*)$':
+			'<rootDir>/packages/product-price-update-lambda/src/$1',
+		'^(\\.{1,2}/.*)\\.js$': '$1',
+	},
+	testMatch: [`<rootDir>/packages/${packageName}/**/*.test.ts`],
+});
+
 export default {
 	reporters,
 	verbose: true,
@@ -30,25 +48,8 @@ export default {
 			setupFilesAfterEnv: ['<rootDir>/packages/cdk/jest.setup.js'],
 			testMatch: ['<rootDir>/packages/cdk/**/*.test.ts'],
 		},
-		{
-			displayName: 'lambda',
-			extensionsToTreatAsEsm: ['.ts'],
-			transform: {
-				'^.+\\.tsx?$': esmTsTransform,
-			},
-			moduleNameMapper: {
-				'^@mocks/(.*)$': '<rootDir>/packages/mocks/$1',
-				'^@common/(.*)$': '<rootDir>/packages/common/src/$1',
-				'^@directory-update/(.*)$':
-					'<rootDir>/packages/product-directory-update-lambda/src/$1',
-				'^@price-update/(.*)$':
-					'<rootDir>/packages/product-price-update-lambda/src/$1',
-				'^(\\.{1,2}/.*)\\.js$': '$1',
-			},
-			testMatch: [
-				'<rootDir>/packages/*lambda/**/*.test.ts',
-				'<rootDir>/packages/common/**/*.test.ts',
-			],
-		},
+		subpackage('common'),
+		subpackage('product-directory-update-lambda'),
+		subpackage('product-price-update-lambda'),
 	],
 };

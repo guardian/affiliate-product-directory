@@ -3,10 +3,11 @@
 	"version": "0.0.0",
 	"type": "module",
 	"scripts": {
-		"test": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" npx jest --detectOpenHandles --config ../../jest.config.js --selectProjects lambda",
+		"test": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" npx jest --detectOpenHandles --config ../../jest.config.js --selectProjects common",
 		"start": "tsx --env-file=.env src/run-locally.ts"
 	},
 	"devDependencies": {
+		"@aws-sdk/client-cloudwatch": "^3.1131.0",
 		"@aws-sdk/client-dynamodb": "^3.1123.0",
 		"@aws-sdk/client-ssm": "^3.1124.0",
 		"@aws-sdk/lib-dynamodb": "^3.1123.0",
