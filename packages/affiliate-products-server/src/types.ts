@@ -1,4 +1,3 @@
-import type { DynamoService } from '@common/database-service';
 import type { Product } from '@common/models';
 import type { ArticlesPage, Section, User } from '@common/tool-models';
 import { z } from 'zod';
@@ -35,9 +34,6 @@ export type ProductPrices = Map<
 
 /** Returns the directory's price for each of these URLs that is an active product with one. */
 export type GetProductPrices = (urls: string[]) => Promise<ProductPrices>;
-
-/** A stage's pricing table. The tool only ever reads it. */
-export type PricingTable = Pick<DynamoService, 'getProductsByUrl'>;
 
 /** A price found in a link's label. */
 export interface ExtractedPrice {

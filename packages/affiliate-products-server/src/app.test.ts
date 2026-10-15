@@ -12,7 +12,7 @@ import {
 } from '@mocks/DatabaseServiceMock';
 import request from 'supertest';
 import { createApp } from './app';
-import type { Auth, PricingTable } from './types';
+import type { Auth } from './types';
 
 let DynamoService: typeof DatabaseServiceModule.DynamoService;
 
@@ -138,9 +138,9 @@ describe('createApp', () => {
 	// so the manual override endpoints can use it too.
 	const pricingTable = (products: Product[] = []) =>
 		Object.assign(new DynamoService('TEST'), {
-			getProductsByUrl: jest.fn<PricingTable['getProductsByUrl']>(() =>
-				Promise.resolve(products),
-			),
+			getProductsByUrl: jest.fn<
+				DatabaseServiceModule.DynamoService['getProductsByUrl']
+			>(() => Promise.resolve(products)),
 		});
 
 	// CAPI, answering every search with searchResponse for the page asked for.

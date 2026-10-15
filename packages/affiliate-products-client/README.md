@@ -39,7 +39,7 @@ This starts the server on port 3040 and the client's Vite dev server on port 517
 
 Locally, every request is treated as coming from a fake user with a fake permission, because the Panda cookie is only sent to `*.dev-gutools.co.uk` and never to localhost.
 
-The directory's prices need AWS credentials for the frontend account: get them from Janus and set `AWS_PROFILE` to their profile, on the command line or in `packages/affiliate-products-server/.env`. Without them the server logs a warning and lists the articles without prices.
+The directory's prices need AWS credentials for the frontend account: get them from Janus and set `AWS_PROFILE` to their profile, on the command line or in `packages/affiliate-products-server/.env`. Without them the articles can't be listed.
 
 To run it the way it's deployed, with the server serving the built app, run `npm -w affiliate-products-client run build`, start the server (with `CAPI_KEY` set), and go to http://localhost:3040.
 
