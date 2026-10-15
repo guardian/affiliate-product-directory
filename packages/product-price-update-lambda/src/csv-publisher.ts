@@ -54,7 +54,9 @@ export function createChangeHandler() {
 			newestChangeAt + CLOCK_MARGIN_MS < lastReadStartedAt
 		) {
 			console.log(
-				`The prices CSV already includes these ${records.length} pricing table changes, skipping`,
+				`The prices CSV already includes these ${records.length} pricing table changes, skipping. ` +
+					`Newest change: ${new Date(newestChangeAt).toISOString()} (rounded down to the second). ` +
+					`Last full read of the table started: ${new Date(lastReadStartedAt).toISOString()}`,
 			);
 			return;
 		}
