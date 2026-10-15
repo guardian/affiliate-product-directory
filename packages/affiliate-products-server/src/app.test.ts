@@ -205,7 +205,7 @@ describe('createApp', () => {
 			price: 'not-a-number',
 		});
 
-		expect(response.status).toBe(500);
+		expect(response.status).toBe(400);
 		expect(mockGetProductPrice).not.toHaveBeenCalled();
 		expect(mockUpdateProducts).not.toHaveBeenCalled();
 	});
