@@ -6,7 +6,6 @@ import {
 	mockUpdateProducts,
 } from '@mocks/DatabaseServiceMock';
 import { buildProduct } from '@mocks/ProductFixtures';
-import { mockWriteProductsToS3File } from '@mocks/S3FileWriterMock';
 import { mockShopifyRefreshPrices } from '@mocks/ShopifyPriceProviderMock';
 import { mockSkimlinksRefreshPrices } from '@mocks/SkimlinksPriceProviderMock';
 import type * as ProductsUpdaterModule from './ProductsUpdater';
@@ -246,10 +245,9 @@ describe('refreshPrices', () => {
 		expect(mockShopifyRefreshPrices).not.toHaveBeenCalled();
 		expect(mockSkimlinksRefreshPrices).not.toHaveBeenCalled();
 		expect(mockUpdateProducts).toHaveBeenCalledWith({ items: [] });
-		expect(mockWriteProductsToS3File).toHaveBeenCalledWith([product]);
 	});
 
-	it('keeps skipped manual overrides in the S3 feed but out of provider and DB updates', async () => {
+	it('keeps skipped manual overrides out of providers', async () => {
 		const manualOverride = buildProduct({
 			productMerchantUrl: 'https://shop.example.com/products/manual',
 			updatedBy: 'manualOverride',
@@ -271,9 +269,5 @@ describe('refreshPrices', () => {
 		expect(mockUpdateProducts).toHaveBeenCalledWith({
 			items: [refreshedProduct],
 		});
-		expect(mockWriteProductsToS3File).toHaveBeenCalledWith([
-			refreshedProduct,
-			manualOverride,
-		]);
 	});
 });
