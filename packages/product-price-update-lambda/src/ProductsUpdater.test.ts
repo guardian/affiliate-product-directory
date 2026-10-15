@@ -20,8 +20,10 @@ beforeAll(async () => {
 	({ DynamoService } = await import('@common/database-service'));
 });
 
-// The time the price run starts, which is the cutoff for overwriting products.
+// The time the price run starts.
 const NOW = 1760000000000;
+// Products updated after this, 30 seconds before the run starts, aren't overwritten.
+const CUTOFF = NOW - 30_000;
 
 beforeEach(() => {
 	jest.clearAllMocks();
@@ -184,7 +186,7 @@ describe('refreshPrices', () => {
 		]);
 		expect(mockUpdateProducts).toHaveBeenCalledWith({
 			items: [shopifyProduct, nonShopifyProduct],
-			updatedAtCutoff: NOW,
+			updatedAtCutoff: CUTOFF,
 		});
 	});
 
@@ -203,7 +205,7 @@ describe('refreshPrices', () => {
 		expect(mockSkimlinksRefreshPrices).not.toHaveBeenCalled();
 		expect(mockUpdateProducts).toHaveBeenCalledWith({
 			items: [shopifyProduct],
-			updatedAtCutoff: NOW,
+			updatedAtCutoff: CUTOFF,
 		});
 	});
 
@@ -239,7 +241,7 @@ describe('refreshPrices', () => {
 
 		expect(mockUpdateProducts).toHaveBeenCalledWith({
 			items: [amazonProduct, shopifyProduct, skimlinksProduct],
-			updatedAtCutoff: NOW,
+			updatedAtCutoff: CUTOFF,
 		});
 	});
 
@@ -258,7 +260,7 @@ describe('refreshPrices', () => {
 		expect(mockSkimlinksRefreshPrices).not.toHaveBeenCalled();
 		expect(mockUpdateProducts).toHaveBeenCalledWith({
 			items: [],
-			updatedAtCutoff: NOW,
+			updatedAtCutoff: CUTOFF,
 		});
 	});
 
@@ -283,11 +285,11 @@ describe('refreshPrices', () => {
 		expect(mockSkimlinksRefreshPrices).not.toHaveBeenCalled();
 		expect(mockUpdateProducts).toHaveBeenCalledWith({
 			items: [refreshedProduct],
-			updatedAtCutoff: NOW,
+			updatedAtCutoff: CUTOFF,
 		});
 	});
 
-	it('only overwrites products last updated before the run started, as it read the table', async () => {
+	it('only overwrites products last updated over 30 seconds before the run started', async () => {
 		const product = buildProduct({
 			productMerchantUrl: 'https://shop.example.com/products/1',
 		});
@@ -305,7 +307,7 @@ describe('refreshPrices', () => {
 
 		expect(mockUpdateProducts).toHaveBeenCalledWith({
 			items: [product],
-			updatedAtCutoff: NOW,
+			updatedAtCutoff: CUTOFF,
 		});
 	});
 
