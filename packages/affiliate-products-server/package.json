@@ -5,7 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"test": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" npx jest --detectOpenHandles --config ../../jest.config.js --selectProjects affiliate-products-server",
-		"start": "tsx src/local.ts",
+		"start": "tsx --env-file-if-exists=.env src/local.ts",
 		"prebuild": "rm -rf dist",
 		"build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outdir=dist",
 		"postbuild": "cp -r ../affiliate-products-client/build dist/client && cd dist && zip -r affiliate-products-tool.zip ."

@@ -38,6 +38,38 @@ function updater() {
 	return new ProductsUpdater(new DynamoService('TEST'));
 }
 
+describe('shouldSkipManualPrice', () => {
+	it('skips an unexpired manual override', () => {
+		const product = buildProduct({
+			updatedBy: 'manualOverride',
+			expiresAt: Date.now() + 60_000,
+		});
+
+		expect(updater()['shouldSkipManualPrice'](product)).toBe(true);
+	});
+
+	it('skips a manual override with no expiry', () => {
+		const product = buildProduct({ updatedBy: 'manualOverride' });
+
+		expect(updater()['shouldSkipManualPrice'](product)).toBe(true);
+	});
+
+	it('does not skip an expired manual override', () => {
+		const product = buildProduct({
+			updatedBy: 'manualOverride',
+			expiresAt: Date.now() - 60_000,
+		});
+
+		expect(updater()['shouldSkipManualPrice'](product)).toBe(false);
+	});
+
+	it('does not skip a product without a manual override', () => {
+		const product = buildProduct({ updatedBy: 'priceProvider' });
+
+		expect(updater()['shouldSkipManualPrice'](product)).toBe(false);
+	});
+});
+
 describe('getProductsFromDB', () => {
 	it('scans the product table and returns the items', async () => {
 		const products = [
@@ -55,6 +87,44 @@ describe('getProductsFromDB', () => {
 });
 
 describe('refreshPrices', () => {
+	it('skips active manual overrides and refreshes expired manual overrides', async () => {
+		const activeManualOverride = buildProduct({
+			productMerchantUrl: 'https://shop.example.com/products/active-override',
+			updatedBy: 'manualOverride',
+			expiresAt: Date.now() + 60_000,
+		});
+		const permanentManualOverride = buildProduct({
+			productMerchantUrl: 'https://shop.example.com/products/permanent',
+			updatedBy: 'manualOverride',
+		});
+		const expiredManualOverride = buildProduct({
+			productMerchantUrl: 'https://shop.example.com/products/expired-override',
+			updatedBy: 'manualOverride',
+			expiresAt: Date.now() - 60_000,
+		});
+		const noManualOverride = buildProduct({
+			productMerchantUrl: 'https://shop.example.com/products/no-override',
+			updatedBy: 'skimlinks',
+		});
+		mockGetAllProducts.mockResolvedValue([
+			activeManualOverride,
+			permanentManualOverride,
+			expiredManualOverride,
+			noManualOverride,
+		]);
+
+		await updater().refreshPrices();
+
+		expect(mockShopifyRefreshPrices).toHaveBeenCalledWith([
+			expiredManualOverride,
+			noManualOverride,
+		]);
+		expect(mockSkimlinksRefreshPrices).toHaveBeenCalledWith([
+			expiredManualOverride,
+			noManualOverride,
+		]);
+	});
+
 	it('routes amazon products to the amazon provider and the rest to shopify then skimlinks', async () => {
 		const amazonCom = buildProduct({
 			productMerchantUrl: 'https://amazon.com/dp/1',
@@ -158,6 +228,46 @@ describe('refreshPrices', () => {
 
 		expect(mockUpdateProducts).toHaveBeenCalledWith({
 			items: [amazonProduct, shopifyProduct, skimlinksProduct],
+		});
+	});
+
+	it('keeps an active manual override with an invalid URL out of providers', async () => {
+		const product = buildProduct({
+			productMerchantUrl: 'not a valid URL',
+			updatedBy: 'manualOverride',
+			expiresAt: Date.now() + 60_000,
+		});
+		mockGetAllProducts.mockResolvedValue([product]);
+
+		await updater().refreshPrices();
+
+		expect(mockAmazonRefreshPrices).not.toHaveBeenCalled();
+		expect(mockShopifyRefreshPrices).not.toHaveBeenCalled();
+		expect(mockSkimlinksRefreshPrices).not.toHaveBeenCalled();
+		expect(mockUpdateProducts).toHaveBeenCalledWith({ items: [] });
+	});
+
+	it('keeps skipped manual overrides out of providers', async () => {
+		const manualOverride = buildProduct({
+			productMerchantUrl: 'https://shop.example.com/products/manual',
+			updatedBy: 'manualOverride',
+			expiresAt: Date.now() + 60_000,
+		});
+		const refreshedProduct = buildProduct({
+			productMerchantUrl: 'https://shop.example.com/products/refreshed',
+		});
+		mockGetAllProducts.mockResolvedValue([manualOverride, refreshedProduct]);
+		mockShopifyRefreshPrices.mockResolvedValue({
+			updated: [refreshedProduct],
+			notUpdated: [],
+		});
+
+		await updater().refreshPrices();
+
+		expect(mockShopifyRefreshPrices).toHaveBeenCalledWith([refreshedProduct]);
+		expect(mockSkimlinksRefreshPrices).not.toHaveBeenCalled();
+		expect(mockUpdateProducts).toHaveBeenCalledWith({
+			items: [refreshedProduct],
 		});
 	});
 });

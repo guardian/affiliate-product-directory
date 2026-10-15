@@ -1,7 +1,12 @@
 import path from 'path';
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
+import type { DynamoService } from '../../common/src/database-service';
 import type { Auth, User } from './auth';
+import {
+	handleOverrideDeleteRequest,
+	handleOverrideRequest,
+} from './manual-override/manualOverrideHandlers';
 
 /**
  * Serves the affiliate-products-client build and its API from a single origin,
@@ -10,11 +15,14 @@ import type { Auth, User } from './auth';
 export function createApp({
 	clientDir,
 	auth,
+	dynamoService,
 }: {
 	clientDir: string;
 	auth: Auth;
+	dynamoService: DynamoService;
 }) {
 	const app = express();
+	app.use(express.json());
 
 	app.use(async (req, res, next) => {
 		const user = await auth.authenticate(req.header('Cookie'));
@@ -34,6 +42,24 @@ export function createApp({
 		const user = res.locals.user as User;
 		const permissions = await auth.listPermissions(user.email);
 		res.json({ user, permissions });
+	});
+
+	app.post('/api/manualOverride', async (req, res) => {
+		// ToDo: check user has permission to perform this
+		const result = await handleOverrideRequest(req.body, dynamoService);
+		if (!result.ok) {
+			return res.status(result.status).json({ error: result.error });
+		}
+		return res.sendStatus(204);
+	});
+
+	app.delete('/api/manualOverride', async (req, res) => {
+		// ToDo: check user has permission to perform this
+		const result = await handleOverrideDeleteRequest(req.body, dynamoService);
+		if (!result.ok) {
+			return res.status(result.status).json({ error: result.error });
+		}
+		return res.sendStatus(204);
 	});
 
 	// Unknown API paths shouldn't fall through to the SPA's index.html.

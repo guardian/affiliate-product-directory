@@ -1,3 +1,4 @@
+import { DynamoService } from '../../common/src/database-service';
 import { createApp } from './app';
 import type { Auth } from './auth';
 
@@ -19,6 +20,7 @@ const localAuth: Auth = {
 createApp({
 	clientDir: '../affiliate-products-client/build',
 	auth: localAuth,
+	dynamoService: new DynamoService('CODE'),
 }).listen(port, () => {
 	console.log(`Listening on http://localhost:${port}`);
 });
