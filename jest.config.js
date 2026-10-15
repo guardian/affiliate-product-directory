@@ -30,6 +30,7 @@ const subpackage = (packageName) => ({
 			'<rootDir>/packages/product-directory-update-lambda/src/$1',
 		'^@price-update/(.*)$':
 			'<rootDir>/packages/product-price-update-lambda/src/$1',
+		'^@prices-csv/(.*)$': '<rootDir>/packages/product-prices-csv-lambda/src/$1',
 		'^(\\.{1,2}/.*)\\.js$': '$1',
 	},
 	testMatch: [`<rootDir>/packages/${packageName}/**/*.test.ts`],
@@ -51,6 +52,7 @@ export default {
 		subpackage('common'),
 		subpackage('product-directory-update-lambda'),
 		subpackage('product-price-update-lambda'),
+		subpackage('product-prices-csv-lambda'),
 		subpackage('affiliate-products-server'),
 	],
 };

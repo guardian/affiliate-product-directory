@@ -7,6 +7,10 @@ export interface Product {
 	updatedBy: string;
 	removed?: string;
 	removedAt?: number;
-	price: number;
-	currency: string;
+	// Both are missing until a price provider has priced the product.
+	price?: number;
+	currency?: string;
 }
+
+/** A product that a price provider has priced, in the latest run or an earlier one. */
+export type PricedProduct = Product & { price: number; currency: string };

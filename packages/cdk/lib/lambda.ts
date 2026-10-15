@@ -17,6 +17,7 @@ export function attachPoliciesToLambda(
 export function createLambdas(scope: GuStack, props: CreateLambdasProps) {
 	return {
 		priceUpdateLambda: createPriceUpdateLambda(scope, props),
+		pricesCsvLambda: createPricesCsvLambda(scope, props),
 		directoryUpdateLambda: createProductDirectoryUpdateLambda(scope, props),
 	};
 }
@@ -32,21 +33,12 @@ export interface CreateLambdasProps {
 
 export function createPriceUpdateLambda(
 	scope: GuStack,
-	{
-		appName,
-		stage,
-		snsTopic,
-		alarmActionsEnabled,
-		bucketName,
-	}: CreateLambdasProps,
+	{ appName, stage, snsTopic, alarmActionsEnabled }: CreateLambdasProps,
 ): GuScheduledLambda {
 	return new GuScheduledLambda(scope, 'ProductPriceUpdateLambda', {
 		app: 'product-price-update-lambda',
 		fileName: 'product-price-update-lambda.zip',
 		handler: 'index.eventHandler',
-		environment: {
-			BUCKET: bucketName,
-		},
 		timeout: Duration.seconds(300),
 		runtime: Runtime.NODEJS_22_X,
 		architecture: Architecture.ARM_64,
@@ -63,6 +55,41 @@ export function createPriceUpdateLambda(
 			toleratedErrorPercentage: 1, // alarm on essentially any error
 			alarmName: `${appName}-product-price-update-lambda-${stage}-alarm`,
 			alarmDescription: `Something went wrong updating the products in the ${appName} product-price-update-lambda ${stage}. Check the logs`,
+			snsTopicName: snsTopic.topicName,
+			actionsEnabled: alarmActionsEnabled,
+		},
+	});
+}
+
+/** Rewrites the prices CSV from the whole pricing table whenever the table changes. */
+export function createPricesCsvLambda(
+	scope: GuStack,
+	{
+		appName,
+		stage,
+		snsTopic,
+		alarmActionsEnabled,
+		bucketName,
+	}: CreateLambdasProps,
+): GuLambdaFunction {
+	return new GuLambdaFunction(scope, 'ProductPricesCsvLambda', {
+		app: 'product-prices-csv-lambda',
+		fileName: 'product-prices-csv-lambda.zip',
+		handler: 'index.eventHandler',
+		environment: {
+			BUCKET: bucketName,
+		},
+		timeout: Duration.seconds(60),
+		// One rewrite at a time, so a rewrite from an older read of the table can't
+		// finish after a newer one and overwrite it. csv-publisher.ts also relies on this
+		// to skip batches an earlier rewrite already covered.
+		reservedConcurrentExecutions: 1,
+		runtime: Runtime.NODEJS_22_X,
+		architecture: Architecture.ARM_64,
+		errorPercentageMonitoring: {
+			toleratedErrorPercentage: 1, // alarm on essentially any error
+			alarmName: `${appName}-product-prices-csv-lambda-${stage}-alarm`,
+			alarmDescription: `Something went wrong writing the prices CSV in the ${appName} product-prices-csv-lambda ${stage}. Check the logs`,
 			snsTopicName: snsTopic.topicName,
 			actionsEnabled: alarmActionsEnabled,
 		},

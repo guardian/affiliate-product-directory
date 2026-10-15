@@ -14,6 +14,10 @@ Once an event hits the lambda, the main orchestrator is the `ProductsUpdater.ts`
 
 If a request for product prices is successful (2XX) but no data can be found, this will not throw an error and a log will be made to declare this information.
 
+### Writing the prices CSV
+
+This lambda doesn't write the prices CSV the frontend reads. Its writes to the pricing table trigger [product-prices-csv-lambda](../product-prices-csv-lambda), which rewrites it.
+
 ## Price providers
 
 Each price provider extends the `PriceProvider` base class and is given products to process/update.

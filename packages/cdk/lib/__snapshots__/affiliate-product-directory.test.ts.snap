@@ -10,6 +10,8 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       "GuLambdaErrorPercentageAlarm",
       "GuLambdaFunction",
       "GuLambdaErrorPercentageAlarm",
+      "GuLambdaFunction",
+      "GuLambdaErrorPercentageAlarm",
       "GuDynamoTable",
       "GuDynamoTable",
       "GuDynamoDBReadPolicy",
@@ -1641,6 +1643,9 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
             "KeyType": "HASH",
           },
         ],
+        "StreamSpecification": {
+          "StreamViewType": "KEYS_ONLY",
+        },
         "TableName": "affiliate-product-directory-pricing-TEST",
         "Tags": [
           {
@@ -2107,7 +2112,6 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         "Environment": {
           "Variables": {
             "APP": "product-price-update-lambda",
-            "BUCKET": "aws-frontend-store",
             "STACK": "frontend",
             "STAGE": "TEST",
           },
@@ -2481,6 +2485,384 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       },
       "Type": "AWS::IAM::Policy",
     },
+    "ProductPricesCsvLambda4869F88D": {
+      "DependsOn": [
+        "ProductPricesCsvLambdaServiceRoleDefaultPolicy01FC220F",
+        "ProductPricesCsvLambdaServiceRole1DF7A75D",
+      ],
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Ref": "DistributionBucketName",
+          },
+          "S3Key": "frontend/TEST/product-prices-csv-lambda/product-prices-csv-lambda.zip",
+        },
+        "Environment": {
+          "Variables": {
+            "APP": "product-prices-csv-lambda",
+            "BUCKET": "aws-frontend-store",
+            "STACK": "frontend",
+            "STAGE": "TEST",
+          },
+        },
+        "Handler": "index.eventHandler",
+        "LoggingConfig": {
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
+        "ReservedConcurrentExecutions": 1,
+        "Role": {
+          "Fn::GetAtt": [
+            "ProductPricesCsvLambdaServiceRole1DF7A75D",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs22.x",
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "product-prices-csv-lambda",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "ProductPricesCsvLambdaDynamoDBEventSourceAffiliateProductDirectoryLambdaProductDirectoryPricingTable400F32A58190B10F": {
+      "Properties": {
+        "BatchSize": 10000,
+        "EventSourceArn": {
+          "Fn::GetAtt": [
+            "ProductDirectoryPricingTableB324AD24",
+            "StreamArn",
+          ],
+        },
+        "FunctionName": {
+          "Ref": "ProductPricesCsvLambda4869F88D",
+        },
+        "MaximumBatchingWindowInSeconds": 60,
+        "MaximumRetryAttempts": 2,
+        "StartingPosition": "TRIM_HORIZON",
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "product-prices-csv-lambda",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+      },
+      "Type": "AWS::Lambda::EventSourceMapping",
+    },
+    "ProductPricesCsvLambdaErrorPercentageAlarmForLambda718F4233": {
+      "Properties": {
+        "ActionsEnabled": false,
+        "AlarmActions": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:aws:sns:eu-west-1:",
+                {
+                  "Ref": "AWS::AccountId",
+                },
+                ":",
+                {
+                  "Fn::GetAtt": [
+                    "ProductDirectorySnsTopic57D490ED",
+                    "TopicName",
+                  ],
+                },
+              ],
+            ],
+          },
+        ],
+        "AlarmDescription": "Something went wrong writing the prices CSV in the affiliate-product-directory product-prices-csv-lambda TEST. Check the logs",
+        "AlarmName": "affiliate-product-directory-product-prices-csv-lambda-TEST-alarm",
+        "ComparisonOperator": "GreaterThanThreshold",
+        "EvaluationPeriods": 1,
+        "Metrics": [
+          {
+            "Expression": "100*m1/m2",
+            "Id": "expr_1",
+            "Label": {
+              "Fn::Join": [
+                "",
+                [
+                  "Error % of ",
+                  {
+                    "Ref": "ProductPricesCsvLambda4869F88D",
+                  },
+                ],
+              ],
+            },
+            "ReturnData": true,
+          },
+          {
+            "Id": "m1",
+            "MetricStat": {
+              "Metric": {
+                "Dimensions": [
+                  {
+                    "Name": "FunctionName",
+                    "Value": {
+                      "Ref": "ProductPricesCsvLambda4869F88D",
+                    },
+                  },
+                ],
+                "MetricName": "Errors",
+                "Namespace": "AWS/Lambda",
+              },
+              "Period": 60,
+              "Stat": "Sum",
+            },
+            "ReturnData": false,
+          },
+          {
+            "Id": "m2",
+            "MetricStat": {
+              "Metric": {
+                "Dimensions": [
+                  {
+                    "Name": "FunctionName",
+                    "Value": {
+                      "Ref": "ProductPricesCsvLambda4869F88D",
+                    },
+                  },
+                ],
+                "MetricName": "Invocations",
+                "Namespace": "AWS/Lambda",
+              },
+              "Period": 60,
+              "Stat": "Sum",
+            },
+            "ReturnData": false,
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-product-directory",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+        "Threshold": 1,
+        "TreatMissingData": "notBreaching",
+      },
+      "Type": "AWS::CloudWatch::Alarm",
+    },
+    "ProductPricesCsvLambdaServiceRole1DF7A75D": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "product-prices-csv-lambda",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "ProductPricesCsvLambdaServiceRoleDefaultPolicy01FC220F": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::",
+                      {
+                        "Ref": "DistributionBucketName",
+                      },
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::",
+                      {
+                        "Ref": "DistributionBucketName",
+                      },
+                      "/frontend/TEST/product-prices-csv-lambda/product-prices-csv-lambda.zip",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "ssm:GetParametersByPath",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:ssm:eu-west-1:",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":parameter/TEST/frontend/product-prices-csv-lambda",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "ssm:GetParameters",
+                "ssm:GetParameter",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:ssm:eu-west-1:",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":parameter/TEST/frontend/product-prices-csv-lambda/*",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": "dynamodb:ListStreams",
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "dynamodb:DescribeStream",
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "ProductDirectoryPricingTableB324AD24",
+                  "StreamArn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "ProductPricesCsvLambdaServiceRoleDefaultPolicy01FC220F",
+        "Roles": [
+          {
+            "Ref": "ProductPricesCsvLambdaServiceRole1DF7A75D",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
     "ProductPricingDynamoReadPolicy0B5F7C05": {
       "Properties": {
         "PolicyDocument": {
@@ -2535,6 +2917,9 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         "Roles": [
           {
             "Ref": "ProductPriceUpdateLambdaServiceRole34386223",
+          },
+          {
+            "Ref": "ProductPricesCsvLambdaServiceRole1DF7A75D",
           },
           {
             "Ref": "ProductDirectoryUpdateLambdaServiceRoleB5BDC4A1",
@@ -2649,7 +3034,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         "PolicyName": "PutS3FrontendStoreBucketObjectsPolicy1E39DF83",
         "Roles": [
           {
-            "Ref": "ProductPriceUpdateLambdaServiceRole34386223",
+            "Ref": "ProductPricesCsvLambdaServiceRole1DF7A75D",
           },
         ],
       },

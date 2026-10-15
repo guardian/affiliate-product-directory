@@ -41,6 +41,8 @@ export class DynamoService {
 			new ScanCommand({
 				TableName: this.pricingTableName,
 				ExclusiveStartKey: lastEvaluatedKey,
+				// So every write made before the scan is included.
+				ConsistentRead: true,
 			}),
 		);
 
