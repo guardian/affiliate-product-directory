@@ -140,6 +140,7 @@ describe('DynamoService', () => {
 			expect(send).toHaveBeenCalledTimes(1);
 			expect(send.mock.calls[0]![0].input).toMatchObject({
 				TableName: 'affiliate-product-directory-pricing-TEST',
+				ConsistentRead: true,
 			});
 		});
 

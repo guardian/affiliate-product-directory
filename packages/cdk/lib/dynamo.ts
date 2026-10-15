@@ -1,6 +1,10 @@
 import type { GuStack } from '@guardian/cdk/lib/constructs/core';
 import { GuDynamoTable } from '@guardian/cdk/lib/constructs/dynamodb';
-import { AttributeType, BillingMode } from 'aws-cdk-lib/aws-dynamodb';
+import {
+	AttributeType,
+	BillingMode,
+	StreamViewType,
+} from 'aws-cdk-lib/aws-dynamodb';
 
 export function createDynamoTables(
 	scope: GuStack,
@@ -24,6 +28,9 @@ function productPricingTable(
 			type: AttributeType.STRING,
 		},
 		tableName: `${appName}-pricing-${stage}`,
+		// Tells the prices CSV lambda that the table has changed. It rereads the whole
+		// table, so the stream only needs each changed item's key.
+		stream: StreamViewType.KEYS_ONLY,
 	});
 }
 

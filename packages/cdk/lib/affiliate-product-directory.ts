@@ -1,6 +1,8 @@
 import type { GuStackProps } from '@guardian/cdk/lib/constructs/core';
 import { GuParameter, GuStack } from '@guardian/cdk/lib/constructs/core';
-import { type App } from 'aws-cdk-lib';
+import { type App, Duration } from 'aws-cdk-lib';
+import { StartingPosition } from 'aws-cdk-lib/aws-lambda';
+import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { Subscription, SubscriptionProtocol, Topic } from 'aws-cdk-lib/aws-sns';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { appName } from '../../common/src/constants';
@@ -36,14 +38,15 @@ export class AffiliateProductDirectory extends GuStack {
 
 		const bucketName = 'aws-frontend-store';
 
-		const { priceUpdateLambda, directoryUpdateLambda } = createLambdas(this, {
-			appName,
-			stage,
-			snsTopic,
-			alarmActionsEnabled,
-			capiKeyParam,
-			bucketName,
-		});
+		const { priceUpdateLambda, pricesCsvLambda, directoryUpdateLambda } =
+			createLambdas(this, {
+				appName,
+				stage,
+				snsTopic,
+				alarmActionsEnabled,
+				capiKeyParam,
+				bucketName,
+			});
 
 		const { productPricingTable, productArticleTable } = createDynamoTables(
 			this,
@@ -73,9 +76,31 @@ export class AffiliateProductDirectory extends GuStack {
 			productPricingDynamoDBReadPolicy,
 			productPricingDynamoDBWritePolicy,
 			parameterStoreReadPolicy,
-			s3PutPolicy,
 			metricPutPolicy,
 		]);
+
+		attachPoliciesToLambda(pricesCsvLambda, [
+			productPricingDynamoDBReadPolicy,
+			s3PutPolicy,
+		]);
+
+		// Collects up to a minute's changes to the pricing table, then rewrites the CSV. Each
+		// stream shard is batched separately, so a burst of writes arrives as several batches;
+		// csv-publisher.ts skips those an earlier rewrite already covered, which relies on the
+		// minute's wait. Adding the event source also lets the lambda read the table's stream.
+		pricesCsvLambda.addEventSource(
+			new DynamoEventSource(productPricingTable, {
+				// A new or updated mapping can take minutes to start polling, and LATEST would
+				// skip changes made meanwhile. Replaying the stream's last 24 hours instead is
+				// harmless, as the CSV is rebuilt from the table, not from the records.
+				startingPosition: StartingPosition.TRIM_HORIZON,
+				batchSize: 10_000,
+				maxBatchingWindow: Duration.minutes(1),
+				// A dropped batch is only missed until the next change, which rewrites the
+				// whole CSV again.
+				retryAttempts: 2,
+			}),
+		);
 
 		attachPoliciesToLambda(directoryUpdateLambda, [
 			productPricingDynamoDBReadPolicy,

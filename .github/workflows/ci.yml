@@ -66,6 +66,8 @@ jobs:
               - packages/cdk/cdk.out
             product-price-update-lambda:
               - packages/product-price-update-lambda/dist/product-price-update-lambda.zip
+            product-prices-csv-lambda:
+              - packages/product-prices-csv-lambda/dist/product-prices-csv-lambda.zip
             product-directory-update-lambda:
               - packages/product-directory-update-lambda/dist/product-directory-update-lambda.zip
             affiliate-products-tool:

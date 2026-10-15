@@ -40,7 +40,6 @@ export class S3FileWriter {
 		return products.map(formatCsvProduct).join('\n');
 	}
 
-	/** Writes the given products' prices as CSV, which the frontend service reads for live prices. */
 	public async writeProductsToS3File(products: PricedProduct[]) {
 		await this.writeToS3File({
 			bucket: pathToBucket,
