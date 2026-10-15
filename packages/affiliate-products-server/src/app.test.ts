@@ -1,18 +1,29 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
+import type * as DatabaseServiceModule from '@common/database-service';
 import type { Product } from '@common/models';
 import { ArticlesPageSchema, AuthResponseSchema } from '@common/tool-models';
 import type { User } from '@common/tool-models';
 import { jest } from '@jest/globals';
+import {
+	mockGetProductPrice,
+	mockUpdateProducts,
+} from '@mocks/DatabaseServiceMock';
 import request from 'supertest';
 import { createApp } from './app';
+import type { Auth, User } from './auth';
+
+let DynamoService: typeof DatabaseServiceModule.DynamoService;
 import type { Auth, PricingTable } from './types';
 
 describe('createApp', () => {
 	let clientDir: string;
+	beforeEach(() => {
+		jest.clearAllMocks();
+	});
 
-	beforeAll(() => {
+	beforeAll(async () => {
 		clientDir = mkdtempSync(path.join(tmpdir(), 'affiliate-products-client-'));
 		mkdirSync(path.join(clientDir, 'assets'));
 		writeFileSync(path.join(clientDir, 'index.html'), '<div id="root"></div>');
@@ -20,6 +31,7 @@ describe('createApp', () => {
 			path.join(clientDir, 'assets', 'index-abc123.js'),
 			'console.log("app");',
 		);
+		({ DynamoService } = await import('@common/database-service'));
 	});
 
 	afterAll(() => {
@@ -45,6 +57,8 @@ describe('createApp', () => {
 		authenticate: () => Promise.resolve(undefined),
 	};
 
+	const app = (auth: Auth = loggedIn) =>
+		createApp({ clientDir, auth, dynamoService: new DynamoService('TEST') });
 	const loggedInWithoutAccess: Auth = {
 		...loggedIn,
 		hasAccess: () => Promise.resolve(false),
@@ -429,6 +443,11 @@ describe('createApp', () => {
 			createApp({
 				clientDir: relativeClientDir,
 				auth: loggedIn,
+				dynamoService: new DynamoService('TEST'),
+			}),
+			createApp({
+				clientDir: relativeClientDir,
+				auth: loggedIn,
 				stage: 'CODE',
 				capiKey: 'code-key',
 				dynamoService: pricingTable(),
@@ -445,5 +464,75 @@ describe('createApp', () => {
 		expect(response.status).toBe(200);
 		expect(response.headers['content-type']).toContain('javascript');
 		expect(response.headers['cache-control']).toContain('immutable');
+	});
+
+	it('sets a manual override and updates the product', async () => {
+		const product = {
+			productMerchantUrl: 'https://shop.example.com/products/123',
+			currency: 'GBP',
+			price: 10,
+			createdAt: 1,
+			region: 'GB',
+			updatedAt: 1,
+			updatedBy: 'shopify',
+		};
+		mockGetProductPrice.mockResolvedValueOnce(product);
+		mockUpdateProducts.mockResolvedValueOnce({ skipped: [] });
+		const now = Date.parse('2026-10-13T12:00:00.000Z');
+		const dateNow = jest.spyOn(Date, 'now').mockReturnValue(now);
+
+		const response = await request(app()).post('/api/manualOverride').send({
+			productMerchantUrl: product.productMerchantUrl,
+			currency: 'GBP',
+			price: 12,
+			expiryDate: '2030-01-01T00:00:00.000Z',
+		});
+
+		expect(response.status).toBe(204);
+		expect(mockGetProductPrice).toHaveBeenCalledWith(
+			product.productMerchantUrl,
+		);
+		try {
+			// Send the POST request and make the existing assertions.
+			expect(mockUpdateProducts).toHaveBeenCalledWith({
+				items: [
+					expect.objectContaining({
+						...product,
+						price: 12,
+						expiresAt: Date.parse('2030-01-01T00:00:00.000Z'),
+						updatedBy: 'manualOverride',
+						updatedAt: now,
+					}),
+				],
+			});
+		} finally {
+			dateNow.mockRestore();
+		}
+	});
+
+	it('rejects malformed manual override input', async () => {
+		const response = await request(app()).post('/api/manualOverride').send({
+			productMerchantUrl: 'https://shop.example.com/products/123',
+			currency: 'GBP',
+			price: 'not-a-number',
+		});
+
+		expect(response.status).toBe(400);
+		expect(mockGetProductPrice).not.toHaveBeenCalled();
+		expect(mockUpdateProducts).not.toHaveBeenCalled();
+	});
+
+	it('returns 401 for an unauthenticated manual override request', async () => {
+		const response = await request(app(loggedOut))
+			.post('/api/manualOverride')
+			.send({
+				productMerchantUrl: 'https://shop.example.com/products/123',
+				currency: 'GBP',
+				price: 12,
+			});
+
+		expect(response.status).toBe(401);
+		expect(mockGetProductPrice).not.toHaveBeenCalled();
+		expect(mockUpdateProducts).not.toHaveBeenCalled();
 	});
 });

@@ -7,6 +7,7 @@ import { SkimlinksPriceProvider } from '@price-update/price-providers/skimlinks/
 
 type Partner = 'amazon' | 'other';
 type CategorisedProducts = Record<Partner, Product[]>;
+const IN_FLIGHT_WRITE_MARGIN_MS = 30_000;
 
 export class ProductsUpdater {
 	/** Providers for each category, in priority order. Products a provider can't price fall through to the next. */
@@ -23,18 +24,24 @@ export class ProductsUpdater {
 	 *  Writing to the DB is what updates the prices CSV: see product-prices-csv-lambda.
 	 */
 	public async refreshPrices() {
-		const enabledProducts = await this.getProductsFromDB();
-		const categorised = this.categoriseProducts(enabledProducts);
+		const updatedAtCutoff = Date.now() - IN_FLIGHT_WRITE_MARGIN_MS;
+		const categorised = this.categoriseProducts(await this.getProductsFromDB());
 
 		const [amazonUpdated, otherUpdated] = await Promise.all([
 			this.refreshWithFallback(categorised.amazon, this.providers.amazon),
 			this.refreshWithFallback(categorised.other, this.providers.other),
 		]);
 
-		const updatedPriceProducts = [...amazonUpdated, ...otherUpdated];
-		await this.dynamoService.updateProducts({
-			items: updatedPriceProducts,
+		const allProducts = [...amazonUpdated, ...otherUpdated];
+		const { skipped } = await this.dynamoService.updateProducts({
+			items: allProducts,
+			updatedAtCutoff,
 		});
+		if (skipped.length > 0) {
+			console.log(
+				`Left ${skipped.length} product(s) as they were, as they were changed or removed during this run: ${skipped.join(', ')}`,
+			);
+		}
 	}
 
 	public async getProductsFromDB(): Promise<Product[]> {
@@ -65,8 +72,18 @@ export class ProductsUpdater {
 		return updated;
 	}
 
+	private shouldSkipManualPrice(product: Product): boolean {
+		return (
+			product.updatedBy === 'manualOverride' &&
+			(product.expiresAt === undefined || product.expiresAt > Date.now())
+		);
+	}
+
 	private categoriseProducts(products: Product[]): CategorisedProducts {
-		const categorised: CategorisedProducts = { amazon: [], other: [] };
+		const categorised: CategorisedProducts = {
+			amazon: [],
+			other: [],
+		};
 		const amazonHosts = new Set([
 			'amazon.com',
 			'www.amazon.com',
@@ -76,11 +93,20 @@ export class ProductsUpdater {
 
 		products.forEach((product) => {
 			try {
-				const hostname = new URL(
-					product.productMerchantUrl,
-				).hostname.toLowerCase();
-				const partner: Partner = amazonHosts.has(hostname) ? 'amazon' : 'other';
-				categorised[partner].push(product);
+				if (this.shouldSkipManualPrice(product)) {
+					console.log(
+						`Skipping ${product.productMerchantUrl} as it has manual override ${product.expiresAt ? `until ${product.expiresAt}` : ''}`,
+					);
+				} else {
+					const hostname = new URL(
+						product.productMerchantUrl,
+					).hostname.toLowerCase();
+					const partner: Partner = amazonHosts.has(hostname)
+						? 'amazon'
+						: 'other';
+
+					categorised[partner].push(product);
+				}
 			} catch {
 				console.log(
 					`Received invalid URL ${product.productMerchantUrl} - could not determine best affiliate partner`,

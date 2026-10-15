@@ -8,17 +8,18 @@ import {
 } from '@aws-sdk/client-dynamodb';
 import {
 	BatchGetCommand,
-	BatchWriteCommand,
 	DynamoDBDocumentClient,
+	GetCommand,
+	PutCommand,
 	ScanCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { dynamoConfig } from '@directory-update/aws-config';
-import {
-	type ExtractedDirectoryProduct,
-	getDirectoryArticleFromDynamoRecord,
-} from '@directory-update/models';
 import { chunk } from '@common/chunk';
 import type { Product } from '@common/models';
+import {
+	type ExtractedDirectoryProduct,
+	getArticleProductFromDynamoRecord,
+} from './models';
 
 export class DynamoService {
 	constructor(
@@ -122,62 +123,83 @@ export class DynamoService {
 		];
 	}
 
-	/**
-	 * Writes a batch of items to the table, chunking into groups of 25
-	 * (DynamoDB's BatchWriteItem limit). No retry on unprocessed items —
-	 * any that fail are just dropped for now.
-	 */
-	async updateProducts({ items }: { items: Product[] }): Promise<void> {
-		const BATCH_SIZE = 25;
-		const batches = chunk(items, BATCH_SIZE);
-
-		await Promise.all(
-			batches.map((batch) => this.batchUpdateProducts({ batch, attempt: 1 })),
-		);
-	}
-
-	private async batchUpdateProducts({
-		batch,
-		attempt,
-	}: {
-		batch: Product[];
-		attempt: number;
-	}): Promise<void> {
-		const MAX_ATTEMPTS = 2;
-		const resp = await this.docClient.send(
-			new BatchWriteCommand({
-				RequestItems: {
-					[this.pricingTableName]: batch.map((item) => ({
-						PutRequest: {
-							Item: item,
-						},
-					})),
+	async getProductPrice(
+		productMerchantUrl: string,
+	): Promise<Product | undefined> {
+		const response = await this.docClient.send(
+			new GetCommand({
+				TableName: this.pricingTableName,
+				Key: {
+					productMerchantUrl: productMerchantUrl,
 				},
 			}),
 		);
 
-		const unprocessed = resp.UnprocessedItems?.[this.pricingTableName];
+		return response.Item as Product | undefined;
+	}
 
-		if (!unprocessed?.length) {
-			return;
-		}
+	/**
+	 * Writes the items to the table, replacing each whole item. Each is written on its own,
+	 * 25 at a time.
+	 *
+	 * With `updatedAtCutoff`, an item is only written if the one in the table was last
+	 * updated before the cutoff (or never has been) and isn't marked removed. The URLs of
+	 * those left alone are returned.
+	 */
+	async updateProducts({
+		items,
+		updatedAtCutoff,
+	}: {
+		items: Product[];
+		updatedAtCutoff?: number;
+	}): Promise<{ skipped: string[] }> {
+		const BATCH_SIZE = 25;
+		const skipped: string[] = [];
 
-		if (attempt >= MAX_ATTEMPTS) {
-			throw new Error(
-				`${unprocessed.length} item(s) still unprocessed after ${MAX_ATTEMPTS} attempts writing to ${this.pricingTableName}`,
+		for (const batch of chunk(items, BATCH_SIZE)) {
+			const written = await Promise.all(
+				batch.map((item) => this.putProduct({ item, updatedAtCutoff })),
 			);
+			batch.forEach((item, i) => {
+				if (!written[i]) {
+					skipped.push(item.productMerchantUrl);
+				}
+			});
 		}
 
-		const retryItems = unprocessed
-			.map((req) => req.PutRequest?.Item)
-			.filter((item): item is Product => item !== undefined);
+		return { skipped };
+	}
 
-		await new Promise((resolve) => setTimeout(resolve, 500));
-
-		return this.batchUpdateProducts({
-			batch: retryItems,
-			attempt: attempt + 1,
-		});
+	/** Returns whether the item was written, rather than left alone by the condition. */
+	private async putProduct({
+		item,
+		updatedAtCutoff,
+	}: {
+		item: Product;
+		updatedAtCutoff?: number;
+	}): Promise<boolean> {
+		try {
+			await this.docClient.send(
+				new PutCommand({
+					TableName: this.pricingTableName,
+					Item: item,
+					...(updatedAtCutoff !== undefined && {
+						ConditionExpression:
+							'(attribute_not_exists(updatedAt) OR updatedAt < :updatedAtCutoff) AND (attribute_not_exists(removed) OR removed <> :removed)',
+						ExpressionAttributeValues: {
+							':updatedAtCutoff': updatedAtCutoff,
+							':removed': 'true',
+						},
+					}),
+				}),
+			);
+			return true;
+		} catch (err) {
+			if (err instanceof ConditionalCheckFailedException) {
+				return false;
+			}
+			throw err;
+		}
 	}
 
 	private async saveToDb(command: UpdateItemCommand): Promise<void> {
@@ -262,7 +284,7 @@ export class DynamoService {
 
 		const response = await this.client.send(req);
 		if (response.Items && response.Items.length > 0) {
-			const articles = response.Items.map(getDirectoryArticleFromDynamoRecord);
+			const articles = response.Items.map(getArticleProductFromDynamoRecord);
 			return articles
 				.filter((article) => !article.removed)
 				.map((article) => article.productMerchantUrl);
@@ -282,7 +304,7 @@ export class DynamoService {
 
 		const response = await this.client.send(req);
 		if (response.Items && response.Items.length > 0) {
-			const articles = response.Items.map(getDirectoryArticleFromDynamoRecord);
+			const articles = response.Items.map(getArticleProductFromDynamoRecord);
 			return articles
 				.filter((article) => !article.removed)
 				.map((article) => article.articleUrl);

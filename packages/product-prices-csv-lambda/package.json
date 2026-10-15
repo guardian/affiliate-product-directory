@@ -4,6 +4,7 @@
 	"type": "module",
 	"scripts": {
 		"test": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" npx jest --detectOpenHandles --config ../../jest.config.js --selectProjects product-prices-csv-lambda",
+		"type-check": "tsc --noEmit -p tsconfig.json",
 		"prebuild": "rm -rf dist",
 		"build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outdir=dist",
 		"postbuild": "cd dist && zip -r product-prices-csv-lambda.zip ."
