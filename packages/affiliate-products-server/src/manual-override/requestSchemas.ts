@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const ManualOverrideRequestSchema = z.object({
 	productMerchantUrl: z.string(),
-	currency: z.string(),
+	currency: z.enum(['GBP', 'USD']),
 	price: z.number(),
 	expiryDate: z.coerce.date().optional(),
 });
