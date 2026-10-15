@@ -13,5 +13,5 @@ plugins:
   intellij: []
 
 postCreateCommand:
-  - cmd: "npm ci"
+  - cmd: "mise exec -- npm ci"
     workingDirectory: "."
