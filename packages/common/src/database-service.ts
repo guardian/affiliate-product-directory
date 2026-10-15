@@ -18,7 +18,6 @@ import type { Product } from '@common/models';
 import {
 	type ExtractedDirectoryProduct,
 	getArticleProductFromDynamoRecord,
-	getPriceProductFromDynamoRecord,
 } from './models';
 
 export class DynamoService {
@@ -61,7 +60,7 @@ export class DynamoService {
 	async getProductPrice(
 		productMerchantUrl: string,
 	): Promise<Product | undefined> {
-		const response = await this.client.send(
+		const response = await this.docClient.send(
 			new GetItemCommand({
 				TableName: this.pricingTableName,
 				Key: {
@@ -70,9 +69,7 @@ export class DynamoService {
 			}),
 		);
 
-		return response.Item
-			? getPriceProductFromDynamoRecord(response.Item)
-			: undefined;
+		return response.Item as Product | undefined;
 	}
 
 	/**
