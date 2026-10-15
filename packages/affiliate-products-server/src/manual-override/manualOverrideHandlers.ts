@@ -92,6 +92,8 @@ export async function handleOverrideDeleteRequest(
 			{
 				...productDatabaseEntry,
 				expiresAt: undefined,
+				price: undefined,
+				currency: undefined,
 				updatedBy: 'manualOverrideRemoved',
 				updatedAt: Date.now(),
 			},
