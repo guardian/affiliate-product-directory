@@ -8,7 +8,12 @@ const mockGetAllProducts =
 const mockGetProductPrice =
 	jest.fn<(args: { productMerchantUrl: string }) => Promise<unknown>>();
 const mockUpdateProducts =
-	jest.fn<(args: { items: Product[] }) => Promise<void>>();
+	jest.fn<
+		(args: {
+			items: Product[];
+			updatedAtCutoff?: number;
+		}) => Promise<{ skipped: string[] }>
+	>();
 const mockSaveProduct = jest.fn<(product: unknown) => Promise<void>>();
 const mockGetProductsInArticle =
 	jest.fn<(articleUrl: string) => Promise<string[]>>();

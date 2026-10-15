@@ -24,6 +24,7 @@ export class ProductsUpdater {
 	 *  Writing to the DB is what updates the prices CSV: see product-prices-csv-lambda.
 	 */
 	public async refreshPrices() {
+		const runStartedAt = Date.now();
 		const categorised = this.categoriseProducts(await this.getProductsFromDB());
 
 		const [amazonUpdated, otherUpdated] = await Promise.all([
@@ -32,9 +33,15 @@ export class ProductsUpdater {
 		]);
 
 		const allProducts = [...amazonUpdated, ...otherUpdated];
-		await this.dynamoService.updateProducts({
+		const { skipped } = await this.dynamoService.updateProducts({
 			items: allProducts,
+			updatedAtCutoff: runStartedAt,
 		});
+		if (skipped.length > 0) {
+			console.log(
+				`Left ${skipped.length} product(s) as they were, as they were changed or removed during this run: ${skipped.join(', ')}`,
+			);
+		}
 	}
 
 	public async getProductsFromDB(): Promise<Product[]> {
@@ -76,6 +83,7 @@ export class ProductsUpdater {
 		const categorised: CategorisedProducts = {
 			amazon: [],
 			other: [],
+			manualOverride: [],
 		};
 		const amazonHosts = new Set([
 			'amazon.com',

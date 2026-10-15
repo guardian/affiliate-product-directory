@@ -165,7 +165,7 @@ describe('createApp', () => {
 			updatedBy: 'shopify',
 		};
 		mockGetProductPrice.mockResolvedValueOnce(product);
-		mockUpdateProducts.mockResolvedValueOnce(undefined);
+		mockUpdateProducts.mockResolvedValueOnce({ skipped: [] });
 		const now = Date.parse('2026-10-13T12:00:00.000Z');
 		const dateNow = jest.spyOn(Date, 'now').mockReturnValue(now);
 
