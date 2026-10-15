@@ -1,18 +1,13 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
+import type { Product } from '@common/models';
 import { ArticlesPageSchema, AuthResponseSchema } from '@common/tool-models';
-import type { ArticlesPage, User } from '@common/tool-models';
+import type { User } from '@common/tool-models';
 import { jest } from '@jest/globals';
 import request from 'supertest';
 import { createApp } from './app';
-import type {
-	Auth,
-	DataSource,
-	GetProductPrices,
-	ListArticles,
-	ProductPrices,
-} from './types';
+import type { Auth, PricingTable } from './types';
 
 describe('createApp', () => {
 	let clientDir: string;
@@ -55,43 +50,115 @@ describe('createApp', () => {
 		hasAccess: () => Promise.resolve(false),
 	};
 
-	const articlesPage = (page: number): ArticlesPage => ({
-		articles: [
-			{
-				id: 'thefilter/2026/oct/06/an-article',
-				sectionId: 'thefilter',
-				webPublicationDate: '2026-10-06T09:00:00Z',
-				webTitle: 'An article',
-				webUrl: 'https://www.theguardian.com/thefilter/2026/oct/06/an-article',
-				composerUrl: 'https://composer.example.com/content/abc123',
-				ophanUrl:
-					'https://dashboard.ophan.co.uk/info?capi-id=thefilter%2F2026%2Foct%2F06%2Fan-article',
-				products: [
-					{
-						url: 'https://shop.example/a-product',
-						label: '£27 at Shop',
-						productName: 'A product',
-						basePrice: { currencySymbol: '£', amount: 27 },
+	// CAPI's answer to a search, with one article that has one product button.
+	const searchResponse = (page: number) => ({
+		response: {
+			currentPage: page,
+			pages: 3,
+			total: 250,
+			results: [
+				{
+					id: 'thefilter/2026/oct/06/an-article',
+					sectionId: 'thefilter',
+					webPublicationDate: '2026-10-06T09:00:00Z',
+					webTitle: 'An article',
+					webUrl:
+						'https://www.theguardian.com/thefilter/2026/oct/06/an-article',
+					fields: { internalComposerCode: 'abc123' },
+					blocks: {
+						body: [
+							{
+								elements: [
+									{
+										type: 'link',
+										linkTypeData: {
+											url: 'https://shop.example/a-product',
+											label: '£27 at Shop',
+											linkType: 'product-button',
+										},
+									},
+								],
+							},
+						],
 					},
-				],
-			},
-		],
-		currentPage: page,
-		pages: 3,
-		total: 250,
+				},
+			],
+		},
 	});
 
-	const listArticles: ListArticles = (page) =>
-		Promise.resolve(articlesPage(page));
+	// The article in searchResponse, as the tool returns it from CODE.
+	const article = {
+		id: 'thefilter/2026/oct/06/an-article',
+		sectionId: 'thefilter',
+		webPublicationDate: '2026-10-06T09:00:00Z',
+		webTitle: 'An article',
+		webUrl: 'https://www.theguardian.com/thefilter/2026/oct/06/an-article',
+		composerUrl: 'https://composer.code.dev-gutools.co.uk/content/abc123',
+		ophanUrl:
+			'https://dashboard.ophan.co.uk/info?capi-id=thefilter%2F2026%2Foct%2F06%2Fan-article',
+		products: [
+			{
+				url: 'https://shop.example/a-product',
+				label: '£27 at Shop',
+				basePrice: { currencySymbol: '£', amount: 27 },
+			},
+		],
+	};
 
-	// The directory has none of the articles' products unless a test says otherwise.
-	const noProductPrices: GetProductPrices = () =>
-		Promise.resolve<ProductPrices>(new Map());
+	const pricedProduct: Product = {
+		productMerchantUrl: 'https://shop.example/a-product',
+		region: 'GB',
+		createdAt: 1750000000000,
+		currency: 'GBP',
+		price: 24.5,
+		updatedAt: 1760000000000,
+		updatedBy: 'skimlinks',
+	};
+
+	const directoryPrice = (product: Product) => ({
+		currency: product.currency,
+		price: product.price,
+		updatedAt: product.updatedAt,
+		updatedBy: product.updatedBy,
+	});
+
+	// A pricing table with these products. The directory has none of the articles'
+	// products unless a test says otherwise.
+	const pricingTable = (products: Product[] = []) => ({
+		getProductsByUrl: jest.fn<PricingTable['getProductsByUrl']>(() =>
+			Promise.resolve(products),
+		),
+	});
+
+	// CAPI, answering every search with searchResponse for the page asked for.
+	let capi: ReturnType<typeof stubCapi>;
+	const stubCapi = () =>
+		jest.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+			const page = new URL(input as string).searchParams.get('page');
+			return Promise.resolve(Response.json(searchResponse(Number(page))));
+		});
+	const capiRequests = () =>
+		capi.mock.calls.map(([input]) => new URL(input as string));
+
+	beforeEach(() => {
+		capi = stubCapi();
+	});
+
+	afterEach(() => {
+		jest.restoreAllMocks();
+	});
 
 	const app = (
 		auth: Auth = loggedIn,
-		getProductPrices: GetProductPrices = noProductPrices,
-	) => createApp({ clientDir, auth, listArticles, getProductPrices });
+		dynamoService: PricingTable = pricingTable(),
+	) =>
+		createApp({
+			clientDir,
+			auth,
+			stage: 'CODE',
+			capiKey: 'code-key',
+			dynamoService,
+		});
 
 	it.each([
 		['/api/articles', 1],
@@ -100,47 +167,44 @@ describe('createApp', () => {
 		const response = await request(app()).get(url);
 
 		expect(response.status).toBe(200);
-		expect(response.body).toEqual(articlesPage(page));
+		expect(response.body).toEqual({
+			articles: [article],
+			currentPage: page,
+			pages: 3,
+			total: 250,
+		});
+	});
+
+	it("searches the stage's CAPI with its key", async () => {
+		await request(app()).get('/api/articles?page=2');
+
+		const [search] = capiRequests();
+		expect(search?.origin).toBe('https://content.code.dev-guardianapis.com');
+		expect(search?.searchParams.get('api-key')).toBe('code-key');
+		expect(search?.searchParams.get('page')).toBe('2');
 	});
 
 	it("adds the directory's price to the articles' products", async () => {
-		const directoryPrice = {
-			currency: 'GBP',
-			price: 24.5,
-			updatedAt: 1760000000000,
-			updatedBy: 'skimlinks',
-		};
-		const getProductPrices = jest.fn<GetProductPrices>(() =>
-			Promise.resolve(
-				new Map([['https://shop.example/a-product', directoryPrice]]),
-			),
-		);
+		const dynamoService = pricingTable([pricedProduct]);
 
-		const response = await request(app(loggedIn, getProductPrices)).get(
+		const response = await request(app(loggedIn, dynamoService)).get(
 			'/api/articles',
 		);
 
 		expect(response.status).toBe(200);
 		// Only the products on the page are looked up.
-		expect(getProductPrices).toHaveBeenCalledWith([
+		expect(dynamoService.getProductsByUrl).toHaveBeenCalledWith([
 			'https://shop.example/a-product',
 		]);
 		expect(
 			ArticlesPageSchema.parse(response.body).articles[0]?.products,
-		).toEqual([
-			{
-				url: 'https://shop.example/a-product',
-				label: '£27 at Shop',
-				productName: 'A product',
-				basePrice: { currencySymbol: '£', amount: 27 },
-				...directoryPrice,
-			},
-		]);
+		).toEqual([{ ...article.products[0], ...directoryPrice(pricedProduct) }]);
 	});
 
 	it('fails, hiding the details, when the product prices cannot be read', async () => {
-		const failing: GetProductPrices = () =>
-			Promise.reject(new Error('secret details'));
+		const failing: PricingTable = {
+			getProductsByUrl: () => Promise.reject(new Error('secret details')),
+		};
 		jest.spyOn(console, 'error').mockImplementation(() => {});
 
 		const response = await request(app(loggedIn, failing)).get('/api/articles');
@@ -150,69 +214,62 @@ describe('createApp', () => {
 	});
 
 	describe('with PROD data', () => {
-		const prodPrice = {
-			currency: 'GBP',
-			price: 30,
-			updatedAt: 1760000000000,
-			updatedBy: 'skimlinks',
+		const prodProduct: Product = { ...pricedProduct, price: 30 };
+
+		const appWithProd = () => {
+			const stageTable = pricingTable([pricedProduct]);
+			const prodTable = pricingTable([prodProduct]);
+			const withProd = createApp({
+				clientDir,
+				auth: loggedIn,
+				stage: 'CODE',
+				capiKey: 'code-key',
+				dynamoService: stageTable,
+				prod: { capiKey: 'prod-key', dynamoService: prodTable },
+			});
+			return { withProd, stageTable, prodTable };
 		};
 
-		const prodData = (): DataSource => ({
-			listArticles: jest.fn<ListArticles>((page) =>
-				Promise.resolve({ ...articlesPage(page), total: 999 }),
-			),
-			getProductPrices: jest.fn<GetProductPrices>(() =>
-				Promise.resolve(
-					new Map([['https://shop.example/a-product', prodPrice]]),
-				),
-			),
-		});
-
 		it("lists PROD's articles and prices given prod=true", async () => {
-			const prod = prodData();
-			const getProductPrices = jest.fn(noProductPrices);
-			const listArticlesSpy = jest.fn(listArticles);
+			const { withProd, stageTable, prodTable } = appWithProd();
 
-			const response = await request(
-				createApp({
-					clientDir,
-					auth: loggedIn,
-					listArticles: listArticlesSpy,
-					getProductPrices,
-					prodData: prod,
-				}),
-			).get('/api/articles?page=2&section=thefilter&prod=true');
+			const response = await request(withProd).get(
+				'/api/articles?page=2&section=thefilter&prod=true',
+			);
 
 			expect(response.status).toBe(200);
-			const page = ArticlesPageSchema.parse(response.body);
-			expect(page.total).toBe(999);
-			expect(page.articles[0]?.products[0]).toMatchObject(prodPrice);
-			expect(prod.listArticles).toHaveBeenCalledWith(2, 'thefilter');
-			expect(prod.getProductPrices).toHaveBeenCalledWith([
-				'https://shop.example/a-product',
+			const [search, ...otherSearches] = capiRequests();
+			expect(otherSearches).toEqual([]);
+			expect(search?.origin).toBe('https://content.guardianapis.com');
+			expect(search?.searchParams.get('api-key')).toBe('prod-key');
+			expect(search?.searchParams.get('page')).toBe('2');
+			expect(search?.searchParams.get('section')).toBe('thefilter');
+
+			const [prodArticle] = ArticlesPageSchema.parse(response.body).articles;
+			expect(prodArticle?.composerUrl).toBe(
+				'https://composer.gutools.co.uk/content/abc123',
+			);
+			expect(prodArticle?.products).toEqual([
+				{ ...article.products[0], ...directoryPrice(prodProduct) },
 			]);
-			// The stage's own data isn't read.
-			expect(listArticlesSpy).not.toHaveBeenCalled();
-			expect(getProductPrices).not.toHaveBeenCalled();
+			expect(prodTable.getProductsByUrl).toHaveBeenCalled();
+			expect(stageTable.getProductsByUrl).not.toHaveBeenCalled();
 		});
 
-		it("lists the stage's own articles without prod=true", async () => {
-			const prod = prodData();
+		it("lists the stage's own articles and prices without prod=true", async () => {
+			const { withProd, stageTable, prodTable } = appWithProd();
 
-			const response = await request(
-				createApp({
-					clientDir,
-					auth: loggedIn,
-					listArticles,
-					getProductPrices: noProductPrices,
-					prodData: prod,
-				}),
-			).get('/api/articles');
+			const response = await request(withProd).get('/api/articles');
 
 			expect(response.status).toBe(200);
-			expect(response.body).toEqual(articlesPage(1));
-			expect(prod.listArticles).not.toHaveBeenCalled();
-			expect(prod.getProductPrices).not.toHaveBeenCalled();
+			expect(capiRequests().map((search) => search.origin)).toEqual([
+				'https://content.code.dev-guardianapis.com',
+			]);
+			expect(
+				ArticlesPageSchema.parse(response.body).articles[0]?.products,
+			).toEqual([{ ...article.products[0], ...directoryPrice(pricedProduct) }]);
+			expect(stageTable.getProductsByUrl).toHaveBeenCalled();
+			expect(prodTable.getProductsByUrl).not.toHaveBeenCalled();
 		});
 	});
 
@@ -220,6 +277,7 @@ describe('createApp', () => {
 		const response = await request(app()).get('/api/articles?prod=true');
 
 		expect(response.status).toBe(400);
+		expect(capi).not.toHaveBeenCalled();
 	});
 
 	it.each(['false', '1', 'TRUE', ''])('rejects prod=%s', async (prod) => {
@@ -235,26 +293,15 @@ describe('createApp', () => {
 	});
 
 	it.each([
-		['/api/articles?page=2', undefined],
+		['/api/articles?page=2', 'thefilter|thefilter-us'],
 		['/api/articles?page=2&section=thefilter', 'thefilter'],
 		['/api/articles?page=2&section=thefilter-us', 'thefilter-us'],
 	])('passes the section from %s', async (url, section) => {
-		const requests: Array<[number, string | undefined]> = [];
-		const recordingListArticles: ListArticles = (page, requestedSection) => {
-			requests.push([page, requestedSection]);
-			return Promise.resolve(articlesPage(page));
-		};
+		await request(app()).get(url);
 
-		await request(
-			createApp({
-				clientDir,
-				auth: loggedIn,
-				listArticles: recordingListArticles,
-				getProductPrices: noProductPrices,
-			}),
-		).get(url);
-
-		expect(requests).toEqual([[2, section]]);
+		const [search] = capiRequests();
+		expect(search?.searchParams.get('section')).toBe(section);
+		expect(search?.searchParams.get('page')).toBe('2');
 	});
 
 	it.each(['uk', 'us', 'sport', 'TheFilter', '', 'thefilter,thefilter-us'])(
@@ -382,8 +429,9 @@ describe('createApp', () => {
 			createApp({
 				clientDir: relativeClientDir,
 				auth: loggedIn,
-				listArticles,
-				getProductPrices: noProductPrices,
+				stage: 'CODE',
+				capiKey: 'code-key',
+				dynamoService: pricingTable(),
 			}),
 		).get('/some/deep/link');
 

@@ -1,14 +1,43 @@
 import path from 'path';
+import { getCapiBaseUrl } from '@common/config';
 import { SectionSchema } from '@common/tool-models';
 import type { AuthResponse, User } from '@common/tool-models';
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
-import { attachProductPrices, productUrls } from './productPrices';
-import type { Auth, DataSource, GetProductPrices, ListArticles } from './types';
+import { createCapiArticles, getComposerBaseUrl } from './capi';
+import {
+	attachProductPrices,
+	createProductPrices,
+	productUrls,
+} from './productPrices';
+import type { Auth, PricingTable } from './types';
 
 const noAccessMessage =
 	"You don't have permission to access the affiliate products tool.";
+
+/**
+ * Lists a stage's articles from its CAPI, linking to its Composer, with their prices from
+ * its pricing table, read on every request so nothing is cached between them.
+ */
+const readStage = ({
+	stage,
+	capiKey,
+	dynamoService,
+}: {
+	stage: string;
+	capiKey: string;
+	dynamoService: PricingTable;
+}) => ({
+	listArticles: createCapiArticles({
+		baseUrl: getCapiBaseUrl(stage),
+		apiKey: capiKey,
+		composerBaseUrl: getComposerBaseUrl(stage),
+	}),
+	getProductPrices: createProductPrices((urls) =>
+		dynamoService.getProductsByUrl(urls),
+	),
+});
 
 /**
  * Serves the affiliate-products-client build and its API from a single origin,
@@ -17,18 +46,24 @@ const noAccessMessage =
 export function createApp({
 	clientDir,
 	auth,
-	listArticles,
-	getProductPrices,
-	prodData,
+	stage,
+	capiKey,
+	dynamoService,
+	prod,
 }: {
 	clientDir: string;
 	auth: Auth;
-	listArticles: ListArticles;
-	getProductPrices: GetProductPrices;
-	/** PROD's articles and prices, listed instead of the stage's own when asked for with prod=true. */
-	prodData?: DataSource;
+	/** The stage whose CAPI, Composer and pricing table the articles come from by default. */
+	stage: string;
+	capiKey: string;
+	dynamoService: PricingTable;
+	/** PROD's CAPI key and pricing table, used instead when asked for with prod=true. */
+	prod?: { capiKey: string; dynamoService: PricingTable };
 }) {
 	const app = express();
+
+	const stageData = readStage({ stage, capiKey, dynamoService });
+	const prodData = prod && readStage({ stage: 'PROD', ...prod });
 
 	app.use(async (req, res, next) => {
 		const isApiRequest = req.path.startsWith('/api/');
@@ -75,14 +110,12 @@ export function createApp({
 			});
 			return;
 		}
-		const prod = z.literal('true').optional().safeParse(req.query.prod);
-		if (!prod.success) {
+		const prodParam = z.literal('true').optional().safeParse(req.query.prod);
+		if (!prodParam.success) {
 			res.status(400).json({ error: 'prod must be true, or left out' });
 			return;
 		}
-		const dataSource = prod.data
-			? prodData
-			: { listArticles, getProductPrices };
+		const dataSource = prodParam.data ? prodData : stageData;
 		// Fails rather than listing this stage's articles as if they were PROD's.
 		if (!dataSource) {
 			res.status(400).json({ error: "PROD's articles can't be listed here" });
