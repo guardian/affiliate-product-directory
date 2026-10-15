@@ -4,13 +4,13 @@ import type { Tag } from '@guardian/content-api-models/v1/tag';
 const FILTER_US_SERIES_TAG_ID = 'thefilter-us/series/thefilter-us';
 const FILTER_UK_SERIES_TAG_ID = 'thefilter/series/the-filter';
 
-const FILTER_TAGs = [FILTER_UK_SERIES_TAG_ID, FILTER_US_SERIES_TAG_ID];
+const FILTER_TAGS = [FILTER_UK_SERIES_TAG_ID, FILTER_US_SERIES_TAG_ID];
 
 export const isFilterArticleByTags = (tags: Tag[]) =>
-	tags.some((tag) => FILTER_TAGs.includes(tag.id));
+	tags.some((tag) => FILTER_TAGS.includes(tag.id));
 
 export const getRegionFromTags = (tags: Tag[]): Region | undefined => {
-	const filterTag = tags.find((tag) => FILTER_TAGs.includes(tag.id));
+	const filterTag = tags.find((tag) => FILTER_TAGS.includes(tag.id));
 
 	if (filterTag === undefined) {
 		// This means we have a non-Filter article
