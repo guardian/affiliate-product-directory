@@ -5,7 +5,7 @@ import type { PriceProvider } from '@price-update/price-providers/PriceProvider'
 import { ShopifyPriceProvider } from '@price-update/price-providers/shopify/ShopifyPriceProvider';
 import { SkimlinksPriceProvider } from '@price-update/price-providers/skimlinks/SkimlinksPriceProvider';
 
-type Partner = 'amazon' | 'other';
+type Partner = 'amazon' | 'other' | 'manualOverride';
 type CategorisedProducts = Record<Partner, Product[]>;
 
 export class ProductsUpdater {
@@ -13,6 +13,7 @@ export class ProductsUpdater {
 	private providers: Record<Partner, PriceProvider[]> = {
 		amazon: [new AmazonPriceProvider()],
 		other: [new ShopifyPriceProvider(), new SkimlinksPriceProvider()],
+		manualOverride: [],
 	};
 
 	constructor(private readonly dynamoService: DynamoService) {}
