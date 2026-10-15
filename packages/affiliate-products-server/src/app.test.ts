@@ -12,10 +12,9 @@ import {
 } from '@mocks/DatabaseServiceMock';
 import request from 'supertest';
 import { createApp } from './app';
-import type { Auth, User } from './auth';
+import type { Auth, PricingTable } from './types';
 
 let DynamoService: typeof DatabaseServiceModule.DynamoService;
-import type { Auth, PricingTable } from './types';
 
 describe('createApp', () => {
 	let clientDir: string;
@@ -57,8 +56,6 @@ describe('createApp', () => {
 		authenticate: () => Promise.resolve(undefined),
 	};
 
-	const app = (auth: Auth = loggedIn) =>
-		createApp({ clientDir, auth, dynamoService: new DynamoService('TEST') });
 	const loggedInWithoutAccess: Auth = {
 		...loggedIn,
 		hasAccess: () => Promise.resolve(false),
@@ -137,12 +134,14 @@ describe('createApp', () => {
 	});
 
 	// A pricing table with these products. The directory has none of the articles'
-	// products unless a test says otherwise.
-	const pricingTable = (products: Product[] = []) => ({
-		getProductsByUrl: jest.fn<PricingTable['getProductsByUrl']>(() =>
-			Promise.resolve(products),
-		),
-	});
+	// products unless a test says otherwise. The rest of it is the mocked DynamoService,
+	// so the manual override endpoints can use it too.
+	const pricingTable = (products: Product[] = []) =>
+		Object.assign(new DynamoService('TEST'), {
+			getProductsByUrl: jest.fn<PricingTable['getProductsByUrl']>(() =>
+				Promise.resolve(products),
+			),
+		});
 
 	// CAPI, answering every search with searchResponse for the page asked for.
 	let capi: ReturnType<typeof stubCapi>;
@@ -164,7 +163,7 @@ describe('createApp', () => {
 
 	const app = (
 		auth: Auth = loggedIn,
-		dynamoService: PricingTable = pricingTable(),
+		dynamoService: DatabaseServiceModule.DynamoService = pricingTable(),
 	) =>
 		createApp({
 			clientDir,
@@ -216,9 +215,8 @@ describe('createApp', () => {
 	});
 
 	it('fails, hiding the details, when the product prices cannot be read', async () => {
-		const failing: PricingTable = {
-			getProductsByUrl: () => Promise.reject(new Error('secret details')),
-		};
+		const failing = pricingTable();
+		failing.getProductsByUrl.mockRejectedValue(new Error('secret details'));
 		jest.spyOn(console, 'error').mockImplementation(() => {});
 
 		const response = await request(app(loggedIn, failing)).get('/api/articles');
@@ -440,11 +438,6 @@ describe('createApp', () => {
 	it('serves the app when given a relative client directory', async () => {
 		const relativeClientDir = path.relative(process.cwd(), clientDir);
 		const response = await request(
-			createApp({
-				clientDir: relativeClientDir,
-				auth: loggedIn,
-				dynamoService: new DynamoService('TEST'),
-			}),
 			createApp({
 				clientDir: relativeClientDir,
 				auth: loggedIn,
