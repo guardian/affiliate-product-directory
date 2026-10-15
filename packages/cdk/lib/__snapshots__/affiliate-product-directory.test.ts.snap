@@ -2561,7 +2561,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         },
         "MaximumBatchingWindowInSeconds": 60,
         "MaximumRetryAttempts": 2,
-        "StartingPosition": "LATEST",
+        "StartingPosition": "TRIM_HORIZON",
         "Tags": [
           {
             "Key": "App",

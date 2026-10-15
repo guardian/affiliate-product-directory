@@ -90,7 +90,10 @@ export class AffiliateProductDirectory extends GuStack {
 		// minute's wait. Adding the event source also lets the lambda read the table's stream.
 		pricesCsvLambda.addEventSource(
 			new DynamoEventSource(productPricingTable, {
-				startingPosition: StartingPosition.LATEST,
+				// A new or updated mapping can take minutes to start polling, and LATEST would
+				// skip changes made meanwhile. Replaying the stream's last 24 hours instead is
+				// harmless, as the CSV is rebuilt from the table, not from the records.
+				startingPosition: StartingPosition.TRIM_HORIZON,
 				batchSize: 10_000,
 				maxBatchingWindow: Duration.minutes(1),
 				// A dropped batch is only missed until the next change, which rewrites the
