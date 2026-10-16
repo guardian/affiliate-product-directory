@@ -121,7 +121,7 @@ const toggleStyles = (expanded: boolean) => css`
 `;
 
 const titleStyles = css`
-	${convertTypographyToEmotionStringStyle(semanticTypography.bodyBoldMd)};
+	${convertTypographyToEmotionStringStyle(semanticTypography.bodyBoldSm)};
 	color: ${semanticColors.text.link};
 `;
 
