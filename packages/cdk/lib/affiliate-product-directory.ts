@@ -136,7 +136,22 @@ export class AffiliateProductDirectory extends GuStack {
 		createAlarms(this, { appName, alarmActionsEnabled, snsTopic, stage });
 
 		if (props.toolDomainName) {
-			createTool(this, { domainName: props.toolDomainName });
+			createTool(this, {
+				domainName: props.toolDomainName,
+				capiKeyParam,
+				productPricingReadPolicy: productPricingDynamoDBReadPolicy,
+				// PROD's tool always shows PROD's data. Elsewhere it can also show PROD's, read-only.
+				prodData:
+					stage === 'PROD'
+						? undefined
+						: {
+								capiKeyParam: new GuParameter(this, 'prodCapiKey', {
+									fromSSM: true,
+									default: `/PROD/${this.stack}/${appName}/capi-key`,
+								}),
+								pricingTableName: `${appName}-pricing-PROD`,
+							},
+			});
 		}
 	}
 }
