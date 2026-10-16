@@ -3,27 +3,9 @@ import {
 	PanDomainAuthentication,
 } from '@guardian/pan-domain-node';
 import { init as initPermissions } from '@guardian/permissions-client';
+import type { Auth } from './types';
 
-export interface User {
-	email: string;
-	firstName: string;
-	lastName: string;
-	avatarUrl?: string;
-}
-
-/** Returns the user a request's cookies belong to, or undefined if they aren't logged in. */
-export type Authenticate = (
-	cookieHeader: string | undefined,
-) => Promise<User | undefined>;
-
-/** Returns the names of the permissions granted to a user in the permissions service. */
-export type ListPermissions = (email: string) => Promise<string[]>;
-
-export interface Auth {
-	authenticate: Authenticate;
-	listPermissions: ListPermissions;
-	loginUrl: string;
-}
+const requiredPermission = 'composer_access';
 
 const pandaDomains: Record<string, string> = {
 	CODE: 'code.dev-gutools.co.uk',
@@ -48,7 +30,7 @@ export function createPandaAuth(stage: string): Auth {
 		guardianValidation,
 	);
 
-	const { listUserPermissions } = initPermissions({ stage });
+	const { hasPermission, listUserPermissions } = initPermissions({ stage });
 
 	return {
 		authenticate: async (cookieHeader) => {
@@ -59,6 +41,7 @@ export function createPandaAuth(stage: string): Auth {
 			const { email, firstName, lastName, avatarUrl } = result.user;
 			return { email, firstName, lastName, avatarUrl };
 		},
+		hasAccess: (email) => hasPermission(requiredPermission, email),
 		listPermissions: listUserPermissions,
 		loginUrl: `https://login.${pandaDomain}/login`,
 	};

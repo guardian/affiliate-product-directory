@@ -7,6 +7,7 @@ import {
 	UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
 import {
+	BatchGetCommand,
 	DynamoDBDocumentClient,
 	GetCommand,
 	PutCommand,
@@ -57,6 +58,69 @@ export class DynamoService {
 			lastEvaluatedKey: response.LastEvaluatedKey,
 		});
 		return [...items, ...remainingItems];
+	}
+
+	/**
+	 * Fetches the products with these URLs from the price table. Reads are strongly
+	 * consistent, so a product written just before is returned as written. URLs the
+	 * table doesn't have are left out.
+	 */
+	async getProductsByUrl(urls: string[]): Promise<Product[]> {
+		// BatchGetItem takes at most 100 keys, and rejects a key asked for twice.
+		const BATCH_SIZE = 100;
+		const batches = chunk([...new Set(urls)], BATCH_SIZE);
+
+		const results = await Promise.all(
+			batches.map((batch) =>
+				this.batchGetProducts({ urls: batch, attempt: 1 }),
+			),
+		);
+		return results.flat();
+	}
+
+	private async batchGetProducts({
+		urls,
+		attempt,
+	}: {
+		urls: string[];
+		attempt: number;
+	}): Promise<Product[]> {
+		const MAX_ATTEMPTS = 2;
+		const resp = await this.docClient.send(
+			new BatchGetCommand({
+				RequestItems: {
+					[this.pricingTableName]: {
+						Keys: urls.map((productMerchantUrl) => ({ productMerchantUrl })),
+						ConsistentRead: true,
+					},
+				},
+			}),
+		);
+
+		const items = (resp.Responses?.[this.pricingTableName] ?? []) as Product[];
+		const unprocessedUrls = (
+			resp.UnprocessedKeys?.[this.pricingTableName]?.Keys ?? []
+		).map((key) => key.productMerchantUrl as string);
+
+		if (!unprocessedUrls.length) {
+			return items;
+		}
+
+		if (attempt >= MAX_ATTEMPTS) {
+			throw new Error(
+				`${unprocessedUrls.length} item(s) still unprocessed after ${MAX_ATTEMPTS} attempts reading from ${this.pricingTableName}`,
+			);
+		}
+
+		await new Promise((resolve) => setTimeout(resolve, 500));
+
+		return [
+			...items,
+			...(await this.batchGetProducts({
+				urls: unprocessedUrls,
+				attempt: attempt + 1,
+			})),
+		];
 	}
 
 	async getProductPrice(

@@ -171,6 +171,26 @@ describe('refreshPrices', () => {
 		expect(result).toEqual({ updated: [matched], notUpdated: [unmatched] });
 	});
 
+	it("does not update a product priced in another region's currency", async () => {
+		const product = buildProduct({
+			productMerchantUrl: 'https://johnlewis.com/p/1',
+			region: 'GB',
+			price: 10,
+			currency: 'GBP',
+		});
+		const before = { ...product };
+		mockFetch.mockResolvedValue(
+			jsonResponse({
+				results: { 'https://johnlewis.com/p/1': [match(24.5, 'USD')] },
+			}),
+		);
+
+		const result = await refreshPrices([product]);
+
+		expect(result).toEqual({ updated: [], notUpdated: [before] });
+		expect(result.notUpdated[0]).toBe(product);
+	});
+
 	it('skips products that come back with an empty match array', async () => {
 		const product = buildProduct({
 			productMerchantUrl: 'https://johnlewis.com/p/1',
@@ -265,7 +285,7 @@ describe('request construction', () => {
 			)
 			.mockResolvedValueOnce(
 				jsonResponse({
-					results: { 'https://johnlewis.com/p/149': [match(2, 'USD')] },
+					results: { 'https://johnlewis.com/p/149': [match(2, 'GBP')] },
 				}),
 			);
 
@@ -275,7 +295,7 @@ describe('request construction', () => {
 			result.updated.map((p) => [p.productMerchantUrl, p.price, p.currency]),
 		).toEqual([
 			['https://johnlewis.com/p/0', 1, 'GBP'],
-			['https://johnlewis.com/p/149', 2, 'USD'],
+			['https://johnlewis.com/p/149', 2, 'GBP'],
 		]);
 	});
 });
