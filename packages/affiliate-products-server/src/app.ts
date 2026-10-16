@@ -1,12 +1,15 @@
 import path from 'path';
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
+import { getPreviewCapiBaseUrl } from '../../common/src/config';
 import type { DynamoService } from '../../common/src/database-service';
 import type { Auth, User } from './auth';
 import {
 	handleOverrideDeleteRequest,
 	handleOverrideRequest,
 } from './manual-override/manualOverrideHandlers';
+import { handlePreviewRequest } from './preview/previewRequestHandler';
+import { PreviewRequest } from './preview/requestSchema';
 
 /**
  * Serves the affiliate-products-client build and its API from a single origin,
@@ -56,6 +59,23 @@ export function createApp({
 	app.delete('/api/manualOverride', async (req, res) => {
 		// ToDo: check user has permission to perform this
 		const result = await handleOverrideDeleteRequest(req.body, dynamoService);
+		if (!result.ok) {
+			return res.status(result.status).json({ error: result.error });
+		}
+		return res.sendStatus(204);
+	});
+
+	app.get('/api/preview', async (req, res) => {
+		// ToDo: check user has permission to perform this
+		const testBody: PreviewRequest = {
+			previewArticleID:
+				'thefilter/2025/nov/15/best-christmas-gifts-ideas-filter-uk-2025',
+		};
+		const result = await handlePreviewRequest(
+			testBody,
+			previewCapiBaseUrl,
+			//	dynamoService,
+		);
 		if (!result.ok) {
 			return res.status(result.status).json({ error: result.error });
 		}
