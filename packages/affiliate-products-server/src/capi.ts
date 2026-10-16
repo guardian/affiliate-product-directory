@@ -1,4 +1,4 @@
-import { SectionSchema } from '@common/tool-models';
+import { articlesPageSize, SectionSchema } from '@common/tool-models';
 import { extractProductLinks } from './products';
 import { type ListArticles, SearchResponseSchema } from './types';
 
@@ -25,7 +25,7 @@ export function createCapiArticles({
 		const params = new URLSearchParams({
 			section: section ?? SectionSchema.options.join('|'),
 			'order-by': 'newest',
-			'page-size': '25',
+			'page-size': String(articlesPageSize),
 			page: String(page),
 			'show-fields': 'internalComposerCode',
 			// The body as structured elements, which the product links are read from.

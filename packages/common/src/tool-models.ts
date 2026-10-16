@@ -7,6 +7,9 @@ import { z } from 'zod';
 /** The CAPI sections the tool lists articles from. */
 export const SectionSchema = z.enum(['thefilter', 'thefilter-us']);
 
+/** How many articles are listed on each page. */
+export const articlesPageSize = 25;
+
 /** A link to a product in an article: a product button, or a link on a product card. */
 export const ProductLinkSchema = z.object({
 	url: z.string(),

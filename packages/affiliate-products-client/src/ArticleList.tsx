@@ -1,6 +1,11 @@
 import type { Article } from '@common/tool-models';
 import { css } from '@emotion/react';
-import { palette, space, textSansBold14 } from '@guardian/source/foundations';
+import {
+	semanticColors,
+	semanticSpacing,
+	semanticTypography,
+} from '@guardian/stand';
+import { convertTypographyToEmotionStringStyle } from '@guardian/stand/utils';
 import { articleColumnsStyles, ArticleRow } from './ArticleRow';
 
 const listStyles = css`
@@ -11,10 +16,10 @@ const listStyles = css`
 
 const headerStyles = css`
 	${articleColumnsStyles};
-	${textSansBold14};
-	padding: ${space[2]}px 0;
-	border-bottom: 2px solid ${palette.neutral[60]};
-	color: ${palette.neutral[46]};
+	${convertTypographyToEmotionStringStyle(semanticTypography.headingXs)};
+	padding: ${semanticSpacing.stackXs} 0;
+	border-bottom: 2px solid ${semanticColors.border.strong};
+	color: ${semanticColors.text.weak};
 `;
 
 const ArticleListHeader = () => (

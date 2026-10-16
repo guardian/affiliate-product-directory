@@ -1,6 +1,17 @@
 import { css, Global } from '@emotion/react';
-import { space, textSans15 } from '@guardian/source/foundations';
-import { InlineError, Spinner } from '@guardian/source/react-components';
+import {
+	semanticColors,
+	semanticSpacing,
+	semanticTypography,
+} from '@guardian/stand';
+import { InlineMessage } from '@guardian/stand/InlineMessage';
+import { Layout } from '@guardian/stand/Layout';
+import { Link } from '@guardian/stand/Link';
+import { Typography } from '@guardian/stand/Typography';
+import {
+	convertTypographyToEmotionStringStyle,
+	GlobalResetStyles,
+} from '@guardian/stand/utils';
 import { useEffect, useState } from 'react';
 import { fetchArticles } from './api/articles';
 import { fetchUserName } from './api/auth';
@@ -8,28 +19,34 @@ import { ArticleList } from './ArticleList';
 import { useListParams } from './hooks/useListParams';
 import { Pagination } from './Pagination';
 import { Sidebar } from './Sidebar';
-import { toolPalette } from './style';
 import { TopToolbar } from './TopToolbar';
 import type { ArticlesState, ListParams } from './types';
 
 const globalStyles = css`
+	${GlobalResetStyles};
+
+	/* Stand's title typography is set in the bold Guardian Headline. */
+	@font-face {
+		font-family: 'GH Guardian Headline';
+		src: url('https://assets.guim.co.uk/static/frontend/fonts/guardian-headline/full-not-hinted/GHGuardianHeadline-Bold.woff2')
+			format('woff2');
+		font-weight: 700;
+		font-style: normal;
+		font-display: swap;
+	}
+
 	body {
-		${textSans15};
+		${convertTypographyToEmotionStringStyle(semanticTypography.bodyMd)};
 		margin: 0;
-		color: ${toolPalette.text};
-		background-color: #fff;
+		color: ${semanticColors.text.strong};
+		background-color: ${semanticColors.bg.base};
 	}
 `;
 
-const bodyStyles = css`
-	display: flex;
-	align-items: flex-start;
-`;
-
 const mainStyles = css`
-	flex: 1 1 auto;
 	min-width: 0;
-	padding: 0 ${space[4]}px;
+	padding-left: ${semanticSpacing.stackMd};
+	padding-right: ${semanticSpacing.stackMd};
 `;
 
 export const App = () => {
@@ -76,19 +93,28 @@ export const App = () => {
 	const renderArticles = () => {
 		switch (articles.status) {
 			case 'loading':
-				return <Spinner size="small" />;
+				return (
+					<Typography element="p" variant="bodyMd">
+						Loading articles…
+					</Typography>
+				);
 			case 'unauthenticated':
 				return (
-					<p>
+					<InlineMessage level="information">
 						Your login has expired.{' '}
-						<a href={`${window.location.pathname}${window.location.search}`}>
+						<Link
+							href={`${window.location.pathname}${window.location.search}`}
+							typography="bodyMd"
+						>
 							Reload the page
-						</a>{' '}
+						</Link>{' '}
 						to log in again.
-					</p>
+					</InlineMessage>
 				);
 			case 'error':
-				return <InlineError>Could not load articles.</InlineError>;
+				return (
+					<InlineMessage level="error">Could not load articles.</InlineMessage>
+				);
 			case 'loaded':
 				return (
 					<>
@@ -103,16 +129,20 @@ export const App = () => {
 	return (
 		<>
 			<Global styles={globalStyles} />
-			<TopToolbar userName={userName} />
-			<div css={bodyStyles}>
+			<Layout>
+				<Layout.TopBar>
+					<TopToolbar userName={userName} />
+				</Layout.TopBar>
 				<Sidebar
 					section={section}
 					onSectionChange={setSection}
 					prod={prod}
 					onProdChange={setProd}
 				/>
-				<main css={mainStyles}>{renderArticles()}</main>
-			</div>
+				<Layout.Main paddingTop={false} cssOverrides={mainStyles}>
+					{renderArticles()}
+				</Layout.Main>
+			</Layout>
 		</>
 	);
 };

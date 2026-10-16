@@ -1,11 +1,11 @@
 export const ComposerIcon = () => (
-	<svg viewBox="0 0 128 128" aria-hidden="true">
+	<svg viewBox="0 0 128 128" fill="currentColor" aria-hidden="true">
 		<path d="M12.2 64.8C12.2 16.6 45.2 0 76.8 0c15.3 0 28 2.4 35.6 5.4l1.2 33.4H98l-8-19.2c-3.5-1.5-8.3-3-14.2-3C58.4 16.6 49.6 29 49.6 62c0 38.7 8.4 49.7 27.2 49.7 6 0 11.5-1.8 14.8-3.5l8-20h15l-1.2 33c-8.8 4-20.5 6.8-40 6.8-34.2 0-61.2-17.8-61.2-63.2z" />
 	</svg>
 );
 
 export const LiveSiteIcon = () => (
-	<svg viewBox="0 0 128 128" aria-hidden="true">
+	<svg viewBox="0 0 128 128" fill="currentColor" aria-hidden="true">
 		<path
 			fillRule="evenodd"
 			clipRule="evenodd"
@@ -21,7 +21,7 @@ export const LiveSiteIcon = () => (
 );
 
 export const OphanIcon = () => (
-	<svg viewBox="0 0 128 128" aria-hidden="true">
+	<svg viewBox="0 0 128 128" fill="currentColor" aria-hidden="true">
 		<path d="M0 19.2v91.6h128V19.2H0zm83 63.6l-21-19-17.3 20.5-13-8.3-9.5 16.8L11 86.5 27.3 58l15 9.5 18.4-22L82 64.8 105 39l9.6 8.7-31.5 35z" />
 	</svg>
 );
