@@ -3,7 +3,8 @@ import { DynamoService } from '@common/database-service';
 import { createApp } from './app';
 import type { Auth } from './types';
 
-const port = 3040;
+// PORT lets a second copy run alongside one already on 3040.
+const port = Number(process.env.PORT ?? 3040);
 
 // The CAPI and Composer stage to use locally.
 const stage = 'CODE';

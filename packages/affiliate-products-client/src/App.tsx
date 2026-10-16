@@ -1,13 +1,14 @@
+import type { Article } from '@common/tool-models';
 import { css, Global } from '@emotion/react';
 import {
 	semanticColors,
 	semanticSpacing,
 	semanticTypography,
 } from '@guardian/stand';
+import { Button } from '@guardian/stand/Button';
 import { InlineMessage } from '@guardian/stand/InlineMessage';
 import { Layout } from '@guardian/stand/Layout';
-import { Link } from '@guardian/stand/Link';
-import { Typography } from '@guardian/stand/Typography';
+import { LinkButton } from '@guardian/stand/LinkButton';
 import {
 	convertTypographyToEmotionStringStyle,
 	GlobalResetStyles,
@@ -15,7 +16,9 @@ import {
 import { useEffect, useState } from 'react';
 import { fetchArticles } from './api/articles';
 import { fetchUserName } from './api/auth';
-import { ArticleList } from './ArticleList';
+import { ArticleList, ArticleListPlaceholder } from './ArticleList';
+import { headlineInset } from './ArticleRow';
+import { ArticleSearch } from './ArticleSearch';
 import { useListParams } from './hooks/useListParams';
 import { Pagination } from './Pagination';
 import { Sidebar } from './Sidebar';
@@ -43,19 +46,39 @@ const globalStyles = css`
 	}
 `;
 
+// A message in place of the list, with what to do about it.
+const messageStyles = css`
+	display: grid;
+	justify-items: start;
+	gap: ${semanticSpacing.stackMd};
+	max-width: 40rem;
+	padding: ${semanticSpacing.stackLg} ${semanticSpacing.stackMd};
+	padding-left: ${headlineInset};
+`;
+
+// Below a found article, where the pagination is below the list.
+const afterFoundStyles = css`
+	padding: ${semanticSpacing.stackLg} ${semanticSpacing.stackMd};
+	padding-left: ${headlineInset};
+`;
+
+// Like the POC, the list takes the main area's full width.
 const mainStyles = css`
 	min-width: 0;
-	padding-left: ${semanticSpacing.stackMd};
-	padding-right: ${semanticSpacing.stackMd};
+	padding: 0;
 `;
 
 export const App = () => {
 	const [userName, setUserName] = useState<string>();
-	const { page, section, prod, setPage, setSection, setProd } = useListParams();
+	const { page, section, prod, path, setPage, setSection, setProd, setPath } =
+		useListParams();
 	const [fetched, setFetched] = useState<{
 		params: ListParams;
 		state: ArticlesState;
 	}>();
+	// Bumped to fetch the list again, keeping the current one on screen (and its open
+	// articles open) until the new one arrives.
+	const [reloads, setReloads] = useState(0);
 
 	useEffect(() => {
 		// The name is only shown in the toolbar, so there's nothing to show if this fails.
@@ -66,7 +89,7 @@ export const App = () => {
 
 	useEffect(() => {
 		const controller = new AbortController();
-		const params = { page, section, prod };
+		const params = { page, section, prod, path };
 		fetchArticles(params, controller.signal)
 			.then((state) => setFetched({ params, state }))
 			.catch(() => {
@@ -75,13 +98,14 @@ export const App = () => {
 				}
 			});
 		return () => controller.abort();
-	}, [page, section, prod]);
+	}, [page, section, prod, path, reloads]);
 
 	// Whatever was fetched last is for a previous view until the current one's articles arrive.
 	const articles: ArticlesState =
 		fetched?.params.page === page &&
 		fetched.params.section === section &&
-		fetched.params.prod === prod
+		fetched.params.prod === prod &&
+		fetched.params.path === path
 			? fetched.state
 			: { status: 'loading' };
 
@@ -90,35 +114,66 @@ export const App = () => {
 		window.scrollTo(0, 0);
 	};
 
+	const showAllButton = (
+		<Button variant="secondary" size="sm" onPress={() => setPath(undefined)}>
+			Show all articles
+		</Button>
+	);
+
+	// The article searched for, open, or a message if there isn't one at that path.
+	const renderFound = (found: Article[]) =>
+		found.length === 0 ? (
+			<div css={messageStyles}>
+				<InlineMessage level="information">
+					There’s no article at /{path}
+					{prod ? ' in PROD' : ''}. Check the URL, or that it has been
+					published.
+				</InlineMessage>
+				{showAllButton}
+			</div>
+		) : (
+			<>
+				<ArticleList articles={found} initiallyOpen={true} />
+				<div css={afterFoundStyles}>{showAllButton}</div>
+			</>
+		);
+
 	const renderArticles = () => {
 		switch (articles.status) {
 			case 'loading':
-				return (
-					<Typography element="p" variant="bodyMd">
-						Loading articles…
-					</Typography>
-				);
+				return <ArticleListPlaceholder />;
 			case 'unauthenticated':
 				return (
-					<InlineMessage level="information">
-						Your login has expired.{' '}
-						<Link
+					<div css={messageStyles}>
+						<InlineMessage level="information">
+							Your login has expired, so the articles can’t be loaded.
+						</InlineMessage>
+						<LinkButton
 							href={`${window.location.pathname}${window.location.search}`}
-							typography="bodyMd"
+							size="sm"
 						>
-							Reload the page
-						</Link>{' '}
-						to log in again.
-					</InlineMessage>
+							Log in again
+						</LinkButton>
+					</div>
 				);
 			case 'error':
 				return (
-					<InlineMessage level="error">Could not load articles.</InlineMessage>
+					<div css={messageStyles}>
+						<InlineMessage level="error">
+							The articles couldn’t be loaded. The tool may not be able to reach
+							CAPI or the pricing table right now.
+						</InlineMessage>
+						<Button size="sm" onPress={() => setReloads((n) => n + 1)}>
+							Try again
+						</Button>
+					</div>
 				);
 			case 'loaded':
+				if (path) {
+					return renderFound(articles.page.articles);
+				}
 				return (
 					<>
-						<Pagination page={articles.page} onChange={changePage} />
 						<ArticleList articles={articles.page.articles} />
 						<Pagination page={articles.page} onChange={changePage} />
 					</>
@@ -131,7 +186,12 @@ export const App = () => {
 			<Global styles={globalStyles} />
 			<Layout>
 				<Layout.TopBar>
-					<TopToolbar userName={userName} />
+					<TopToolbar
+						userName={userName}
+						search={
+							<ArticleSearch key={path ?? ''} path={path} onSearch={setPath} />
+						}
+					/>
 				</Layout.TopBar>
 				<Sidebar
 					section={section}

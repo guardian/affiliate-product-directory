@@ -3,7 +3,11 @@ import { tmpdir } from 'os';
 import path from 'path';
 import type * as DatabaseServiceModule from '@common/database-service';
 import type { Product } from '@common/models';
-import { ArticlesPageSchema, AuthResponseSchema } from '@common/tool-models';
+import {
+	ArticlesPageSchema,
+	AuthResponseSchema,
+	LinkCountsSchema,
+} from '@common/tool-models';
 import type { User } from '@common/tool-models';
 import { jest } from '@jest/globals';
 import {
@@ -109,12 +113,24 @@ describe('createApp', () => {
 			'https://dashboard.ophan.co.uk/info?capi-id=thefilter%2F2026%2Foct%2F06%2Fan-article',
 		products: [
 			{
-				url: 'https://shop.example/a-product',
-				label: '£27 at Shop',
-				basePrice: { currencySymbol: '£', amount: 27 },
+				links: [
+					{
+						url: 'https://shop.example/a-product',
+						label: '£27 at Shop',
+						retailer: 'Shop',
+						basePrice: { currencySymbol: '£', amount: 27 },
+					},
+				],
 			},
 		],
 	};
+
+	// The article's one product link, with the directory's price for it.
+	const withPrice = (product: Product) => [
+		{
+			links: [{ ...article.products[0]?.links[0], ...directoryPrice(product) }],
+		},
+	];
 
 	const pricedProduct: Product = {
 		productMerchantUrl: 'https://shop.example/a-product',
@@ -143,12 +159,21 @@ describe('createApp', () => {
 			>(() => Promise.resolve(products)),
 		});
 
-	// CAPI, answering every search with searchResponse for the page asked for.
+	// CAPI, answering every search with searchResponse for the page asked for, and a
+	// lookup of the article in it with that article. It has no other content.
 	let capi: ReturnType<typeof stubCapi>;
 	const stubCapi = () =>
 		jest.spyOn(globalThis, 'fetch').mockImplementation((input) => {
-			const page = new URL(input as string).searchParams.get('page');
-			return Promise.resolve(Response.json(searchResponse(Number(page))));
+			const url = new URL(input as string);
+			if (url.pathname === '/search') {
+				const page = url.searchParams.get('page');
+				return Promise.resolve(Response.json(searchResponse(Number(page))));
+			}
+			if (url.pathname === `/${article.id}`) {
+				const [content] = searchResponse(1).response.results;
+				return Promise.resolve(Response.json({ response: { content } }));
+			}
+			return Promise.resolve(new Response('', { status: 404 }));
 		});
 	const capiRequests = () =>
 		capi.mock.calls.map(([input]) => new URL(input as string));
@@ -197,6 +222,56 @@ describe('createApp', () => {
 		expect(search?.searchParams.get('page')).toBe('2');
 	});
 
+	describe('finding an article by its URL', () => {
+		it.each([
+			article.id,
+			`/${article.id}`,
+			article.webUrl,
+			`${article.webUrl}?CMP=share_btn_url`,
+		])('returns just the article at %s', async (path) => {
+			const response = await request(app()).get(
+				`/api/articles?${new URLSearchParams({ path }).toString()}`,
+			);
+
+			expect(response.status).toBe(200);
+			expect(response.body).toEqual({
+				articles: [article],
+				currentPage: 1,
+				pages: 1,
+				total: 1,
+			});
+			const [lookup] = capiRequests();
+			expect(lookup?.pathname).toBe(`/${article.id}`);
+			expect(lookup?.searchParams.get('api-key')).toBe('code-key');
+		});
+
+		it("returns no articles when CAPI doesn't have one at the path", async () => {
+			const response = await request(app()).get(
+				'/api/articles?path=thefilter/2026/oct/06/not-an-article',
+			);
+
+			expect(response.status).toBe(200);
+			expect(response.body).toEqual({
+				articles: [],
+				currentPage: 1,
+				pages: 1,
+				total: 0,
+			});
+		});
+
+		it.each(['', 'thefilter', 'https://www.example.com/thefilter/a/b'])(
+			"rejects %p, which isn't an article's URL or path",
+			async (path) => {
+				const response = await request(app()).get(
+					`/api/articles?${new URLSearchParams({ path }).toString()}`,
+				);
+
+				expect(response.status).toBe(400);
+				expect(capiRequests()).toEqual([]);
+			},
+		);
+	});
+
 	it("adds the directory's price to the articles' products", async () => {
 		const dynamoService = pricingTable([pricedProduct]);
 
@@ -211,7 +286,7 @@ describe('createApp', () => {
 		]);
 		expect(
 			ArticlesPageSchema.parse(response.body).articles[0]?.products,
-		).toEqual([{ ...article.products[0], ...directoryPrice(pricedProduct) }]);
+		).toEqual(withPrice(pricedProduct));
 	});
 
 	it('fails, hiding the details, when the product prices cannot be read', async () => {
@@ -261,9 +336,7 @@ describe('createApp', () => {
 			expect(prodArticle?.composerUrl).toBe(
 				'https://composer.gutools.co.uk/content/abc123',
 			);
-			expect(prodArticle?.products).toEqual([
-				{ ...article.products[0], ...directoryPrice(prodProduct) },
-			]);
+			expect(prodArticle?.products).toEqual(withPrice(prodProduct));
 			expect(prodTable.getProductsByUrl).toHaveBeenCalled();
 			expect(stageTable.getProductsByUrl).not.toHaveBeenCalled();
 		});
@@ -279,7 +352,7 @@ describe('createApp', () => {
 			]);
 			expect(
 				ArticlesPageSchema.parse(response.body).articles[0]?.products,
-			).toEqual([{ ...article.products[0], ...directoryPrice(pricedProduct) }]);
+			).toEqual(withPrice(pricedProduct));
 			expect(stageTable.getProductsByUrl).toHaveBeenCalled();
 			expect(prodTable.getProductsByUrl).not.toHaveBeenCalled();
 		});
@@ -326,6 +399,100 @@ describe('createApp', () => {
 			expect(response.status).toBe(400);
 		},
 	);
+
+	describe('link counts', () => {
+		const pageUrl =
+			'https://m.code.dev-theguardian.com/thefilter/2026/oct/06/an-article';
+		const page = {
+			html: `<h1>An article</h1>
+				<a href="https://www.amazon.co.uk/dp/1">Amazon</a>
+				<a href="https://go.skimresources.com/?id=1&amp;url=https%3A%2F%2Fshop.example%2Fa">Shop</a>
+				<a href="https://jobs.theguardian.com/">Jobs</a>`,
+			url: pageUrl,
+		};
+
+		const appReadingPage = (
+			fetchPage = jest.fn<(pageUrl: string) => Promise<typeof page>>(() =>
+				Promise.resolve(page),
+			),
+		) => ({
+			fetchPage,
+			withPage: createApp({
+				clientDir,
+				auth: loggedIn,
+				stage: 'CODE',
+				capiKey: 'code-key',
+				dynamoService: pricingTable(),
+				fetchPage,
+			}),
+		});
+
+		const webUrl =
+			'http://www.code.dev-theguardian.com/thefilter/2026/oct/06/an-article';
+
+		it("counts the links on an article's rendered page", async () => {
+			const { withPage, fetchPage } = appReadingPage();
+
+			const response = await request(withPage)
+				.get('/api/link-counts')
+				.query({ url: webUrl });
+
+			expect(response.status).toBe(200);
+			expect(LinkCountsSchema.parse(response.body)).toEqual({
+				amazon: 1,
+				skimlinks: 1,
+				other: 1,
+			});
+			expect(fetchPage).toHaveBeenCalledWith(pageUrl);
+		});
+
+		it("downloads a CSV of the links on an article's rendered page", async () => {
+			const { withPage } = appReadingPage();
+
+			const response = await request(withPage)
+				.get('/api/link-counts.csv')
+				.query({ url: webUrl });
+
+			expect(response.status).toBe(200);
+			expect(response.headers['content-type']).toBe('text/csv; charset=utf-8');
+			expect(response.headers['content-disposition']).toBe(
+				'attachment; filename="an-article-links.csv"',
+			);
+			expect(response.text.split('\n')).toHaveLength(3);
+		});
+
+		it.each([
+			['/api/link-counts', undefined],
+			['/api/link-counts', 'https://evil.example/thefilter/an-article'],
+			['/api/link-counts.csv', 'https://evil.example/thefilter/an-article'],
+		])(
+			"refuses %s for %s, as it isn't an article's web URL",
+			async (path, url) => {
+				const { withPage, fetchPage } = appReadingPage();
+
+				const response = await request(withPage)
+					.get(path)
+					.query(url ? { url } : {});
+
+				expect(response.status).toBe(400);
+				expect(fetchPage).not.toHaveBeenCalled();
+			},
+		);
+
+		it("fails, hiding the details, when the article's page can't be read", async () => {
+			jest.spyOn(console, 'error').mockImplementation(() => undefined);
+			const { withPage } = appReadingPage(
+				jest.fn(() => Promise.reject(new Error('responded with status 503'))),
+			);
+
+			const response = await request(withPage)
+				.get('/api/link-counts')
+				.query({ url: 'https://www.theguardian.com/thefilter/an-article' });
+
+			expect(response.status).toBe(502);
+			expect(JSON.stringify(response.body)).not.toContain('503');
+		});
+	});
 
 	it('returns the logged-in user and their permissions', async () => {
 		const response = await request(app()).get('/api/auth');

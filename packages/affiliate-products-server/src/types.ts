@@ -1,5 +1,5 @@
 import type { Product } from '@common/models';
-import type { ArticlesPage, Section, User } from '@common/tool-models';
+import type { Article, ArticlesPage, Section, User } from '@common/tool-models';
 import { z } from 'zod';
 
 /** Returns the user a request's cookies belong to, or undefined if they aren't logged in. */
@@ -35,6 +35,9 @@ export type ProductPrices = Map<
 /** Returns the directory's price for each of these URLs that is an active product with one. */
 export type GetProductPrices = (urls: string[]) => Promise<ProductPrices>;
 
+/** Gets one article by its CAPI ID, or undefined if there isn't one. */
+export type GetArticle = (path: string) => Promise<Article | undefined>;
+
 /** A price found in a link's label. */
 export interface ExtractedPrice {
 	entireMatch: string;
@@ -65,6 +68,8 @@ const ProductCtaSchema = z.object({
 
 /** An element of an article's body, with only the fields the tool uses. */
 const BlockElementSchema = LinkElementSchema.extend({
+	// Only text elements have this.
+	textTypeData: z.object({ html: z.string().optional() }).optional(),
 	// Only product elements (product cards) have this.
 	productTypeData: z
 		.object({
@@ -93,8 +98,20 @@ const SearchResultSchema = z.object({
 	webPublicationDate: z.string(),
 	webTitle: z.string(),
 	webUrl: z.string(),
-	fields: z.object({ internalComposerCode: z.string().optional() }).optional(),
+	fields: z
+		.object({
+			internalComposerCode: z.string().optional(),
+			byline: z.string().optional(),
+		})
+		.optional(),
 	blocks: z.object({ body: z.array(BlockSchema).optional() }).optional(),
+});
+
+export type CapiResult = z.infer<typeof SearchResultSchema>;
+
+/** CAPI's response for a single item, such as one article. */
+export const ItemResponseSchema = z.object({
+	response: z.object({ content: SearchResultSchema }),
 });
 
 export const SearchResponseSchema = z.object({

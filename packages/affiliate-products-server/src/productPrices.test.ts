@@ -102,7 +102,7 @@ describe('productUrls', () => {
 		webTitle: id,
 		webUrl: `https://www.theguardian.com/${id}`,
 		ophanUrl: `https://dashboard.ophan.co.uk/info?capi-id=${id}`,
-		products: urls.map((url) => ({ url, label: 'Buy at Shop' })),
+		products: urls.map((url) => ({ links: [{ url, label: 'Buy at Shop' }] })),
 	});
 
 	it("lists every product's URL on the page once", () => {
@@ -138,13 +138,18 @@ describe('attachProductPrices', () => {
 					'https://dashboard.ophan.co.uk/info?capi-id=thefilter%2F2026%2Foct%2F06%2Fan-article',
 				products: [
 					{
-						url: 'https://shop.example/a',
-						label: '£27 at Shop',
-						productName: 'A product',
-						basePrice: { currencySymbol: '£', amount: 27 },
+						name: 'A product',
+						links: [
+							{
+								url: 'https://shop.example/a',
+								label: '£27 at Shop',
+								retailer: 'Shop',
+								basePrice: { currencySymbol: '£', amount: 27 },
+							},
+							{ url: 'https://shop.example/b', label: 'Buy at Shop' },
+						],
 					},
-					{ url: 'https://shop.example/b', label: 'Buy at Shop' },
-					{ url: 'https://shop.example/c', label: '$5 at Shop' },
+					{ links: [{ url: 'https://shop.example/c', label: '$5 at Shop' }] },
 				],
 			},
 		],
@@ -170,17 +175,22 @@ describe('attachProductPrices', () => {
 
 		expect(articles[0]?.products).toEqual([
 			{
-				url: 'https://shop.example/a',
-				label: '£27 at Shop',
-				productName: 'A product',
-				basePrice: { currencySymbol: '£', amount: 27 },
-				currency: 'GBP',
-				price: 24.5,
-				updatedAt: 1760000000000,
-				updatedBy: 'skimlinks',
+				name: 'A product',
+				links: [
+					{
+						url: 'https://shop.example/a',
+						label: '£27 at Shop',
+						retailer: 'Shop',
+						basePrice: { currencySymbol: '£', amount: 27 },
+						currency: 'GBP',
+						price: 24.5,
+						updatedAt: 1760000000000,
+						updatedBy: 'skimlinks',
+					},
+					{ url: 'https://shop.example/b', label: 'Buy at Shop' },
+				],
 			},
-			{ url: 'https://shop.example/b', label: 'Buy at Shop' },
-			{ url: 'https://shop.example/c', label: '$5 at Shop' },
+			{ links: [{ url: 'https://shop.example/c', label: '$5 at Shop' }] },
 		]);
 	});
 

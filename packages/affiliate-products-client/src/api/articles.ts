@@ -3,7 +3,7 @@ import type { ArticlesState, ListParams } from '../types';
 
 /** Fetches a page of articles from one section, or from both if none is given, from PROD if asked. */
 export const fetchArticles = async (
-	{ page, section, prod }: ListParams,
+	{ page, section, prod, path }: ListParams,
 	signal: AbortSignal,
 ): Promise<ArticlesState> => {
 	const params = new URLSearchParams({ page: String(page) });
@@ -12,6 +12,9 @@ export const fetchArticles = async (
 	}
 	if (prod) {
 		params.set('prod', 'true');
+	}
+	if (path) {
+		params.set('path', path);
 	}
 	const response = await fetch(`/api/articles?${params.toString()}`, {
 		signal,

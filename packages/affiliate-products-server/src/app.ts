@@ -1,12 +1,28 @@
 import path from 'path';
+import { articlePath } from '@common/articlePath';
 import { getCapiBaseUrl } from '@common/config';
 import type { DynamoService } from '@common/database-service';
 import { SectionSchema } from '@common/tool-models';
-import type { AuthResponse, User } from '@common/tool-models';
+import type {
+	ArticlesPage,
+	AuthResponse,
+	LinkCounts,
+	User,
+} from '@common/tool-models';
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
-import { createCapiArticles, getComposerBaseUrl } from './capi';
+import {
+	createCapiArticle,
+	createCapiArticles,
+	getComposerBaseUrl,
+} from './capi';
+import {
+	countLinks,
+	fetchRenderedPage,
+	linksCsv,
+	renderedPageUrl,
+} from './linkCounts';
 import {
 	handleOverrideDeleteRequest,
 	handleOverrideRequest,
@@ -16,7 +32,7 @@ import {
 	createProductPrices,
 	productUrls,
 } from './productPrices';
-import type { Auth } from './types';
+import type { Auth, GetArticle } from './types';
 
 const noAccessMessage =
 	"You don't have permission to access the affiliate products tool.";
@@ -39,10 +55,29 @@ const readStage = ({
 		apiKey: capiKey,
 		composerBaseUrl: getComposerBaseUrl(stage),
 	}),
+	getArticle: createCapiArticle({
+		baseUrl: getCapiBaseUrl(stage),
+		apiKey: capiKey,
+		composerBaseUrl: getComposerBaseUrl(stage),
+	}),
 	getProductPrices: createProductPrices((urls) =>
 		dynamoService.getProductsByUrl(urls),
 	),
 });
+
+/** The article at a path as a page of its own, with no articles if there isn't one. */
+const findArticle = async (
+	getArticle: GetArticle,
+	path: string,
+): Promise<ArticlesPage> => {
+	const article = await getArticle(path);
+	return {
+		articles: article ? [article] : [],
+		currentPage: 1,
+		pages: 1,
+		total: article ? 1 : 0,
+	};
+};
 
 /**
  * Serves the affiliate-products-client build and its API from a single origin,
@@ -55,6 +90,7 @@ export function createApp({
 	capiKey,
 	dynamoService,
 	prod,
+	fetchPage = fetchRenderedPage,
 }: {
 	clientDir: string;
 	auth: Auth;
@@ -64,6 +100,8 @@ export function createApp({
 	dynamoService: DynamoService;
 	/** PROD's CAPI key and pricing table, used instead when asked for with prod=true. */
 	prod?: { capiKey: string; dynamoService: DynamoService };
+	/** Fetches an article as it's rendered on the site, for its links. */
+	fetchPage?: typeof fetchRenderedPage;
 }) {
 	const app = express();
 	app.use(express.json());
@@ -116,6 +154,14 @@ export function createApp({
 			});
 			return;
 		}
+		// An article's URL or path, to show just that article rather than a page of them.
+		const { path: pathParam } = req.query;
+		const path =
+			typeof pathParam === 'string' ? articlePath(pathParam) : undefined;
+		if (pathParam !== undefined && !path) {
+			res.status(400).json({ error: "path must be an article's URL or path" });
+			return;
+		}
 		const prodParam = z.literal('true').optional().safeParse(req.query.prod);
 		if (!prodParam.success) {
 			res.status(400).json({ error: 'prod must be true, or left out' });
@@ -127,15 +173,54 @@ export function createApp({
 			res.status(400).json({ error: "PROD's articles can't be listed here" });
 			return;
 		}
-		const articlesPage = await dataSource.listArticles(
-			Number(page),
-			section.data,
-		);
+		const articlesPage = await (path
+			? findArticle(dataSource.getArticle, path)
+			: dataSource.listArticles(Number(page), section.data));
 		const productPrices = await dataSource.getProductPrices(
 			productUrls(articlesPage),
 		);
 		res.json(attachProductPrices(articlesPage, productPrices));
 	});
+
+	// Read from the rendered page, as Skimlinks only wraps links when an article is rendered.
+	const readArticlePage = async (
+		req: Request,
+		res: Response,
+		respond: (page: { html: string; url: string }) => void,
+	) => {
+		const { url } = req.query;
+		const pageUrl = typeof url === 'string' ? renderedPageUrl(url) : undefined;
+		if (!pageUrl) {
+			res.status(400).json({ error: "url must be an article's web URL" });
+			return;
+		}
+		let page;
+		try {
+			page = await fetchPage(pageUrl);
+		} catch (error) {
+			console.error(error);
+			res.status(502).json({ error: "The article's page couldn't be read" });
+			return;
+		}
+		respond(page);
+	};
+
+	app.get('/api/link-counts', (req, res) =>
+		readArticlePage(req, res, ({ html, url }) => {
+			const counts: LinkCounts = countLinks(html, url);
+			res.json(counts);
+		}),
+	);
+
+	app.get('/api/link-counts.csv', (req, res) =>
+		readArticlePage(req, res, ({ html, url }) => {
+			const shortTitle =
+				new URL(url).pathname.split('/').filter(Boolean).at(-1) ?? 'article';
+			res.attachment(`${shortTitle}-links.csv`);
+			res.type('text/csv; charset=utf-8');
+			res.send(linksCsv(html, url));
+		}),
+	);
 
 	app.post('/api/manualOverride', async (req, res) => {
 		// ToDo: check user has permission to perform this

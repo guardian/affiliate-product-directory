@@ -1,4 +1,4 @@
-import type { ProductLink } from '@common/tool-models';
+import type { Product, ProductLink } from '@common/tool-models';
 import { extractPriceFromLabel, getProductLinkLabelWithPrice } from './price';
 import type { Block, BlockElement, LinkElement } from './types';
 
@@ -20,24 +20,31 @@ const findBasePrice = (...texts: string[]): ProductLink['basePrice'] => {
 	return undefined;
 };
 
-const productButtonLink = (
-	button: LinkElement,
-	productName?: string,
-): ProductLink => {
+// A product button's label ends with its retailer, as in "£27 at Cult Beauty" or "£2.20
+// for 580g at Morrisons (38p/100g)".
+const retailerInLabel = /\bat\s+([^()]+?)\s*(?:\(.*\))?\s*$/i;
+
+const productButtonLink = (button: LinkElement): ProductLink => {
 	const { url = '', label = '' } = button.linkTypeData ?? {};
-	return { url, label, productName, basePrice: findBasePrice(label) };
+	return {
+		url,
+		label,
+		retailer: retailerInLabel.exec(label)?.[1],
+		basePrice: findBasePrice(label),
+	};
 };
 
-/** A product card's own links, then the product buttons shown inside it. */
-const productCardLinks = (card: BlockElement): ProductLink[] => {
+/** A product card, with its own links, then the product buttons shown inside it. */
+const productCard = (card: BlockElement): Product | undefined => {
 	const product = card.productTypeData;
 	if (!product) {
-		return [];
+		return undefined;
 	}
 
-	const productName =
+	const name =
 		[product.brandName, product.productName]
-			.filter((part) => part !== undefined && part.trim() !== '')
+			.map((part) => part?.trim() ?? '')
+			.filter((part) => part !== '')
 			.join(' ') || undefined;
 
 	const cardLinks = (product.productCtas ?? []).map((cta) => {
@@ -45,7 +52,7 @@ const productCardLinks = (card: BlockElement): ProductLink[] => {
 		return {
 			url: cta.url,
 			label,
-			productName,
+			retailer: cta.retailer.trim() || undefined,
 			// The price field first, so that a label written by hand doesn't hide it.
 			basePrice: findBasePrice(cta.price, label),
 		};
@@ -53,32 +60,172 @@ const productCardLinks = (card: BlockElement): ProductLink[] => {
 
 	const buttonLinks = (product.content ?? [])
 		.filter(isProductButton)
-		.map((button) => productButtonLink(button, productName));
+		.map(productButtonLink);
 
-	return [...cardLinks, ...buttonLinks];
+	return { name, links: [...cardLinks, ...buttonLinks] };
+};
+
+const decodeEntities = (text: string) =>
+	text
+		.replace(/&nbsp;/g, ' ')
+		.replace(/&quot;/g, '"')
+		.replace(/&#0?39;|&apos;/g, "'")
+		.replace(/&lt;/g, '<')
+		.replace(/&gt;/g, '>')
+		.replace(/&amp;/g, '&');
+
+// Line breaks become spaces, but other tags are removed, as names are sometimes split
+// across several tags, as in "<strong>Pasta</strong><strong> maker</strong>".
+const plainText = (html: string) =>
+	decodeEntities(html.replace(/<br\s*\/?>/g, ' ').replace(/<[^>]+>/g, ''))
+		.replace(/\s+/g, ' ')
+		.replace(/\s+([:,.])/g, '$1')
+		.trim();
+
+/** A heading's or list item's name, without the label before it, as in "Best for travel: X". */
+const withoutLabel = (text: string) => {
+	const colon = text.indexOf(':');
+	const name = colon === -1 ? text : text.slice(colon + 1).trim();
+	return name === '' ? text : name;
+};
+
+// The ways articles name the product whose buttons come straight after, at the end of a
+// text element: a paragraph of bold text, as in buying guides; a heading, as in reviews;
+// and an "at a glance" list item, "<strong>Best for travel:</strong><br>Product".
+const endingBoldParagraph = /<p>((?:\s*<strong>[^<]*<\/strong>\s*)+)<\/p>\s*$/;
+const endingHeading = /<h[23]>((?:(?!<h[23]).)*)<\/h[23]>\s*$/s;
+const endingListItem = /<li>((?:(?!<li>).)*)<\/li>\s*<\/ul>\s*$/s;
+
+/** The name of the product a text element ends by naming, if it does. */
+const endingProductName = (html: string): string | undefined => {
+	const bold = endingBoldParagraph.exec(html)?.[1];
+	if (bold !== undefined) {
+		return plainText(bold) || undefined;
+	}
+	const heading =
+		endingHeading.exec(html)?.[1] ?? endingListItem.exec(html)?.[1];
+	if (heading !== undefined) {
+		const name = withoutLabel(plainText(heading));
+		// Section breaks are written as headings of asterisks.
+		return /^[*\s]*$/.test(name) ? undefined : name;
+	}
+	return undefined;
+};
+
+// The Guardian's sites, on PROD and CODE.
+const guardianHost =
+	/(^|\.)theguardian\.com$|(^|\.)code\.dev-theguardian\.com$/;
+
+// The Filter's fronts, such as /us/thefilter, and its articles, such as /thefilter/2026/….
+const filterPath = /^\/((uk|us)\/)?thefilter(-us)?(\/|$)/;
+
+/**
+ * Whether a link goes back to the Filter, as some product buttons do, such as "Explore
+ * the Filter", rather than to a product.
+ */
+const isFilterLink = (url: string) => {
+	try {
+		const { hostname, pathname } = new URL(url);
+		return guardianHost.test(hostname) && filterPath.test(pathname);
+	} catch {
+		return false;
+	}
+};
+
+interface FoundProduct extends Product {
+	fromCard: boolean;
+}
+
+/**
+ * Combines products that share a URL into the first of them, as an article often lists a
+ * product twice: in an "at a glance" list, then in full, sometimes with more retailers.
+ * A product card's name is preferred, then the first name found.
+ */
+const mergeByUrl = (found: FoundProduct[]): Product[] => {
+	const merged: FoundProduct[] = [];
+	const productByUrl = new Map<string, FoundProduct>();
+
+	for (const product of found) {
+		const links = product.links.filter(
+			({ url }) => url.trim() !== '' && !isFilterLink(url),
+		);
+		const existing = links
+			.map(({ url }) => productByUrl.get(url))
+			.find((match) => match !== undefined);
+		const target = existing ?? { ...product, links: [] };
+		if (existing) {
+			if (
+				product.name &&
+				(!existing.name || (product.fromCard && !existing.fromCard))
+			) {
+				existing.name = product.name;
+			}
+			existing.fromCard ||= product.fromCard;
+		} else {
+			merged.push(target);
+		}
+		for (const link of links) {
+			if (!productByUrl.has(link.url)) {
+				productByUrl.set(link.url, target);
+				target.links.push(link);
+			}
+		}
+	}
+
+	return merged
+		.filter((product) => product.links.length > 0)
+		.map(({ name, links }) => ({ name, links }));
 };
 
 /**
- * The product links in an article's body, in the order they appear: product buttons and
- * the links on product cards. Each URL is listed once, as the directory keys products by
- * URL and a product card usually repeats its links as buttons.
+ * The products in an article's body, in the order they appear, each with its links to
+ * the retailers that sell it.
+ *
+ * A product card is one product. Product buttons outside a card are grouped by run: the
+ * buttons in a row are one product, at different retailers. A run is named by the text
+ * just before it, if that ends with a product's name.
+ *
+ * Each URL is listed once, as the directory keys products by URL. Products that share a
+ * URL are one product, listed where it first appears.
  */
-export const extractProductLinks = (bodyBlocks: Block[]): ProductLink[] => {
-	const links = bodyBlocks
-		.flatMap((block) => block.elements ?? [])
-		.flatMap((element) => {
-			if (isProductButton(element)) {
-				return [productButtonLink(element)];
-			}
-			return element.type === 'product' ? productCardLinks(element) : [];
-		});
+export const extractProducts = (bodyBlocks: Block[]): Product[] => {
+	const found: FoundProduct[] = [];
+	// The name the next run of product buttons takes, from the element just before it.
+	let nextName: string | undefined;
+	// The run of product buttons being read, if the last element was a product button.
+	let run: FoundProduct | undefined;
 
-	const seenUrls = new Set<string>();
-	return links.filter(({ url }) => {
-		if (url.trim() === '' || seenUrls.has(url)) {
-			return false;
+	for (const element of bodyBlocks.flatMap((block) => block.elements ?? [])) {
+		if (isProductButton(element)) {
+			if (!run) {
+				run = { name: nextName, links: [], fromCard: false };
+				found.push(run);
+			}
+			run.links.push(productButtonLink(element));
+			nextName = undefined;
+			continue;
 		}
-		seenUrls.add(url);
-		return true;
-	});
+
+		// Composer sometimes leaves empty text between a product's buttons.
+		if (
+			element.type === 'text' &&
+			plainText(element.textTypeData?.html ?? '') === ''
+		) {
+			continue;
+		}
+
+		run = undefined;
+		nextName =
+			element.type === 'text'
+				? endingProductName(element.textTypeData?.html ?? '')
+				: undefined;
+		if (element.type === 'product') {
+			const card = productCard(element);
+			if (card) {
+				found.push({ ...card, fromCard: true });
+			}
+		}
+	}
+
+	return mergeByUrl(found);
 };

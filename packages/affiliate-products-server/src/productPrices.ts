@@ -30,16 +30,18 @@ export const createProductPrices =
 		);
 	};
 
-/** The URL of every product on the page, each once. */
+/** The URL of every product link on the page, each once. */
 export const productUrls = (page: ArticlesPage): string[] => [
 	...new Set(
 		page.articles.flatMap((article) =>
-			article.products.map((product) => product.url),
+			article.products.flatMap((product) =>
+				product.links.map((link) => link.url),
+			),
 		),
 	),
 ];
 
-/** Adds the directory's price to each of the articles' products that it has one for. */
+/** Adds the directory's price to each of the articles' product links that it has one for. */
 export const attachProductPrices = (
 	page: ArticlesPage,
 	prices: ProductPrices,
@@ -49,7 +51,10 @@ export const attachProductPrices = (
 		...article,
 		products: article.products.map((product) => ({
 			...product,
-			...prices.get(product.url),
+			links: product.links.map((link) => ({
+				...link,
+				...prices.get(link.url),
+			})),
 		})),
 	})),
 });
