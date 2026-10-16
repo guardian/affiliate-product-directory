@@ -13,7 +13,7 @@ import {
 	convertTypographyToEmotionStringStyle,
 	GlobalResetStyles,
 } from '@guardian/stand/utils';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { fetchArticles } from './api/articles';
 import { fetchUserName } from './api/auth';
 import { ArticleList, ArticleListPlaceholder } from './ArticleList';
@@ -21,6 +21,7 @@ import { headlineInset } from './ArticleRow';
 import { ArticleSearch } from './ArticleSearch';
 import { useListParams } from './hooks/useListParams';
 import { Pagination } from './Pagination';
+import { PriceEditingContext } from './PriceEditing';
 import { Sidebar } from './Sidebar';
 import { TopToolbar } from './TopToolbar';
 import type { ArticlesState, ListParams } from './types';
@@ -76,9 +77,13 @@ export const App = () => {
 		params: ListParams;
 		state: ArticlesState;
 	}>();
-	// Bumped to fetch the list again, keeping the current one on screen (and its open
-	// articles open) until the new one arrives.
+	// Bumped to fetch the list again after a price is set, keeping the current one on screen
+	// (and its open articles open) until the new one arrives.
 	const [reloads, setReloads] = useState(0);
+	const priceEditing = useMemo(
+		() => ({ canEdit: !prod, reload: () => setReloads((n) => n + 1) }),
+		[prod],
+	);
 
 	useEffect(() => {
 		// The name is only shown in the toolbar, so there's nothing to show if this fails.
@@ -200,7 +205,9 @@ export const App = () => {
 					onProdChange={setProd}
 				/>
 				<Layout.Main paddingTop={false} cssOverrides={mainStyles}>
-					{renderArticles()}
+					<PriceEditingContext.Provider value={priceEditing}>
+						{renderArticles()}
+					</PriceEditingContext.Provider>
 				</Layout.Main>
 			</Layout>
 		</>

@@ -22,9 +22,16 @@ export const createProductPrices =
 						product.currency !== undefined,
 				)
 				.map(
-					({ productMerchantUrl, currency, price, updatedAt, updatedBy }) => [
+					({
 						productMerchantUrl,
-						{ currency, price, updatedAt, updatedBy },
+						currency,
+						price,
+						updatedAt,
+						updatedBy,
+						expiresAt,
+					}) => [
+						productMerchantUrl,
+						{ currency, price, updatedAt, updatedBy, expiresAt },
 					],
 				),
 		);

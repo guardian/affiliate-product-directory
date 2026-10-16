@@ -27,6 +27,8 @@ export const ProductLinkSchema = z.object({
 	price: z.number().optional(),
 	updatedAt: z.number().optional(),
 	updatedBy: z.string().optional(),
+	// When a manual override of the price ends. Missing if it doesn't, or the price isn't one.
+	expiresAt: z.number().optional(),
 });
 
 /**

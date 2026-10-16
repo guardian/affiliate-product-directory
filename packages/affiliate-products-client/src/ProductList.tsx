@@ -6,6 +6,7 @@ import {
 	semanticSpacing,
 	semanticTypography,
 } from '@guardian/stand';
+import { IconButton } from '@guardian/stand/IconButton';
 import { Link } from '@guardian/stand/Link';
 import {
 	Table,
@@ -17,11 +18,15 @@ import {
 } from '@guardian/stand/Table';
 import { Typography } from '@guardian/stand/Typography';
 import { convertTypographyToEmotionStringStyle } from '@guardian/stand/utils';
+import { useContext, useState } from 'react';
+import { ButtonPreview } from './ButtonPreview';
 import { formatDate } from './formatDate';
 import { formatPrice } from './formatPrice';
+import { PriceEditingContext } from './PriceEditing';
+import { PriceOverrideModal } from './PriceOverrideModal';
 
 // The columns are fixed so that a long URL is cut short rather than stretching its column.
-const columns = { sm: 'minmax(0, 1fr) 5.5rem 5.5rem 6.5rem 30%' };
+const columns = { sm: 'minmax(0, 1fr) 5.5rem 7rem 6.5rem 30%' };
 
 const weakText = { color: semanticColors.text.weak };
 
@@ -70,71 +75,150 @@ const Missing = ({ children }: { children: string }) => (
 	</Typography>
 );
 
-const renderLinkRow = ({
-	url,
-	label,
-	retailer,
-	basePrice,
-	currency,
-	price,
-	updatedAt,
-	updatedBy,
-}: ProductLink) => (
-	<TableRow key={url} id={url}>
-		<TableCell>
-			<div>
-				<Link href={url} target="_blank" rel="noreferrer">
-					{retailer ?? label}
-				</Link>
-				{/* The label is only worth showing when it says more than the retailer. */}
-				{retailer && !label.trim().endsWith(retailer) && (
-					<Typography element="div" variant="bodyXs" theme={weakText}>
-						{label}
-					</Typography>
-				)}
-			</div>
-		</TableCell>
-		<TableCell cssOverrides={numberStyles}>
-			{basePrice ? (
-				`${basePrice.currencySymbol}${formatPrice(basePrice.amount)}`
-			) : (
-				<Missing>—</Missing>
+const currentPriceStyles = css`
+	display: inline-flex;
+	align-items: center;
+	white-space: nowrap;
+	gap: ${semanticSpacing.stackXxs};
+`;
+
+// The edit button is a plain icon beside the price: no border or background, a grey icon
+// that darkens on hover. Stand's outline still shows when it has keyboard focus.
+const plainIconTheme = {
+	tertiary: {
+		shared: {
+			color: semanticColors.text.weak,
+			border: 'none',
+			hover: { border: 'none', backgroundColor: 'transparent' },
+			active: { border: 'none', backgroundColor: 'transparent' },
+			disabled: { border: 'none', backgroundColor: 'transparent' },
+		},
+	},
+};
+
+const plainIconStyles = css`
+	&[data-hovered],
+	&[data-pressed] {
+		color: ${semanticColors.text.strong};
+	}
+`;
+
+/** A link's price in the directory, with a button to set it by hand where that's allowed. */
+const CurrentPrice = ({
+	link,
+	productName,
+}: {
+	link: ProductLink;
+	productName?: string;
+}) => {
+	const { canEdit } = useContext(PriceEditingContext);
+	const [editing, setEditing] = useState(false);
+	const { currency, price, updatedBy } = link;
+	const shown =
+		currency !== undefined && price !== undefined ? (
+			formatCurrentPrice(currency, price)
+		) : (
+			<Missing>—</Missing>
+		);
+
+	if (!canEdit) {
+		return shown;
+	}
+
+	return (
+		<span css={currentPriceStyles}>
+			{shown}
+			<IconButton
+				symbol="edit"
+				variant="tertiary"
+				size="xs"
+				theme={plainIconTheme}
+				cssOverrides={plainIconStyles}
+				ariaLabel={`${updatedBy === 'manualOverride' ? 'Change' : 'Set'} the price at ${link.retailer ?? link.url} by hand`}
+				onPress={() => setEditing(true)}
+			/>
+			{editing && (
+				<PriceOverrideModal
+					link={link}
+					productName={productName}
+					isOpen={editing}
+					onOpenChange={setEditing}
+				/>
 			)}
-		</TableCell>
-		<TableCell cssOverrides={numberStyles}>
-			{currency !== undefined && price !== undefined ? (
-				formatCurrentPrice(currency, price)
-			) : (
-				<Missing>—</Missing>
-			)}
-		</TableCell>
-		<TableCell>
-			{updatedAt !== undefined ? (
+		</span>
+	);
+};
+
+const renderLinkRow = (link: ProductLink, productName?: string) => {
+	const { url, label, retailer, basePrice, updatedAt, updatedBy } = link;
+	return (
+		<TableRow key={url} id={url}>
+			<TableCell>
 				<div>
-					{formatDate(updatedAt)}
-					{updatedBy && (
+					<ButtonPreview link={link}>
+						<Link
+							href={url}
+							target="_blank"
+							rel="noreferrer"
+							typography="bodySm"
+						>
+							{retailer ?? label}
+						</Link>
+					</ButtonPreview>
+					{/* The label is only worth showing when it says more than the retailer. */}
+					{retailer && !label.trim().endsWith(retailer) && (
 						<Typography element="div" variant="bodyXs" theme={weakText}>
-							by {updatedBy}
+							{label}
 						</Typography>
 					)}
 				</div>
-			) : (
-				<Missing>N/A</Missing>
-			)}
-		</TableCell>
-		<TableCell>
-			<Link
-				href={url}
-				target="_blank"
-				rel="noreferrer"
-				typography="bodySm"
-				cssOverrides={ellipsisStyles}
-			>
-				{shortenUrl(url)}
-			</Link>
-		</TableCell>
-	</TableRow>
-);
+			</TableCell>
+			<TableCell cssOverrides={numberStyles}>
+				{basePrice ? (
+					`${basePrice.currencySymbol}${formatPrice(basePrice.amount)}`
+				) : (
+					<Missing>—</Missing>
+				)}
+			</TableCell>
+			<TableCell cssOverrides={numberStyles}>
+				<CurrentPrice link={link} productName={productName} />
+			</TableCell>
+			<TableCell>
+				{updatedAt !== undefined ? (
+					<div>
+						{formatDate(updatedAt)}
+						{updatedBy === 'manualOverride' ? (
+							<Typography element="div" variant="bodyXs" theme={weakText}>
+								set manually
+								{link.expiresAt !== undefined &&
+									`, until ${formatDate(link.expiresAt)}`}
+							</Typography>
+						) : (
+							updatedBy && (
+								<Typography element="div" variant="bodyXs" theme={weakText}>
+									by {updatedBy}
+								</Typography>
+							)
+						)}
+					</div>
+				) : (
+					<Missing>N/A</Missing>
+				)}
+			</TableCell>
+			<TableCell>
+				<Link
+					href={url}
+					target="_blank"
+					rel="noreferrer"
+					typography="bodySm"
+					cssOverrides={ellipsisStyles}
+				>
+					{shortenUrl(url)}
+				</Link>
+			</TableCell>
+		</TableRow>
+	);
+};
 
 const ProductBox = ({ product: { name, links } }: { product: Product }) => (
 	<div css={productStyles}>
@@ -159,7 +243,7 @@ const ProductBox = ({ product: { name, links } }: { product: Product }) => (
 				<TableColumnHeader>Updated</TableColumnHeader>
 				<TableColumnHeader>Link</TableColumnHeader>
 			</TableHeader>
-			<TableBody>{links.map(renderLinkRow)}</TableBody>
+			<TableBody>{links.map((link) => renderLinkRow(link, name))}</TableBody>
 		</Table>
 	</div>
 );
