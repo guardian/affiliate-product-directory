@@ -1,4 +1,5 @@
 import path from 'path';
+import { ProductsUpdater } from '@price-update/ProductsUpdater';
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import type { DynamoService } from '../../common/src/database-service';
@@ -7,6 +8,7 @@ import {
 	handleOverrideDeleteRequest,
 	handleOverrideRequest,
 } from './manual-override/manualOverrideHandlers';
+import { handlePreviewRequest } from './preview/previewRequestHandler';
 
 /**
  * Serves the affiliate-products-client build and its API from a single origin,
@@ -21,6 +23,8 @@ export function createApp({
 	auth: Auth;
 	dynamoService: DynamoService;
 }) {
+	const productsUpdater = new ProductsUpdater(dynamoService);
+
 	const app = express();
 	app.use(express.json());
 
@@ -60,6 +64,14 @@ export function createApp({
 			return res.status(result.status).json({ error: result.error });
 		}
 		return res.sendStatus(204);
+	});
+
+	app.get('/api/preview', async (req, res) => {
+		const result = await handlePreviewRequest(req.body, productsUpdater);
+		if (!result.ok) {
+			return res.status(result.status).json({ error: result.error });
+		}
+		return res.sendStatus(200).json(result.products);
 	});
 
 	// Unknown API paths shouldn't fall through to the SPA's index.html.

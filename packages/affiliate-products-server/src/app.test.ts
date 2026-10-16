@@ -159,7 +159,6 @@ describe('createApp', () => {
 			productMerchantUrl: 'https://shop.example.com/products/123',
 			currency: 'GBP',
 			price: 10,
-			createdAt: 1,
 			region: 'GB',
 			updatedAt: 1,
 			updatedBy: 'shopify',

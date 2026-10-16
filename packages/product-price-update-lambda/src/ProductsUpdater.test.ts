@@ -336,3 +336,5 @@ describe('refreshPrices', () => {
 		}
 	});
 });
+
+describe('getPreviewPrices', () => {});
