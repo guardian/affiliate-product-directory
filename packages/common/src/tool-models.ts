@@ -7,6 +7,9 @@ import { z } from 'zod';
 /** The CAPI sections the tool lists articles from. */
 export const SectionSchema = z.enum(['thefilter', 'thefilter-us']);
 
+/** Whether an article is a draft that hasn't been published yet, or is live on the site. */
+export const ArticleStatusSchema = z.enum(['draft', 'live']);
+
 /** How many articles are listed on each page. */
 export const articlesPageSize = 25;
 
@@ -44,9 +47,14 @@ export const ProductSchema = z.object({
 export const ArticleSchema = z.object({
 	id: z.string(),
 	sectionId: z.string(),
-	webPublicationDate: z.string(),
+	status: ArticleStatusSchema,
+	// Missing for a draft, which hasn't been published.
+	webPublicationDate: z.string().optional(),
+	// When the article was last changed in Composer. Missing if CAPI doesn't say.
+	lastModified: z.string().optional(),
 	webTitle: z.string(),
-	webUrl: z.string(),
+	// Missing for a draft, which isn't on the site yet.
+	webUrl: z.string().optional(),
 	// Missing if CAPI has no byline for the article.
 	byline: z.string().optional(),
 	// Missing if CAPI has no Composer ID for the article.
@@ -57,6 +65,11 @@ export const ArticleSchema = z.object({
 
 /** The response from /api/articles. */
 export const ArticlesPageSchema = z.object({
+	// The drafts, which come before the live articles and aren't paged, so they're only on
+	// the first page. Missing on later pages, when only live articles were asked for, or
+	// when the tool can't read Preview CAPI.
+	drafts: z.array(ArticleSchema).optional(),
+	// The page of live articles.
 	articles: z.array(ArticleSchema),
 	currentPage: z.number(),
 	pages: z.number(),
@@ -87,6 +100,7 @@ export const AuthResponseSchema = z.object({
 });
 
 export type Section = z.infer<typeof SectionSchema>;
+export type ArticleStatus = z.infer<typeof ArticleStatusSchema>;
 export type ProductLink = z.infer<typeof ProductLinkSchema>;
 export type Product = z.infer<typeof ProductSchema>;
 export type Article = z.infer<typeof ArticleSchema>;

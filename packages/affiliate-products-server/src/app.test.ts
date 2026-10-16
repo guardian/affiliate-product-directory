@@ -105,6 +105,7 @@ describe('createApp', () => {
 	const article = {
 		id: 'thefilter/2026/oct/06/an-article',
 		sectionId: 'thefilter',
+		status: 'live',
 		webPublicationDate: '2026-10-06T09:00:00Z',
 		webTitle: 'An article',
 		webUrl: 'https://www.theguardian.com/thefilter/2026/oct/06/an-article',
@@ -356,6 +357,139 @@ describe('createApp', () => {
 			expect(stageTable.getProductsByUrl).toHaveBeenCalled();
 			expect(prodTable.getProductsByUrl).not.toHaveBeenCalled();
 		});
+	});
+
+	describe('with drafts', () => {
+		// Preview CAPI, answering every search with a draft and a live article, of which
+		// only the draft is listed as a draft.
+		const draftResult = {
+			...searchResponse(1).response.results[0],
+			id: 'thefilter/2026/oct/16/a-draft',
+			webPublicationDate: undefined,
+			fields: { internalComposerCode: 'draft123', isLive: 'false' },
+		};
+		const stubPreview = () =>
+			jest.fn<(url: string) => Promise<Response>>(() =>
+				Promise.resolve(
+					Response.json({
+						response: {
+							...searchResponse(1).response,
+							results: [
+								draftResult,
+								{
+									...searchResponse(1).response.results[0],
+									fields: { isLive: 'true' },
+								},
+							],
+						},
+					}),
+				),
+			);
+
+		const appWithDrafts = (
+			fetchPreview: (url: string) => Promise<Response> = stubPreview(),
+		) =>
+			createApp({
+				clientDir,
+				auth: loggedIn,
+				stage: 'CODE',
+				capiKey: 'code-key',
+				fetchPreview,
+				dynamoService: pricingTable([pricedProduct]),
+			});
+
+		it('lists the drafts before the first page of live articles', async () => {
+			const fetchPreview = stubPreview();
+
+			const response = await request(appWithDrafts(fetchPreview)).get(
+				'/api/articles?section=thefilter',
+			);
+
+			expect(response.status).toBe(200);
+			const page = ArticlesPageSchema.parse(response.body);
+			expect(page.drafts?.map((draft) => draft.id)).toEqual([draftResult.id]);
+			expect(page.drafts?.[0]?.status).toBe('draft');
+			expect(page.articles).toEqual([
+				{ ...article, products: withPrice(pricedProduct) },
+			]);
+			const previewSearch = new URL(fetchPreview.mock.calls[0]?.[0] as string);
+			expect(previewSearch.origin).toBe(
+				'https://preview.content.code.dev-guardianapis.com',
+			);
+			expect(previewSearch.searchParams.get('section')).toBe('thefilter');
+		});
+
+		it("adds the directory's prices to the drafts' products", async () => {
+			const response = await request(appWithDrafts()).get('/api/articles');
+
+			expect(
+				ArticlesPageSchema.parse(response.body).drafts?.[0]?.products,
+			).toEqual(withPrice(pricedProduct));
+		});
+
+		it('leaves the drafts off later pages', async () => {
+			const fetchPreview = stubPreview();
+
+			const response = await request(appWithDrafts(fetchPreview)).get(
+				'/api/articles?page=2',
+			);
+
+			expect(ArticlesPageSchema.parse(response.body).drafts).toBeUndefined();
+			expect(ArticlesPageSchema.parse(response.body).articles).toHaveLength(1);
+			expect(fetchPreview).not.toHaveBeenCalled();
+		});
+
+		it('lists only the drafts given status=draft', async () => {
+			const response = await request(appWithDrafts()).get(
+				'/api/articles?status=draft',
+			);
+
+			const page = ArticlesPageSchema.parse(response.body);
+			expect(page.drafts).toHaveLength(1);
+			expect(page.articles).toEqual([]);
+			expect(capi).not.toHaveBeenCalled();
+		});
+
+		it('lists only the live articles given status=live', async () => {
+			const fetchPreview = stubPreview();
+
+			const response = await request(appWithDrafts(fetchPreview)).get(
+				'/api/articles?status=live',
+			);
+
+			expect(ArticlesPageSchema.parse(response.body).drafts).toBeUndefined();
+			expect(ArticlesPageSchema.parse(response.body).articles).toHaveLength(1);
+			expect(fetchPreview).not.toHaveBeenCalled();
+		});
+
+		it("still lists the live articles when Preview CAPI can't be read", async () => {
+			jest.spyOn(console, 'error').mockImplementation(() => {});
+			const failing = jest.fn<(url: string) => Promise<Response>>(() =>
+				Promise.resolve(new Response('', { status: 403 })),
+			);
+
+			const response = await request(appWithDrafts(failing)).get(
+				'/api/articles',
+			);
+
+			expect(response.status).toBe(200);
+			expect(ArticlesPageSchema.parse(response.body).drafts).toBeUndefined();
+			expect(ArticlesPageSchema.parse(response.body).articles).toHaveLength(1);
+		});
+
+		it('rejects an unknown status', async () => {
+			const response = await request(appWithDrafts()).get(
+				'/api/articles?status=published',
+			);
+
+			expect(response.status).toBe(400);
+		});
+	});
+
+	it('lists no drafts without access to Preview CAPI', async () => {
+		const response = await request(app()).get('/api/articles');
+
+		expect(ArticlesPageSchema.parse(response.body).drafts).toBeUndefined();
 	});
 
 	it("rejects prod=true when PROD's articles can't be listed", async () => {

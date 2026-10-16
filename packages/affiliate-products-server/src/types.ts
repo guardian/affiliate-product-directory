@@ -26,6 +26,12 @@ export type ListArticles = (
 	section?: Section,
 ) => Promise<ArticlesPage>;
 
+/**
+ * Lists one section's drafts, or both sections' if none is given, most recently changed
+ * first. Drafts aren't paged, as there are few of them.
+ */
+export type ListDrafts = (section?: Section) => Promise<Article[]>;
+
 /** A product's price in the pricing table, with only the fields the tool uses, by its URL. */
 export type ProductPrices = Map<
 	string,
@@ -95,13 +101,17 @@ export type Block = z.infer<typeof BlockSchema>;
 const SearchResultSchema = z.object({
 	id: z.string(),
 	sectionId: z.string(),
-	webPublicationDate: z.string(),
+	// Preview CAPI leaves this out for a draft.
+	webPublicationDate: z.string().optional(),
 	webTitle: z.string(),
 	webUrl: z.string(),
 	fields: z
 		.object({
 			internalComposerCode: z.string().optional(),
 			byline: z.string().optional(),
+			// 'true' or 'false'. Only Preview CAPI has articles that aren't live.
+			isLive: z.string().optional(),
+			lastModified: z.string().optional(),
 		})
 		.optional(),
 	blocks: z.object({ body: z.array(BlockSchema).optional() }).optional(),

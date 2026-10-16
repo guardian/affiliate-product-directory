@@ -17,6 +17,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { fetchArticles } from './api/articles';
 import { fetchUserName } from './api/auth';
 import { ArticleList, ArticleListPlaceholder } from './ArticleList';
+import type { ArticleGroup } from './ArticleList';
 import { headlineInset } from './ArticleRow';
 import { ArticleSearch } from './ArticleSearch';
 import { useListParams } from './hooks/useListParams';
@@ -71,8 +72,18 @@ const mainStyles = css`
 
 export const App = () => {
 	const [userName, setUserName] = useState<string>();
-	const { page, section, prod, path, setPage, setSection, setProd, setPath } =
-		useListParams();
+	const {
+		page,
+		section,
+		status,
+		prod,
+		path,
+		setPage,
+		setSection,
+		setStatus,
+		setProd,
+		setPath,
+	} = useListParams();
 	const [fetched, setFetched] = useState<{
 		params: ListParams;
 		state: ArticlesState;
@@ -94,7 +105,7 @@ export const App = () => {
 
 	useEffect(() => {
 		const controller = new AbortController();
-		const params = { page, section, prod, path };
+		const params = { page, section, status, prod, path };
 		fetchArticles(params, controller.signal)
 			.then((state) => setFetched({ params, state }))
 			.catch(() => {
@@ -103,12 +114,13 @@ export const App = () => {
 				}
 			});
 		return () => controller.abort();
-	}, [page, section, prod, path, reloads]);
+	}, [page, section, status, prod, path, reloads]);
 
 	// Whatever was fetched last is for a previous view until the current one's articles arrive.
 	const articles: ArticlesState =
 		fetched?.params.page === page &&
 		fetched.params.section === section &&
+		fetched.params.status === status &&
 		fetched.params.prod === prod &&
 		fetched.params.path === path
 			? fetched.state
@@ -173,16 +185,46 @@ export const App = () => {
 						</Button>
 					</div>
 				);
-			case 'loaded':
+			case 'loaded': {
 				if (path) {
 					return renderFound(articles.page.articles);
 				}
+				const { drafts, total } = articles.page;
+				// The drafts are only on the first page. The server leaves them out of it when
+				// Preview CAPI can't be read.
+				const groups: ArticleGroup[] = [
+					...(status !== 'live' && page === 1
+						? [
+								{
+									title: drafts ? `Drafts (${drafts.length})` : 'Drafts',
+									draft: true,
+									articles: drafts ?? [],
+									emptyMessage: drafts
+										? 'There are no drafts.'
+										: 'The drafts couldn’t be loaded from Preview CAPI.',
+								},
+							]
+						: []),
+					...(status !== 'draft'
+						? [
+								{
+									title: `Published (${total})`,
+									draft: false,
+									articles: articles.page.articles,
+									emptyMessage: 'There are no published articles.',
+								},
+							]
+						: []),
+				];
 				return (
 					<>
-						<ArticleList articles={articles.page.articles} />
-						<Pagination page={articles.page} onChange={changePage} />
+						<ArticleList groups={groups} />
+						{status !== 'draft' && (
+							<Pagination page={articles.page} onChange={changePage} />
+						)}
 					</>
 				);
+			}
 		}
 	};
 
@@ -201,6 +243,8 @@ export const App = () => {
 				<Sidebar
 					section={section}
 					onSectionChange={setSection}
+					status={status}
+					onStatusChange={setStatus}
 					prod={prod}
 					onProdChange={setProd}
 				/>

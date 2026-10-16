@@ -27,5 +27,11 @@ export const getCapiBaseUrl = (stage: string) =>
 		? 'https://content.guardianapis.com'
 		: 'https://content.code.dev-guardianapis.com';
 
+/** Preview CAPI has every article, including drafts, as it is in Composer now. */
+export const getPreviewCapiBaseUrl = (stage: string) =>
+	stage === 'PROD'
+		? 'https://preview.content.guardianapis.com'
+		: 'https://preview.content.code.dev-guardianapis.com';
+
 export const getCapiKey = () => getEnvOrThrow('CAPI_KEY');
 export const getBucketName = () => getEnvOrThrow('BUCKET');

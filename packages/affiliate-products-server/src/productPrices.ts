@@ -1,5 +1,5 @@
 import type { Product } from '@common/models';
-import type { ArticlesPage } from '@common/tool-models';
+import type { Article, ArticlesPage } from '@common/tool-models';
 import type { GetProductPrices, ProductPrices } from './types';
 
 /**
@@ -37,10 +37,10 @@ export const createProductPrices =
 		);
 	};
 
-/** The URL of every product link on the page, each once. */
+/** The URL of every product link on the page, its drafts' included, each once. */
 export const productUrls = (page: ArticlesPage): string[] => [
 	...new Set(
-		page.articles.flatMap((article) =>
+		[...(page.drafts ?? []), ...page.articles].flatMap((article) =>
 			article.products.flatMap((product) =>
 				product.links.map((link) => link.url),
 			),
@@ -52,9 +52,8 @@ export const productUrls = (page: ArticlesPage): string[] => [
 export const attachProductPrices = (
 	page: ArticlesPage,
 	prices: ProductPrices,
-): ArticlesPage => ({
-	...page,
-	articles: page.articles.map((article) => ({
+): ArticlesPage => {
+	const withPrices = (article: Article): Article => ({
 		...article,
 		products: article.products.map((product) => ({
 			...product,
@@ -63,5 +62,10 @@ export const attachProductPrices = (
 				...prices.get(link.url),
 			})),
 		})),
-	})),
-});
+	});
+	return {
+		...page,
+		...(page.drafts && { drafts: page.drafts.map(withPrices) }),
+		articles: page.articles.map(withPrices),
+	};
+};

@@ -7,12 +7,15 @@ import {
 	semanticTypography,
 } from '@guardian/stand';
 import { convertTypographyToEmotionStringStyle } from '@guardian/stand/utils';
+import { useId } from 'react';
 import {
 	articleColumnsStyles,
 	articleListContainer,
 	ArticleRow,
+	headlineInset,
 	numberColumnStyles,
 } from './ArticleRow';
+import { draftAccent } from './style';
 
 const listStyles = css`
 	list-style: none;
@@ -46,26 +49,107 @@ const ArticleListHeader = () => (
 	</div>
 );
 
-/** The column headers and a row for each of the given articles. */
-export const ArticleList = ({
+// Starts a group of rows, lined up with the headlines. The published articles' heading is
+// also the divider between them and the drafts above.
+const groupHeadingStyles = (draft: boolean) => css`
+	${convertTypographyToEmotionStringStyle(semanticTypography.headingXs)};
+	margin: 0;
+	padding: ${semanticSpacing.stackXs} ${semanticSpacing.stackMd};
+	padding-left: ${headlineInset};
+	border-top: ${draft ? 'none' : `3px solid ${semanticColors.border.strong}`};
+	border-bottom: 1px solid ${semanticColors.border.weak};
+	background-color: ${draft
+		? draftAccent.tint
+		: semanticColors.bg.raisedLevel1};
+	color: ${semanticColors.text.weak};
+	text-transform: uppercase;
+`;
+
+const emptyGroupStyles = css`
+	${convertTypographyToEmotionStringStyle(semanticTypography.bodySm)};
+	margin: 0;
+	padding: ${semanticSpacing.stackSm} ${semanticSpacing.stackMd};
+	padding-left: ${headlineInset};
+	border-bottom: 1px solid ${semanticColors.border.weak};
+	color: ${semanticColors.text.weak};
+`;
+
+const ArticleRows = ({
 	articles,
-	initiallyOpen = false,
+	initiallyOpen,
 }: {
 	articles: Article[];
+	initiallyOpen: boolean;
+}) => (
+	<ul css={listStyles}>
+		{articles.map((article) => (
+			<ArticleRow
+				key={article.id}
+				article={article}
+				initiallyOpen={initiallyOpen}
+			/>
+		))}
+	</ul>
+);
+
+/** A group of the list's rows under a heading of its own, such as the drafts. */
+export interface ArticleGroup {
+	title: string;
+	draft: boolean;
+	articles: Article[];
+	/** Shown in place of the rows when there are none. */
+	emptyMessage: string;
+}
+
+const Group = ({
+	group,
+	initiallyOpen,
+}: {
+	group: ArticleGroup;
+	initiallyOpen: boolean;
+}) => {
+	const headingId = useId();
+	return (
+		<section aria-labelledby={headingId}>
+			<h2 id={headingId} css={groupHeadingStyles(group.draft)}>
+				{group.title}
+			</h2>
+			{group.articles.length === 0 ? (
+				<p css={emptyGroupStyles}>{group.emptyMessage}</p>
+			) : (
+				<ArticleRows articles={group.articles} initiallyOpen={initiallyOpen} />
+			)}
+		</section>
+	);
+};
+
+/**
+ * The column headers and a row for each of the given articles, or, given groups, the rows
+ * of each group under its heading.
+ */
+export const ArticleList = ({
+	articles = [],
+	groups,
+	initiallyOpen = false,
+}: {
+	articles?: Article[];
+	groups?: ArticleGroup[];
 	/** Whether the articles start open, as one that's been searched for does. */
 	initiallyOpen?: boolean;
 }) => (
 	<div css={articleListContainer}>
 		<ArticleListHeader />
-		<ul css={listStyles}>
-			{articles.map((article) => (
-				<ArticleRow
-					key={article.id}
-					article={article}
+		{groups ? (
+			groups.map((group) => (
+				<Group
+					key={group.draft ? 'drafts' : 'published'}
+					group={group}
 					initiallyOpen={initiallyOpen}
 				/>
-			))}
-		</ul>
+			))
+		) : (
+			<ArticleRows articles={articles} initiallyOpen={initiallyOpen} />
+		)}
 	</div>
 );
 

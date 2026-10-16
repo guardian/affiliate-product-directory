@@ -221,14 +221,21 @@ export const ArticleDetail = ({
 	article: Article;
 }) => {
 	const retailers = retailersUsed(article);
-	const csvUrl = `/api/link-counts.csv?${new URLSearchParams({ url: article.webUrl }).toString()}`;
+	// A draft isn't on the site, so has no page to read its links from.
+	const { webUrl } = article;
+	const csvUrl =
+		webUrl &&
+		`/api/link-counts.csv?${new URLSearchParams({ url: webUrl }).toString()}`;
 	const [linkCounts, setLinkCounts] = useState<LinkCountsState>({
 		status: 'loading',
 	});
 
 	useEffect(() => {
+		if (!webUrl) {
+			return;
+		}
 		const controller = new AbortController();
-		fetchLinkCounts(article.webUrl, controller.signal)
+		fetchLinkCounts(webUrl, controller.signal)
 			.then((counts) =>
 				setLinkCounts(
 					counts ? { status: 'loaded', counts } : { status: 'error' },
@@ -240,14 +247,20 @@ export const ArticleDetail = ({
 				}
 			});
 		return () => controller.abort();
-	}, [article.webUrl]);
+	}, [webUrl]);
 
 	return (
 		<div id={id}>
 			<div css={columnsStyles}>
 				<section css={columnStyles}>
 					<h4 css={headingStyles}>Links</h4>
-					<LinkCountStats state={linkCounts} />
+					{webUrl ? (
+						<LinkCountStats state={linkCounts} />
+					) : (
+						<Typography element="p" variant="bodySm" theme={weakText}>
+							The links are counted once the article is published.
+						</Typography>
+					)}
 					<h4 css={headingStyles}>Article</h4>
 					<dl css={fieldsStyles}>
 						<dt>Headline</dt>
@@ -260,17 +273,31 @@ export const ArticleDetail = ({
 						</dd>
 						<dt>Path</dt>
 						<dd>
-							<Link
-								href={article.webUrl}
-								target="_blank"
-								rel="noreferrer"
-								typography="bodySm"
-							>
+							{webUrl ? (
+								<Link
+									href={webUrl}
+									target="_blank"
+									rel="noreferrer"
+									typography="bodySm"
+								>
+									<code css={pathStyles}>/{article.id}</code>
+								</Link>
+							) : (
 								<code css={pathStyles}>/{article.id}</code>
-							</Link>
+							)}
 						</dd>
 						<dt>Published</dt>
-						<dd>{formatDate(article.webPublicationDate)}</dd>
+						<dd>
+							{article.webPublicationDate
+								? formatDate(article.webPublicationDate)
+								: 'Not yet published'}
+						</dd>
+						{article.lastModified && (
+							<>
+								<dt>Last edited</dt>
+								<dd>{formatDate(article.lastModified)}</dd>
+							</>
+						)}
 						<dt>Retailers used</dt>
 						<dd>{retailers.join(', ') || '—'}</dd>
 					</dl>
@@ -286,11 +313,12 @@ export const ArticleDetail = ({
 				<ActionLink href={article.composerUrl} primary={true}>
 					Open in Composer
 				</ActionLink>
-				<ActionLink href={article.webUrl}>Live site</ActionLink>
+				<ActionLink href={webUrl}>Live site</ActionLink>
 				<ActionLink href={article.ophanUrl}>Ophan</ActionLink>
 				{/* The bookmarklet's CSV of the article's external links, read from its page again. */}
 				<LinkButton
 					href={csvUrl}
+					isDisabled={!csvUrl}
 					download
 					variant="secondary"
 					size="sm"

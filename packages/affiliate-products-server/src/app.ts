@@ -1,8 +1,8 @@
 import path from 'path';
 import { articlePath } from '@common/articlePath';
-import { getCapiBaseUrl } from '@common/config';
+import { getCapiBaseUrl, getPreviewCapiBaseUrl } from '@common/config';
 import type { DynamoService } from '@common/database-service';
-import { SectionSchema } from '@common/tool-models';
+import { ArticleStatusSchema, SectionSchema } from '@common/tool-models';
 import type {
 	ArticlesPage,
 	AuthResponse,
@@ -15,6 +15,7 @@ import { z } from 'zod';
 import {
 	createCapiArticle,
 	createCapiArticles,
+	createCapiDrafts,
 	getComposerBaseUrl,
 } from './capi';
 import {
@@ -32,24 +33,37 @@ import {
 	createProductPrices,
 	productUrls,
 } from './productPrices';
-import type { Auth, GetArticle } from './types';
+import type { Auth, GetArticle, ListDrafts } from './types';
+
+/** Fetches a URL from Preview CAPI, signing the request. */
+type FetchPreview = (url: string) => Promise<globalThis.Response>;
 
 const noAccessMessage =
 	"You don't have permission to access the affiliate products tool.";
 
 /**
- * Lists a stage's articles from its CAPI, linking to its Composer, with their prices from
- * its pricing table, read on every request so nothing is cached between them.
+ * Lists a stage's articles from its CAPI, and its drafts from its Preview CAPI if it can
+ * be read, linking to its Composer, with their prices from its pricing table, read on
+ * every request so nothing is cached between them.
  */
 const readStage = ({
 	stage,
 	capiKey,
+	fetchPreview,
 	dynamoService,
 }: {
 	stage: string;
 	capiKey: string;
+	fetchPreview?: FetchPreview;
 	dynamoService: DynamoService;
 }) => ({
+	listDrafts: fetchPreview
+		? createCapiDrafts({
+				baseUrl: getPreviewCapiBaseUrl(stage),
+				composerBaseUrl: getComposerBaseUrl(stage),
+				fetchPreview,
+			})
+		: undefined,
 	listArticles: createCapiArticles({
 		baseUrl: getCapiBaseUrl(stage),
 		apiKey: capiKey,
@@ -79,6 +93,32 @@ const findArticle = async (
 	};
 };
 
+const noArticles: ArticlesPage = {
+	articles: [],
+	currentPage: 1,
+	pages: 0,
+	total: 0,
+};
+
+/**
+ * The drafts, or undefined if they can't be read, so that the live articles are still
+ * listed when Preview CAPI can't be reached.
+ */
+const readDrafts = async (
+	listDrafts: ListDrafts | undefined,
+	section: Parameters<ListDrafts>[0],
+) => {
+	if (!listDrafts) {
+		return undefined;
+	}
+	try {
+		return await listDrafts(section);
+	} catch (error) {
+		console.error(error);
+		return undefined;
+	}
+};
+
 /**
  * Serves the affiliate-products-client build and its API from a single origin,
  * so the page and the API sit behind the same auth middleware.
@@ -88,6 +128,7 @@ export function createApp({
 	auth,
 	stage,
 	capiKey,
+	fetchPreview,
 	dynamoService,
 	prod,
 	fetchPage = fetchRenderedPage,
@@ -97,16 +138,22 @@ export function createApp({
 	/** The stage whose CAPI, Composer and pricing table the articles come from by default. */
 	stage: string;
 	capiKey: string;
+	/** Fetches from the stage's Preview CAPI, for its drafts. Without it, no drafts are listed. */
+	fetchPreview?: FetchPreview;
 	dynamoService: DynamoService;
-	/** PROD's CAPI key and pricing table, used instead when asked for with prod=true. */
-	prod?: { capiKey: string; dynamoService: DynamoService };
+	/** PROD's CAPI key, Preview CAPI and pricing table, used instead when asked for with prod=true. */
+	prod?: {
+		capiKey: string;
+		fetchPreview?: FetchPreview;
+		dynamoService: DynamoService;
+	};
 	/** Fetches an article as it's rendered on the site, for its links. */
 	fetchPage?: typeof fetchRenderedPage;
 }) {
 	const app = express();
 	app.use(express.json());
 
-	const stageData = readStage({ stage, capiKey, dynamoService });
+	const stageData = readStage({ stage, capiKey, fetchPreview, dynamoService });
 	const prodData = prod && readStage({ stage: 'PROD', ...prod });
 
 	app.use(async (req, res, next) => {
@@ -162,6 +209,13 @@ export function createApp({
 			res.status(400).json({ error: "path must be an article's URL or path" });
 			return;
 		}
+		const status = ArticleStatusSchema.optional().safeParse(req.query.status);
+		if (!status.success) {
+			res.status(400).json({
+				error: `status must be one of ${ArticleStatusSchema.options.join(', ')}`,
+			});
+			return;
+		}
 		const prodParam = z.literal('true').optional().safeParse(req.query.prod);
 		if (!prodParam.success) {
 			res.status(400).json({ error: 'prod must be true, or left out' });
@@ -173,9 +227,24 @@ export function createApp({
 			res.status(400).json({ error: "PROD's articles can't be listed here" });
 			return;
 		}
-		const articlesPage = await (path
-			? findArticle(dataSource.getArticle, path)
-			: dataSource.listArticles(Number(page), section.data));
+		// The drafts come before the live articles, so they're only on the first page.
+		const showDrafts =
+			!path &&
+			(status.data === 'draft' || (status.data === undefined && page === '1'));
+		const showLive = status.data !== 'draft';
+		const [drafts, livePage] = await Promise.all([
+			showDrafts
+				? readDrafts(dataSource.listDrafts, section.data)
+				: Promise.resolve(undefined),
+			path
+				? findArticle(dataSource.getArticle, path)
+				: showLive
+					? dataSource.listArticles(Number(page), section.data)
+					: Promise.resolve(noArticles),
+		]);
+		const articlesPage: ArticlesPage = drafts
+			? { drafts, ...livePage }
+			: livePage;
 		const productPrices = await dataSource.getProductPrices(
 			productUrls(articlesPage),
 		);

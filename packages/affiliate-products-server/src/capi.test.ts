@@ -3,6 +3,8 @@ import { jest } from '@jest/globals';
 import {
 	createCapiArticle,
 	createCapiArticles,
+	createCapiDrafts,
+	draftsSearchSize,
 	getComposerBaseUrl,
 } from './capi';
 
@@ -97,7 +99,7 @@ describe('createCapiArticles', () => {
 			'order-by': 'newest',
 			'page-size': '25',
 			page: '2',
-			'show-fields': 'internalComposerCode,byline',
+			'show-fields': 'internalComposerCode,byline,isLive,lastModified',
 			'show-blocks': 'body',
 			'api-key': 'test-key',
 		});
@@ -111,6 +113,7 @@ describe('createCapiArticles', () => {
 				{
 					id: result.id,
 					sectionId: result.sectionId,
+					status: 'live',
 					webPublicationDate: result.webPublicationDate,
 					webTitle: result.webTitle,
 					webUrl: result.webUrl,
@@ -255,7 +258,7 @@ describe('createCapiArticle', () => {
 			`https://capi.example.com/${result.id}`,
 		);
 		expect(Object.fromEntries(url.searchParams)).toEqual({
-			'show-fields': 'internalComposerCode,byline',
+			'show-fields': 'internalComposerCode,byline,isLive,lastModified',
 			'show-blocks': 'body',
 			'api-key': 'test-key',
 		});
@@ -282,5 +285,104 @@ describe('createCapiArticle', () => {
 		expect(error).toBeInstanceOf(Error);
 		expect((error as Error).message).toContain('status 500');
 		expect((error as Error).message).not.toContain('test-key');
+	});
+});
+
+describe('createCapiDrafts', () => {
+	// Preview CAPI has drafts, which have no publication date, as well as live articles.
+	const draft = {
+		...result,
+		id: 'thefilter/2026/oct/16/a-draft',
+		webPublicationDate: undefined,
+		webUrl: 'https://www.theguardian.com/thefilter/2026/oct/16/a-draft',
+		fields: {
+			...result.fields,
+			isLive: 'false',
+			lastModified: '2026-10-16T08:00:00Z',
+		},
+	};
+	const live = { ...result, fields: { ...result.fields, isLive: 'true' } };
+
+	const stubPreview = (results: unknown[]) =>
+		jest.fn<(url: string) => Promise<Response>>(() =>
+			Promise.resolve(
+				Response.json({ response: { ...searchResponse.response, results } }),
+			),
+		);
+
+	const listDrafts = (fetchPreview: (url: string) => Promise<Response>) =>
+		createCapiDrafts({
+			baseUrl: 'https://preview.example.com',
+			composerBaseUrl: 'https://composer.example.com',
+			fetchPreview,
+		});
+
+	it('searches the most recently changed articles in both Filter sections, without an API key', async () => {
+		const fetchPreview = stubPreview([]);
+
+		await listDrafts(fetchPreview)();
+
+		const url = new URL(fetchPreview.mock.calls[0]?.[0] as string);
+		expect(url.origin + url.pathname).toBe(
+			'https://preview.example.com/search',
+		);
+		expect(Object.fromEntries(url.searchParams)).toEqual({
+			section: 'thefilter|thefilter-us',
+			'order-by': 'newest',
+			'use-date': 'last-modified',
+			'page-size': String(draftsSearchSize),
+			'show-fields': 'internalComposerCode,byline,isLive,lastModified',
+			'show-blocks': 'body',
+		});
+	});
+
+	it('searches only the section given', async () => {
+		const fetchPreview = stubPreview([]);
+
+		await listDrafts(fetchPreview)('thefilter-us');
+
+		const url = new URL(fetchPreview.mock.calls[0]?.[0] as string);
+		expect(url.searchParams.get('section')).toBe('thefilter-us');
+	});
+
+	it('returns only the drafts, without a link to the live site', async () => {
+		const drafts = await listDrafts(stubPreview([live, draft]))();
+
+		expect(drafts).toEqual([
+			expect.objectContaining({
+				id: draft.id,
+				status: 'draft',
+				webPublicationDate: undefined,
+				webUrl: undefined,
+				lastModified: '2026-10-16T08:00:00Z',
+				composerUrl:
+					'https://composer.example.com/content/6707d2a08f08a1b2c3d4e5f6',
+			}),
+		]);
+		expect(drafts[0]?.products).toHaveLength(1);
+	});
+
+	it('returns drafts the client accepts', async () => {
+		const drafts = await listDrafts(stubPreview([draft]))();
+
+		const sent: unknown = JSON.parse(
+			JSON.stringify({
+				drafts,
+				articles: [],
+				currentPage: 1,
+				pages: 0,
+				total: 0,
+			}),
+		);
+
+		expect(ArticlesPageSchema.safeParse(sent).success).toBe(true);
+	});
+
+	it('throws when Preview CAPI fails', async () => {
+		const fetchPreview = jest.fn<(url: string) => Promise<Response>>(() =>
+			Promise.resolve(new Response('', { status: 403 })),
+		);
+
+		await expect(listDrafts(fetchPreview)()).rejects.toThrow('status 403');
 	});
 });

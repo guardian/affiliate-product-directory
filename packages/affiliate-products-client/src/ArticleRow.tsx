@@ -15,7 +15,7 @@ import { formatDate } from './formatDate';
 import { ComposerIcon, LiveSiteIcon, OphanIcon } from './icons';
 import { retailerLinkCount } from './productStats';
 import { describeSection } from './sections';
-import { accent } from './style';
+import { accent, draftAccent } from './style';
 
 // The width of the column with the row's toggle, which is a small IconButton.
 const toggleColumnWidth = '2rem';
@@ -94,8 +94,8 @@ export const numberColumnStyles = css`
 `;
 
 // Like the POC, the whole row opens the article, and an open row is marked with a bar
-// down its left edge.
-const summaryStyles = (expanded: boolean) => css`
+// down its left edge. A draft's row is tinted, with a stripe of its own until it's opened.
+const summaryStyles = (expanded: boolean, draft: boolean) => css`
 	${articleColumnsStyles};
 	${convertTypographyToEmotionStringStyle(semanticTypography.bodySm)};
 	padding-top: ${semanticSpacing.stackXs};
@@ -103,14 +103,27 @@ const summaryStyles = (expanded: boolean) => css`
 	cursor: pointer;
 	background-color: ${expanded
 		? semanticColors.bg.raisedLevel2
-		: 'transparent'};
-	box-shadow: ${expanded ? `inset 4px 0 0 ${accent.strong}` : 'none'};
+		: draft
+			? draftAccent.tint
+			: 'transparent'};
+	box-shadow: ${expanded
+		? `inset 4px 0 0 ${accent.strong}`
+		: draft
+			? `inset 4px 0 0 ${draftAccent.stripe}`
+			: 'none'};
 
 	&:hover {
 		background-color: ${expanded
 			? semanticColors.bg.raisedLevel2
-			: semanticColors.bg.raisedLevel1};
+			: draft
+				? draftAccent.tintHover
+				: semanticColors.bg.raisedLevel1};
 	}
+`;
+
+const draftBadgeStyles = css`
+	margin-right: ${semanticSpacing.stackXs};
+	vertical-align: text-bottom;
 `;
 
 const toggleStyles = (expanded: boolean) => css`
@@ -217,6 +230,31 @@ const sectionStyles = (colour: string) => css`
 
 const weakText = { color: semanticColors.text.weak };
 
+const weakTextStyles = css`
+	color: ${semanticColors.text.weak};
+`;
+
+/** When the article was published, or for a draft, when it was last edited. */
+const ArticleDate = ({ article }: { article: Article }) =>
+	article.webPublicationDate ? (
+		<time dateTime={article.webPublicationDate}>
+			{formatDate(article.webPublicationDate)}
+		</time>
+	) : (
+		<span css={weakTextStyles}>
+			{article.lastModified ? (
+				<>
+					Edited{' '}
+					<time dateTime={article.lastModified}>
+						{formatDate(article.lastModified)}
+					</time>
+				</>
+			) : (
+				'Unpublished'
+			)}
+		</span>
+	);
+
 export const ArticleRow = ({
 	article,
 	initiallyOpen = false,
@@ -227,6 +265,7 @@ export const ArticleRow = ({
 	const [expanded, setExpanded] = useState(initiallyOpen);
 	const panelId = useId();
 	const section = describeSection(article.sectionId);
+	const draft = article.status === 'draft';
 
 	// Clicks on the row's links and toggle do what they do without the row's click too.
 	const onRowClick = (event: MouseEvent) => {
@@ -238,7 +277,7 @@ export const ArticleRow = ({
 	return (
 		<li css={rowStyles(expanded)}>
 			{/* The toggle makes the row's click usable from the keyboard. */}
-			<div css={summaryStyles(expanded)} onClick={onRowClick}>
+			<div css={summaryStyles(expanded, draft)} onClick={onRowClick}>
 				<IconButton
 					variant="tertiary"
 					size="sm"
@@ -250,7 +289,14 @@ export const ArticleRow = ({
 					cssOverrides={toggleStyles(expanded)}
 				/>
 				<div>
-					<div css={titleStyles}>{article.webTitle}</div>
+					<div css={titleStyles}>
+						{draft && (
+							<Badge size="xs" color="yellow" cssOverrides={draftBadgeStyles}>
+								Draft
+							</Badge>
+						)}
+						{article.webTitle}
+					</div>
 					<Typography
 						element="div"
 						variant="bodyXs"
@@ -266,7 +312,7 @@ export const ArticleRow = ({
 						)}
 						<span data-when="narrow">
 							{article.byline && ' · '}
-							{formatDate(article.webPublicationDate)}
+							<ArticleDate article={article} />
 						</span>
 					</Typography>
 				</div>
@@ -285,9 +331,9 @@ export const ArticleRow = ({
 				<span data-column="retailer-links" css={numberColumnStyles}>
 					{retailerLinkCount(article)}
 				</span>
-				<time data-column="published" dateTime={article.webPublicationDate}>
-					{formatDate(article.webPublicationDate)}
-				</time>
+				<span data-column="published">
+					<ArticleDate article={article} />
+				</span>
 			</div>
 			{expanded && <ArticleDetail id={panelId} article={article} />}
 		</li>
