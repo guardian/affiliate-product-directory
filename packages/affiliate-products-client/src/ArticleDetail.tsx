@@ -19,6 +19,7 @@ import { formatDate } from './formatDate';
 import { ProductList } from './ProductList';
 import { retailersUsed } from './productStats';
 import { describeSection } from './sections';
+import { skimlinksUrl } from './skimlinksUrl';
 import { accent } from './style';
 
 const weakText = { color: semanticColors.text.weak };
@@ -315,6 +316,11 @@ export const ArticleDetail = ({
 				</ActionLink>
 				<ActionLink href={webUrl}>Live site</ActionLink>
 				<ActionLink href={article.ophanUrl}>Ophan</ActionLink>
+				<ActionLink
+					href={webUrl && skimlinksUrl(webUrl, article.webPublicationDate)}
+				>
+					Skimlinks
+				</ActionLink>
 				{/* The bookmarklet's CSV of the article's external links, read from its page again. */}
 				<LinkButton
 					href={csvUrl}

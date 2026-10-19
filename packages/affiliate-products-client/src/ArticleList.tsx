@@ -211,7 +211,7 @@ export const ArticleListPlaceholder = () => (
 					<span css={barStyles('45%')} />
 				</span>
 				<span data-column="byline" css={barStyles('70%')} />
-				<span data-column="open-in" css={barStyles('4rem')} />
+				<span data-column="open-in" css={barStyles('5rem')} />
 				<span css={barStyles('5rem', '1.1rem')} />
 				<span css={[numberColumnStyles, barStyles('1.5rem')]} />
 				<span

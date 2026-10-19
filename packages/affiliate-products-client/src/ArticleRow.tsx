@@ -12,9 +12,10 @@ import { convertTypographyToEmotionStringStyle } from '@guardian/stand/utils';
 import { type MouseEvent, type ReactNode, useId, useState } from 'react';
 import { ArticleDetail } from './ArticleDetail';
 import { formatDate } from './formatDate';
-import { ComposerIcon, LiveSiteIcon, OphanIcon } from './icons';
+import { ComposerIcon, LiveSiteIcon, OphanIcon, SkimlinksIcon } from './icons';
 import { retailerLinkCount } from './productStats';
 import { describeSection } from './sections';
+import { skimlinksUrl } from './skimlinksUrl';
 import { accent, draftAccent } from './style';
 
 // The width of the column with the row's toggle, which is a small IconButton.
@@ -144,17 +145,23 @@ const ellipsisStyles = css`
 	white-space: nowrap;
 `;
 
+// The icons' padding spaces them out, so their hover areas meet. The margin lines the first
+// icon up with the column's heading.
+const iconPadding = '6px';
+
 const linksStyles = css`
 	display: flex;
 	align-items: center;
-	gap: ${semanticSpacing.stackSm};
+	margin: 0 -${iconPadding};
 `;
 
-// The POC's plain icons, rather than Stand's IconLinkButtons, so the three fit the column.
+// The POC's plain icons, rather than Stand's IconLinkButtons, so the four fit the column.
 const iconLinkStyles = (available: boolean) => css`
 	display: flex;
 	width: 14px;
 	height: 14px;
+	box-sizing: content-box;
+	padding: ${iconPadding};
 	color: ${available ? semanticColors.text.weak : semanticColors.text.disabled};
 
 	svg {
@@ -216,6 +223,14 @@ const ArticleLinks = ({ article }: { article: Article }) => (
 			href={article.ophanUrl}
 			name="View in Ophan"
 			icon={<OphanIcon />}
+		/>
+		<ArticleLink
+			href={
+				article.webUrl &&
+				skimlinksUrl(article.webUrl, article.webPublicationDate)
+			}
+			name="View in Skimlinks"
+			icon={<SkimlinksIcon />}
 		/>
 	</div>
 );
