@@ -140,6 +140,7 @@ export class AffiliateProductDirectory extends GuStack {
 				domainName: props.toolDomainName,
 				capiKeyParam,
 				productPricingReadPolicy: productPricingDynamoDBReadPolicy,
+				productPricingWritePolicy: productPricingDynamoDBWritePolicy,
 				// PROD's tool always shows PROD's data. Elsewhere it can also show PROD's, read-only.
 				prodData:
 					stage === 'PROD'
