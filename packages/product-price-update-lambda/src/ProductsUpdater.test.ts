@@ -136,6 +136,27 @@ describe('refreshPrices', () => {
 		]);
 	});
 
+	it('does not offer removed products to any provider', async () => {
+		const active = buildProduct({
+			productMerchantUrl: 'https://www.johnlewis.com/p/1',
+		});
+		const removedAmazon = buildProduct({
+			productMerchantUrl: 'https://www.amazon.com/dp/2',
+			removed: 'true',
+		});
+		const removedOther = buildProduct({
+			productMerchantUrl: 'https://www.target.com/p/3',
+			removed: 'true',
+		});
+		mockGetAllProducts.mockResolvedValue([active, removedAmazon, removedOther]);
+
+		await updater().refreshPrices();
+
+		expect(mockAmazonRefreshPrices).not.toHaveBeenCalled();
+		expect(mockShopifyRefreshPrices).toHaveBeenCalledWith([active]);
+		expect(mockSkimlinksRefreshPrices).toHaveBeenCalledWith([active]);
+	});
+
 	it('routes amazon products to the amazon provider and the rest to shopify then skimlinks', async () => {
 		const amazonCom = buildProduct({
 			productMerchantUrl: 'https://amazon.com/dp/1',
