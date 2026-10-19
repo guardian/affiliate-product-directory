@@ -66,7 +66,7 @@ export function createApp({
 		return res.sendStatus(204);
 	});
 
-	app.get('/api/preview', async (req, res) => {
+	app.post('/api/preview', async (req, res) => {
 		const result = await handlePreviewRequest(req.body, productsUpdater);
 		if (!result.ok) {
 			return res.status(result.status).json({ error: result.error });
