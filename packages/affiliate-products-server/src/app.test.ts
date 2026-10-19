@@ -262,7 +262,7 @@ describe('createApp', () => {
 		mockUpdateProducts.mockResolvedValueOnce({ skipped: [] });
 
 		const response = await request(app())
-			.get('/api/preview')
+			.post('/api/preview')
 			.send(previewRequest);
 
 		expect(response.status).toBe(200);
@@ -277,7 +277,7 @@ describe('createApp', () => {
 
 	it('returns 400 for malformed preview input', async () => {
 		const response = await request(app())
-			.get('/api/preview')
+			.post('/api/preview')
 			.send({
 				products: [
 					{ productMerchantUrl: 'https://amazon.com/dp/123', region: 'XX' },

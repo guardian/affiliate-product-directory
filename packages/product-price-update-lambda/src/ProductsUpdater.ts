@@ -68,6 +68,11 @@ export class ProductsUpdater {
 					)) ?? requestProduct,
 			),
 		);
+
+		const manualOverrides = maybeStoredProducts.filter((product) =>
+			this.shouldSkipManualPrice(product),
+		);
+
 		const categorised = this.categoriseProducts(maybeStoredProducts);
 		const [amazonUpdated, otherUpdated] = await Promise.all([
 			this.refreshWithFallback(categorised.amazon, this.providers.amazon),
@@ -79,7 +84,7 @@ export class ProductsUpdater {
 			items: allProducts,
 		});
 
-		return allProducts;
+		return [...manualOverrides, ...allProducts];
 	}
 
 	/** Tries each provider in turn, passing on only the products the previous ones couldn't price. */

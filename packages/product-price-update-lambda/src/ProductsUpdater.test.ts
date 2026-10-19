@@ -404,7 +404,7 @@ describe('getPreviewPrices', () => {
 		expect(mockAmazonRefreshPrices).not.toHaveBeenCalled();
 		expect(mockShopifyRefreshPrices).not.toHaveBeenCalled();
 		expect(mockSkimlinksRefreshPrices).not.toHaveBeenCalled();
-		expect(results).toEqual([]);
+		expect(results).toEqual([product]);
 		expect(mockUpdateProducts).toHaveBeenCalledWith({ items: [] });
 	});
 });
