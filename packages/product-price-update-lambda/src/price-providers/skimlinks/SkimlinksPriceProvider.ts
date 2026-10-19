@@ -118,12 +118,13 @@ export class SkimlinksPriceProvider extends PriceProvider {
 				continue;
 			}
 
-			updated.push(
-				this.applyUpdate(product, {
-					price: match.price,
-					currency: match.currency,
-				}),
-			);
+			const refreshed = this.applyUpdate(product, {
+				price: match.price,
+				currency: match.currency,
+			});
+			if (refreshed) {
+				updated.push(refreshed);
+			}
 		}
 
 		return updated;
