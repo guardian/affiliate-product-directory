@@ -35,7 +35,7 @@ export const setPriceOverride = (override: {
 	productMerchantUrl: string;
 	currency: 'GBP' | 'USD';
 	price: number;
-	// A date such as 2026-10-31.
+	// When the price stops being kept, as an ISO instant such as 2026-10-31T23:59:59.999Z.
 	expiryDate?: string;
 }) => sendOverride('POST', override);
 

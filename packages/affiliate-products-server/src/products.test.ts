@@ -312,6 +312,38 @@ describe('extractProducts', () => {
 		]);
 	});
 
+	it('joins every earlier product that shares a URL with a later one into the first', () => {
+		const products = extractProducts([
+			{
+				elements: [
+					html('<p><strong>Zout at DK</strong></p>'),
+					productButton('https://dk.example/zout', '$5.54 at DK Hardware'),
+					html('<p><strong>Tide</strong></p>'),
+					productButton('https://walmart.example/tide', '$2.97 at Walmart'),
+					html('<p><strong>Zout at Walmart</strong></p>'),
+					productButton('https://walmart.example/zout', '$15.48 at Walmart'),
+					// Lists the second and third products' URLs before the first's.
+					productCard({
+						brandName: 'Zout',
+						productName: 'No Scent Laundry Stain Remover',
+						productCtas: [
+							cta('https://walmart.example/zout', '$15.48', 'Walmart'),
+							cta('https://dk.example/zout', '$5.54', 'DK Hardware'),
+						],
+					}),
+				],
+			},
+		]);
+
+		expect(grouping(products)).toEqual([
+			[
+				'Zout No Scent Laundry Stain Remover',
+				['https://dk.example/zout', 'https://walmart.example/zout'],
+			],
+			['Tide', ['https://walmart.example/tide']],
+		]);
+	});
+
 	it('leaves out links back to the Filter, and products left with none', () => {
 		const products = extractProducts([
 			{

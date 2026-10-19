@@ -9,18 +9,29 @@ import {
 	semanticTypography,
 } from '@guardian/stand';
 import { convertTypographyToEmotionStringStyle } from '@guardian/stand/utils';
-import { type ReactElement, useEffect, useRef, useState } from 'react';
+import {
+	cloneElement,
+	type ReactElement,
+	useEffect,
+	useId,
+	useRef,
+	useState,
+} from 'react';
 import { Tooltip, TooltipTriggerStateContext } from 'react-aria-components';
 
 const tooltipStyles = css`
-	display: grid;
-	gap: ${semanticSpacing.stackXs};
 	max-width: 24rem;
 	padding: ${semanticSpacing.stackSm};
 	border: 1px solid ${semanticColors.border.weak};
 	border-radius: ${semanticRadius.cornerMd};
 	background-color: ${semanticColors.bg.base};
 	box-shadow: ${semanticShadow.raised};
+`;
+
+// The tooltip takes no id, so its content is wrapped in one the link is described by.
+const contentStyles = css`
+	display: grid;
+	gap: ${semanticSpacing.stackXs};
 `;
 
 const captionStyles = css`
@@ -74,8 +85,8 @@ export const ButtonPreview = ({
 	children,
 }: {
 	link: ProductLink;
-	/** The link to hover or focus. */
-	children: ReactElement;
+	/** The link to hover or focus, which the preview describes while it's open. */
+	children: ReactElement<{ 'aria-describedby'?: string }>;
 }) => {
 	const { struckThrough, text } = productButtonLabel(link.label, link);
 	const changed = struckThrough !== undefined || text !== link.label;
@@ -83,6 +94,7 @@ export const ButtonPreview = ({
 	// Stand's Link doesn't take react-aria's tooltip trigger props, so the tooltip is opened
 	// from a wrapper around it instead: on hover, after a moment, and on keyboard focus.
 	const triggerRef = useRef<HTMLSpanElement>(null);
+	const tooltipId = useId();
 	const [isOpen, setOpen] = useState(false);
 	const timer = useRef<number>(undefined);
 	const openSoon = () => {
@@ -108,7 +120,9 @@ export const ButtonPreview = ({
 				}}
 				onBlur={close}
 			>
-				{children}
+				{cloneElement(children, {
+					'aria-describedby': isOpen ? tooltipId : undefined,
+				})}
 			</span>
 			{/* What a TooltipTrigger would give the tooltip, which reads its state from this. */}
 			<TooltipTriggerStateContext.Provider
@@ -127,19 +141,23 @@ export const ButtonPreview = ({
 					offset={6}
 					css={tooltipStyles}
 				>
-					<p css={captionStyles}>On the site</p>
-					<span
-						css={siteButtonStyles}
-						aria-label={
-							struckThrough ? `Was ${struckThrough}, now ${text.trim()}` : text
-						}
-					>
-						{struckThrough && <s>{struckThrough}</s>}
-						{text}
-					</span>
-					<p css={captionStyles}>
-						{explain(link, struckThrough !== undefined, changed)}
-					</p>
+					<div id={tooltipId} css={contentStyles}>
+						<p css={captionStyles}>On the site</p>
+						<span
+							css={siteButtonStyles}
+							aria-label={
+								struckThrough
+									? `Was ${struckThrough}, now ${text.trim()}`
+									: text
+							}
+						>
+							{struckThrough && <s>{struckThrough}</s>}
+							{text}
+						</span>
+						<p css={captionStyles}>
+							{explain(link, struckThrough !== undefined, changed)}
+						</p>
+					</div>
 				</Tooltip>
 			</TooltipTriggerStateContext.Provider>
 		</>

@@ -29,6 +29,15 @@ export const articlePath = (input: string): string | undefined => {
 	} else {
 		path = trimmed.split(/[?#]/)[0] ?? '';
 	}
-	path = path.replace(/^\/+|\/+$/g, '');
+	// Trimmed by hand, as a pattern such as /\/+$/ is slow on a long run of slashes.
+	let start = 0;
+	let end = path.length;
+	while (path[start] === '/') {
+		start++;
+	}
+	while (end > start && path[end - 1] === '/') {
+		end--;
+	}
+	path = path.slice(start, end);
 	return capiIdPattern.test(path) ? path : undefined;
 };

@@ -8,6 +8,7 @@ import { Dialog, Modal } from '@guardian/stand/Modal';
 import { Option, Select } from '@guardian/stand/Select';
 import { TextInput } from '@guardian/stand/TextInput';
 import { Typography } from '@guardian/stand/Typography';
+import { parseDate } from '@internationalized/date';
 import { type FormEvent, useContext, useId, useState } from 'react';
 import type { DateValue } from 'react-aria-components';
 import { removePriceOverride, setPriceOverride } from './api/manualOverride';
@@ -33,6 +34,21 @@ const defaultCurrency = ({ currency, basePrice }: ProductLink): Currency => {
 
 /** Today as a date such as 2026-10-16, in the user's time zone. */
 const today = () => new Date().toLocaleDateString('en-CA');
+
+/** The day a manual price is kept until, in the user's time zone, if that's still to come. */
+const savedExpiry = ({
+	updatedBy,
+	expiresAt,
+}: ProductLink): DateValue | null =>
+	updatedBy === 'manualOverride' &&
+	expiresAt !== undefined &&
+	expiresAt > Date.now()
+		? parseDate(new Date(expiresAt).toLocaleDateString('en-CA'))
+		: null;
+
+/** The last moment of a day in the user's time zone, so a price is kept through that day. */
+const endOfDay = ({ year, month, day }: DateValue) =>
+	new Date(new Date(year, month - 1, day + 1).getTime() - 1);
 
 const fieldsStyles = css`
 	display: grid;
@@ -88,7 +104,7 @@ export const PriceOverrideModal = ({
 	const [price, setPrice] = useState(
 		link.price !== undefined ? String(link.price) : '',
 	);
-	const [expiry, setExpiry] = useState<DateValue | null>(null);
+	const [expiry, setExpiry] = useState<DateValue | null>(savedExpiry(link));
 	const [submitted, setSubmitted] = useState(false);
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string>();
@@ -126,7 +142,7 @@ export const PriceOverrideModal = ({
 				productMerchantUrl: link.url,
 				currency,
 				price: amount,
-				expiryDate: expiry?.toString(),
+				expiryDate: expiry ? endOfDay(expiry).toISOString() : undefined,
 			}).catch(() => ({ error: 'The price couldn’t be saved.' })),
 		);
 	};

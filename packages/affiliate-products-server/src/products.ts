@@ -92,7 +92,7 @@ const withoutLabel = (text: string) => {
 // The ways articles name the product whose buttons come straight after, at the end of a
 // text element: a paragraph of bold text, as in buying guides; a heading, as in reviews;
 // and an "at a glance" list item, "<strong>Best for travel:</strong><br>Product".
-const endingBoldParagraph = /<p>((?:\s*<strong>[^<]*<\/strong>\s*)+)<\/p>\s*$/;
+const endingBoldParagraph = /<p>\s*((?:<strong>[^<]*<\/strong>\s*)+)<\/p>\s*$/;
 const endingHeading = /<h[23]>((?:(?!<h[23]).)*)<\/h[23]>\s*$/s;
 const endingListItem = /<li>((?:(?!<li>).)*)<\/li>\s*<\/ul>\s*$/s;
 
@@ -136,33 +136,45 @@ interface FoundProduct extends Product {
 	fromCard: boolean;
 }
 
+/** Gives a product another's name, if it has none or the other's is a product card's. */
+const adoptName = (product: FoundProduct, other: FoundProduct) => {
+	if (other.name && (!product.name || (other.fromCard && !product.fromCard))) {
+		product.name = other.name;
+	}
+	product.fromCard ||= other.fromCard;
+};
+
 /**
  * Combines products that share a URL into the first of them, as an article often lists a
  * product twice: in an "at a glance" list, then in full, sometimes with more retailers.
+ * A product that shares URLs with several earlier ones joins them all into the first.
  * A product card's name is preferred, then the first name found.
  */
 const mergeByUrl = (found: FoundProduct[]): Product[] => {
-	const merged: FoundProduct[] = [];
+	let merged: FoundProduct[] = [];
 	const productByUrl = new Map<string, FoundProduct>();
 
 	for (const product of found) {
 		const links = product.links.filter(
 			({ url }) => url.trim() !== '' && !isFilterLink(url),
 		);
-		const existing = links
-			.map(({ url }) => productByUrl.get(url))
-			.find((match) => match !== undefined);
-		const target = existing ?? { ...product, links: [] };
-		if (existing) {
-			if (
-				product.name &&
-				(!existing.name || (product.fromCard && !existing.fromCard))
-			) {
-				existing.name = product.name;
-			}
-			existing.fromCard ||= product.fromCard;
-		} else {
+		// The products already found with any of these links, in the order they appear.
+		const matches = merged.filter((earlier) =>
+			links.some(({ url }) => productByUrl.get(url) === earlier),
+		);
+		const [target = { ...product, links: [] }, ...others] = matches;
+		if (matches.length === 0) {
 			merged.push(target);
+		} else {
+			for (const other of others) {
+				adoptName(target, other);
+				for (const link of other.links) {
+					productByUrl.set(link.url, target);
+					target.links.push(link);
+				}
+			}
+			merged = merged.filter((earlier) => !others.includes(earlier));
+			adoptName(target, product);
 		}
 		for (const link of links) {
 			if (!productByUrl.has(link.url)) {
