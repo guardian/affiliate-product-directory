@@ -6,6 +6,10 @@ export default defineConfig({
 		outDir: 'build',
 	},
 	plugins: [react({ jsxImportSource: '@emotion/react' })],
+	resolve: {
+		// Resolves @common/*, which the root tsconfig.json maps to packages/common/src.
+		tsconfigPaths: true,
+	},
 	server: {
 		// Run `npm -w affiliate-products-server start` alongside this for the API.
 		proxy: { '/api': 'http://localhost:3040' },
