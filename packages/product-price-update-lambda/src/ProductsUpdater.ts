@@ -56,8 +56,19 @@ export class ProductsUpdater {
 	 * This function returns the latest price (if available) for a list of products
 	 * that need to be previewed - i.e. displayed and saved before publication
 	 */
-	public async getPreviewPrices(products: Product[]): Promise<Product[]> {
-		const categorised = this.categoriseProducts(products);
+	public async getPreviewPrices(
+		requestProducts: Product[],
+	): Promise<Product[]> {
+		// Fetch from the DB in case there is a manual override for this product
+		const maybeStoredProducts = await Promise.all(
+			requestProducts.map(
+				async (requestProduct) =>
+					(await this.dynamoService.getProductPrice(
+						requestProduct.productMerchantUrl,
+					)) ?? requestProduct,
+			),
+		);
+		const categorised = this.categoriseProducts(maybeStoredProducts);
 		const [amazonUpdated, otherUpdated] = await Promise.all([
 			this.refreshWithFallback(categorised.amazon, this.providers.amazon),
 			this.refreshWithFallback(categorised.other, this.providers.other),

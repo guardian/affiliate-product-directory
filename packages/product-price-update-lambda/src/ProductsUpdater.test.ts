@@ -337,4 +337,74 @@ describe('refreshPrices', () => {
 	});
 });
 
-describe('getPreviewPrices', () => {});
+describe('getPreviewPrices', () => {
+	it('routes products to providers, falls back to skimlinks, and saves/returns priced products', async () => {
+		const amazonProduct = buildProduct({
+			productMerchantUrl: 'https://amazon.com/dp/1',
+		});
+		const shopifyProduct = buildProduct({
+			productMerchantUrl: 'https://shop.example.com/products/1',
+		});
+		const skimlinksProduct = buildProduct({
+			productMerchantUrl: 'https://www.johnlewis.com/p/1',
+		});
+
+		mockAmazonRefreshPrices.mockResolvedValueOnce({
+			updated: [amazonProduct],
+			notUpdated: [],
+		});
+		mockShopifyRefreshPrices.mockResolvedValueOnce({
+			updated: [shopifyProduct],
+			notUpdated: [skimlinksProduct],
+		});
+		mockSkimlinksRefreshPrices.mockResolvedValueOnce({
+			updated: [skimlinksProduct],
+			notUpdated: [],
+		});
+
+		const results = await updater().getPreviewPrices([
+			amazonProduct,
+			shopifyProduct,
+			skimlinksProduct,
+		]);
+
+		expect(mockAmazonRefreshPrices).toHaveBeenCalledWith([amazonProduct]);
+		expect(mockShopifyRefreshPrices).toHaveBeenCalledWith([
+			shopifyProduct,
+			skimlinksProduct,
+		]);
+		expect(mockSkimlinksRefreshPrices).toHaveBeenCalledWith([skimlinksProduct]);
+		expect(results).toEqual([amazonProduct, shopifyProduct, skimlinksProduct]);
+		expect(mockUpdateProducts).toHaveBeenCalledWith({
+			items: [amazonProduct, shopifyProduct, skimlinksProduct],
+		});
+	});
+
+	it('returns and saves no products when no provider can price them', async () => {
+		const product = buildProduct({
+			productMerchantUrl: 'https://www.johnlewis.com/p/unavailable',
+		});
+
+		const results = await updater().getPreviewPrices([product]);
+
+		expect(mockShopifyRefreshPrices).toHaveBeenCalledWith([product]);
+		expect(mockSkimlinksRefreshPrices).toHaveBeenCalledWith([product]);
+		expect(results).toEqual([]);
+		expect(mockUpdateProducts).toHaveBeenCalledWith({ items: [] });
+	});
+
+	it('does not send an active manual override to providers or save it', async () => {
+		const product = buildProduct({
+			updatedBy: 'manualOverride',
+			expiresAt: NOW + 60_000,
+		});
+
+		const results = await updater().getPreviewPrices([product]);
+
+		expect(mockAmazonRefreshPrices).not.toHaveBeenCalled();
+		expect(mockShopifyRefreshPrices).not.toHaveBeenCalled();
+		expect(mockSkimlinksRefreshPrices).not.toHaveBeenCalled();
+		expect(results).toEqual([]);
+		expect(mockUpdateProducts).toHaveBeenCalledWith({ items: [] });
+	});
+});

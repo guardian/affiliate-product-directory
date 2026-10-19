@@ -71,7 +71,7 @@ export function createApp({
 		if (!result.ok) {
 			return res.status(result.status).json({ error: result.error });
 		}
-		return res.sendStatus(200).json(result.products);
+		return res.status(200).json(result.products);
 	});
 
 	// Unknown API paths shouldn't fall through to the SPA's index.html.
