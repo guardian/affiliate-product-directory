@@ -1,5 +1,7 @@
 import { getCapiKey } from '@common/config';
 import { DynamoService } from '@common/database-service';
+import { getCapiKey } from '@common/config';
+import { DynamoService } from '@common/database-service';
 import { createApp } from './app';
 import { createPreviewFetch } from './previewCapi';
 import type { Auth } from './types';
@@ -19,6 +21,7 @@ const localAuth: Auth = {
 			firstName: 'Local',
 			lastName: 'User',
 		}),
+	hasAccess: () => Promise.resolve(true),
 	hasAccess: () => Promise.resolve(true),
 	listPermissions: () => Promise.resolve(['local_permission']),
 	loginUrl: '',

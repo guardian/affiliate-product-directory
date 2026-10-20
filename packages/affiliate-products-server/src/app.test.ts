@@ -17,6 +17,7 @@ import {
 import request from 'supertest';
 import { createApp } from './app';
 import type { Auth } from './types';
+import type { Auth } from './types';
 
 let DynamoService: typeof DatabaseServiceModule.DynamoService;
 
@@ -49,6 +50,7 @@ describe('createApp', () => {
 
 	const loggedIn: Auth = {
 		authenticate: () => Promise.resolve(user),
+		hasAccess: (email) => Promise.resolve(email === user.email),
 		hasAccess: (email) => Promise.resolve(email === user.email),
 		listPermissions: (email) =>
 			Promise.resolve(email === user.email ? ['some_permission'] : []),
@@ -644,6 +646,12 @@ describe('createApp', () => {
 		expect(AuthResponseSchema.safeParse(response.body).success).toBe(true);
 	});
 
+	it('returns an auth response the client accepts', async () => {
+		const response = await request(app()).get('/api/auth');
+
+		expect(AuthResponseSchema.safeParse(response.body).success).toBe(true);
+	});
+
 	it('passes the request cookies to authenticate', async () => {
 		let receivedCookies: string | undefined;
 		const auth: Auth = {
@@ -674,11 +682,37 @@ describe('createApp', () => {
 	);
 
 	it.each(['/api/auth', '/api/articles', '/api/unknown'])(
+	it.each(['/api/auth', '/api/articles', '/api/unknown'])(
 		'returns 401 rather than redirecting for %s when logged out',
 		async (url) => {
 			const response = await request(app(loggedOut)).get(url);
 
 			expect(response.status).toBe(401);
+		},
+	);
+
+	it.each(['/', '/assets/index-abc123.js'])(
+		'tells logged-in users without access that they lack permission at %s',
+		async (url) => {
+			const response = await request(app(loggedInWithoutAccess)).get(url);
+
+			expect(response.status).toBe(403);
+			expect(response.text).toBe(
+				"You don't have permission to access the affiliate products tool.",
+			);
+		},
+	);
+
+	it.each(['/api/auth', '/api/articles'])(
+		'returns 403 from %s for logged-in users without access',
+		async (url) => {
+			const response = await request(app(loggedInWithoutAccess)).get(url);
+
+			expect(response.status).toBe(403);
+			expect(response.body).toEqual({
+				error:
+					"You don't have permission to access the affiliate products tool.",
+			});
 		},
 	);
 
@@ -742,6 +776,9 @@ describe('createApp', () => {
 			createApp({
 				clientDir: relativeClientDir,
 				auth: loggedIn,
+				stage: 'CODE',
+				capiKey: 'code-key',
+				dynamoService: pricingTable(),
 				stage: 'CODE',
 				capiKey: 'code-key',
 				dynamoService: pricingTable(),
