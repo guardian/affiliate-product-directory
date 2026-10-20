@@ -6,7 +6,6 @@ import {
 	type GetArticle,
 	ItemResponseSchema,
 	type ListArticles,
-	type ListDrafts,
 	SearchResponseSchema,
 } from './types';
 
@@ -17,20 +16,12 @@ export const getComposerBaseUrl = (stage: string) =>
 		: 'https://composer.code.dev-gutools.co.uk';
 
 // The fields of an article that the tool reads, and the body blocks its products are in.
-// Preview CAPI is authorised by signing the request instead, so has no API key.
-const articleQuery = (apiKey?: string) => ({
+const articleQuery = (apiKey: string) => ({
 	'show-fields': 'internalComposerCode,byline,isLive,lastModified',
 	// The body as structured elements, which the product links are read from.
 	'show-blocks': 'body',
-	...(apiKey && { 'api-key': apiKey }),
+	'api-key': apiKey,
 });
-
-/**
- * How many of the most recently changed articles are searched for drafts. Preview CAPI
- * can't search for only drafts, so a draft that hasn't been changed since this many
- * others were is left out.
- */
-export const draftsSearchSize = 100;
 
 /** An article as the tool shows it, from CAPI's result for it. */
 const toArticle = (
@@ -138,44 +129,5 @@ export function createCapiArticles({
 			pages,
 			total,
 		};
-	};
-}
-
-/**
- * Lists the drafts in one or both Filter sections from Preview CAPI, most recently changed
- * first, using a fetch that signs its requests for Preview CAPI.
- */
-export function createCapiDrafts({
-	baseUrl,
-	composerBaseUrl,
-	fetchPreview,
-}: {
-	baseUrl: string;
-	composerBaseUrl: string;
-	fetchPreview: (url: string) => Promise<Response>;
-}): ListDrafts {
-	return async (section) => {
-		const params = new URLSearchParams({
-			section: section ?? SectionSchema.options.join('|'),
-			'order-by': 'newest',
-			// Drafts have no publication date, so they're ordered by when they last changed.
-			'use-date': 'last-modified',
-			'page-size': String(draftsSearchSize),
-			...articleQuery(),
-		});
-		const response = await fetchPreview(
-			`${baseUrl}/search?${params.toString()}`,
-		);
-		if (!response.ok) {
-			throw new Error(
-				`Preview CAPI search for drafts failed with status ${response.status}`,
-			);
-		}
-		const { results } = SearchResponseSchema.parse(
-			await response.json(),
-		).response;
-		return results
-			.map((result) => toArticle(result, composerBaseUrl))
-			.filter((article) => article.status === 'draft');
 	};
 }

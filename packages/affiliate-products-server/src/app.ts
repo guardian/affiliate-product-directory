@@ -1,6 +1,6 @@
 import path from 'path';
 import { articlePath } from '@common/articlePath';
-import { getCapiBaseUrl, getPreviewCapiBaseUrl } from '@common/config';
+import { getCapiBaseUrl } from '@common/config';
 import type { DynamoService } from '@common/database-service';
 import { ArticleStatusSchema, SectionSchema } from '@common/tool-models';
 import type {
@@ -15,7 +15,6 @@ import { z } from 'zod';
 import {
 	createCapiArticle,
 	createCapiArticles,
-	createCapiDrafts,
 	getComposerBaseUrl,
 } from './capi';
 import {
@@ -35,35 +34,21 @@ import {
 } from './productPrices';
 import type { Auth, GetArticle, ListDrafts } from './types';
 
-/** Fetches a URL from Preview CAPI, signing the request. */
-type FetchPreview = (url: string) => Promise<globalThis.Response>;
-
 const noAccessMessage =
 	"You don't have permission to access the affiliate products tool.";
 
-/**
- * Lists a stage's articles from its CAPI, and its drafts from its Preview CAPI if it can
- * be read, linking to its Composer, with their prices from its pricing table, read on
- * every request so nothing is cached between them.
- */
 const readStage = ({
 	stage,
 	capiKey,
-	fetchPreview,
+	listDrafts,
 	dynamoService,
 }: {
 	stage: string;
 	capiKey: string;
-	fetchPreview?: FetchPreview;
+	listDrafts?: ListDrafts;
 	dynamoService: DynamoService;
 }) => ({
-	listDrafts: fetchPreview
-		? createCapiDrafts({
-				baseUrl: getPreviewCapiBaseUrl(stage),
-				composerBaseUrl: getComposerBaseUrl(stage),
-				fetchPreview,
-			})
-		: undefined,
+	listDrafts,
 	listArticles: createCapiArticles({
 		baseUrl: getCapiBaseUrl(stage),
 		apiKey: capiKey,
@@ -102,7 +87,7 @@ const noArticles: ArticlesPage = {
 
 /**
  * The drafts, or undefined if they can't be read, so that the live articles are still
- * listed when Preview CAPI can't be reached.
+ * listed when the drafts can't be.
  */
 const readDrafts = async (
 	listDrafts: ListDrafts | undefined,
@@ -128,7 +113,7 @@ export function createApp({
 	auth,
 	stage,
 	capiKey,
-	fetchPreview,
+	listDrafts,
 	dynamoService,
 	prod,
 	fetchPage = fetchRenderedPage,
@@ -138,13 +123,12 @@ export function createApp({
 	/** The stage whose CAPI, Composer and pricing table the articles come from by default. */
 	stage: string;
 	capiKey: string;
-	/** Fetches from the stage's Preview CAPI, for its drafts. Without it, no drafts are listed. */
-	fetchPreview?: FetchPreview;
+	listDrafts?: ListDrafts;
 	dynamoService: DynamoService;
-	/** PROD's CAPI key, Preview CAPI and pricing table, used instead when asked for with prod=true. */
+	/** PROD's CAPI key, drafts and pricing table, used instead when asked for with prod=true. */
 	prod?: {
 		capiKey: string;
-		fetchPreview?: FetchPreview;
+		listDrafts?: ListDrafts;
 		dynamoService: DynamoService;
 	};
 	/** Fetches an article as it's rendered on the site, for its links. */
@@ -153,7 +137,7 @@ export function createApp({
 	const app = express();
 	app.use(express.json());
 
-	const stageData = readStage({ stage, capiKey, fetchPreview, dynamoService });
+	const stageData = readStage({ stage, capiKey, listDrafts, dynamoService });
 	const prodData = prod && readStage({ stage: 'PROD', ...prod });
 
 	app.use(async (req, res, next) => {

@@ -16,7 +16,7 @@ import {
 } from '@mocks/DatabaseServiceMock';
 import request from 'supertest';
 import { createApp } from './app';
-import type { Auth } from './types';
+import type { Auth, ListDrafts } from './types';
 
 let DynamoService: typeof DatabaseServiceModule.DynamoService;
 
@@ -360,63 +360,40 @@ describe('createApp', () => {
 	});
 
 	describe('with drafts', () => {
-		// Preview CAPI, answering every search with a draft and a live article, of which
-		// only the draft is listed as a draft.
-		const draftResult = {
-			...searchResponse(1).response.results[0],
+		const draft = {
+			...article,
 			id: 'thefilter/2026/oct/16/a-draft',
+			status: 'draft' as const,
 			webPublicationDate: undefined,
-			fields: { internalComposerCode: 'draft123', isLive: 'false' },
+			webUrl: undefined,
 		};
-		const stubPreview = () =>
-			jest.fn<(url: string) => Promise<Response>>(() =>
-				Promise.resolve(
-					Response.json({
-						response: {
-							...searchResponse(1).response,
-							results: [
-								draftResult,
-								{
-									...searchResponse(1).response.results[0],
-									fields: { isLive: 'true' },
-								},
-							],
-						},
-					}),
-				),
-			);
+		const stubDrafts = () =>
+			jest.fn<ListDrafts>(() => Promise.resolve([draft]));
 
-		const appWithDrafts = (
-			fetchPreview: (url: string) => Promise<Response> = stubPreview(),
-		) =>
+		const appWithDrafts = (listDrafts: ListDrafts = stubDrafts()) =>
 			createApp({
 				clientDir,
 				auth: loggedIn,
 				stage: 'CODE',
 				capiKey: 'code-key',
-				fetchPreview,
+				listDrafts,
 				dynamoService: pricingTable([pricedProduct]),
 			});
 
 		it('lists the drafts before the first page of live articles', async () => {
-			const fetchPreview = stubPreview();
+			const listDrafts = stubDrafts();
 
-			const response = await request(appWithDrafts(fetchPreview)).get(
+			const response = await request(appWithDrafts(listDrafts)).get(
 				'/api/articles?section=thefilter',
 			);
 
 			expect(response.status).toBe(200);
 			const page = ArticlesPageSchema.parse(response.body);
-			expect(page.drafts?.map((draft) => draft.id)).toEqual([draftResult.id]);
-			expect(page.drafts?.[0]?.status).toBe('draft');
+			expect(page.drafts?.map(({ id }) => id)).toEqual([draft.id]);
 			expect(page.articles).toEqual([
 				{ ...article, products: withPrice(pricedProduct) },
 			]);
-			const previewSearch = new URL(fetchPreview.mock.calls[0]?.[0] as string);
-			expect(previewSearch.origin).toBe(
-				'https://preview.content.code.dev-guardianapis.com',
-			);
-			expect(previewSearch.searchParams.get('section')).toBe('thefilter');
+			expect(listDrafts).toHaveBeenCalledWith('thefilter');
 		});
 
 		it("adds the directory's prices to the drafts' products", async () => {
@@ -428,15 +405,15 @@ describe('createApp', () => {
 		});
 
 		it('leaves the drafts off later pages', async () => {
-			const fetchPreview = stubPreview();
+			const listDrafts = stubDrafts();
 
-			const response = await request(appWithDrafts(fetchPreview)).get(
+			const response = await request(appWithDrafts(listDrafts)).get(
 				'/api/articles?page=2',
 			);
 
 			expect(ArticlesPageSchema.parse(response.body).drafts).toBeUndefined();
 			expect(ArticlesPageSchema.parse(response.body).articles).toHaveLength(1);
-			expect(fetchPreview).not.toHaveBeenCalled();
+			expect(listDrafts).not.toHaveBeenCalled();
 		});
 
 		it('lists only the drafts given status=draft', async () => {
@@ -451,21 +428,21 @@ describe('createApp', () => {
 		});
 
 		it('lists only the live articles given status=live', async () => {
-			const fetchPreview = stubPreview();
+			const listDrafts = stubDrafts();
 
-			const response = await request(appWithDrafts(fetchPreview)).get(
+			const response = await request(appWithDrafts(listDrafts)).get(
 				'/api/articles?status=live',
 			);
 
 			expect(ArticlesPageSchema.parse(response.body).drafts).toBeUndefined();
 			expect(ArticlesPageSchema.parse(response.body).articles).toHaveLength(1);
-			expect(fetchPreview).not.toHaveBeenCalled();
+			expect(listDrafts).not.toHaveBeenCalled();
 		});
 
-		it("still lists the live articles when Preview CAPI can't be read", async () => {
+		it("still lists the live articles when the drafts can't be read", async () => {
 			jest.spyOn(console, 'error').mockImplementation(() => {});
-			const failing = jest.fn<(url: string) => Promise<Response>>(() =>
-				Promise.resolve(new Response('', { status: 403 })),
+			const failing = jest.fn<ListDrafts>(() =>
+				Promise.reject(new Error('status 403')),
 			);
 
 			const response = await request(appWithDrafts(failing)).get(
@@ -486,7 +463,7 @@ describe('createApp', () => {
 		});
 	});
 
-	it('lists no drafts without access to Preview CAPI', async () => {
+	it("leaves the drafts out when it can't list them", async () => {
 		const response = await request(app()).get('/api/articles');
 
 		expect(ArticlesPageSchema.parse(response.body).drafts).toBeUndefined();

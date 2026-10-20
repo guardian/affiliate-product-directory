@@ -189,7 +189,7 @@ export const App = () => {
 				}
 				const { drafts, total } = articles.page;
 				// The drafts are only on the first page. The server leaves them out of it when
-				// Preview CAPI can't be read.
+				// it can't list them, which it can't yet, as they're only in Preview CAPI.
 				const groups: ArticleGroup[] = [
 					...(status !== 'live' && page === 1
 						? [
@@ -199,7 +199,7 @@ export const App = () => {
 									articles: drafts ?? [],
 									emptyMessage: drafts
 										? 'There are no drafts.'
-										: 'The drafts couldn’t be loaded from Preview CAPI.',
+										: 'Drafts aren’t available yet.',
 								},
 							]
 						: []),

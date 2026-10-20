@@ -67,7 +67,7 @@ export const ArticleSchema = z.object({
 export const ArticlesPageSchema = z.object({
 	// The drafts, which come before the live articles and aren't paged, so they're only on
 	// the first page. Missing on later pages, when only live articles were asked for, or
-	// when the tool can't read Preview CAPI.
+	// when the tool can't list the drafts.
 	drafts: z.array(ArticleSchema).optional(),
 	// The page of live articles.
 	articles: z.array(ArticleSchema),
