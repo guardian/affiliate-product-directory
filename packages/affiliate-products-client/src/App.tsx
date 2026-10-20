@@ -90,7 +90,7 @@ export const App = () => {
 	// (and its open articles open) until the new one arrives.
 	const [reloads, setReloads] = useState(0);
 	const priceEditing = useMemo(
-		() => ({ canEdit: !prod, reload: () => setReloads((n) => n + 1) }),
+		() => ({ canEdit: !prod, onPriceEdit: () => setReloads((n) => n + 1) }),
 		[prod],
 	);
 

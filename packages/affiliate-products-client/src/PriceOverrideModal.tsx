@@ -97,7 +97,7 @@ export const PriceOverrideModal = ({
 	isOpen: boolean;
 	onOpenChange: (isOpen: boolean) => void;
 }) => {
-	const { reload } = useContext(PriceEditingContext);
+	const { onPriceEdit } = useContext(PriceEditingContext);
 	const formId = useId();
 	const isOverridden = link.updatedBy === 'manualOverride';
 	const [currency, setCurrency] = useState<Currency>(defaultCurrency(link));
@@ -126,7 +126,7 @@ export const PriceOverrideModal = ({
 			return;
 		}
 		onOpenChange(false);
-		reload();
+		onPriceEdit();
 	};
 
 	const save = async (event: FormEvent) => {

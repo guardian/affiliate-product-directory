@@ -7,10 +7,10 @@ export interface PriceEditing {
 	 */
 	canEdit: boolean;
 	/** Fetches the list again, to show a price that has just been set. */
-	reload: () => void;
+	onPriceEdit: () => void;
 }
 
 export const PriceEditingContext = createContext<PriceEditing>({
 	canEdit: false,
-	reload: () => undefined,
+	onPriceEdit: () => undefined,
 });
