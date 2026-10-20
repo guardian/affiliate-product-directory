@@ -159,28 +159,7 @@ export function createApp({
 	app.use(async (req, res, next) => {
 		const isApiRequest = req.path.startsWith('/api/');
 
-		const isApiRequest = req.path.startsWith('/api/');
-
 		const user = await auth.authenticate(req.header('Cookie'));
-		if (!user) {
-			// The client can't follow a redirect to the login page from a fetch, so it's told instead.
-			if (isApiRequest) {
-				return res.status(401).json({ error: 'Not authenticated' });
-			}
-			const returnUrl = `https://${req.get('host')}${req.originalUrl}`;
-			return res.redirect(
-				`${auth.loginUrl}?returnUrl=${encodeURIComponent(returnUrl)}`,
-			);
-		}
-
-		if (!(await auth.hasAccess(user.email))) {
-			return isApiRequest
-				? res.status(403).json({ error: noAccessMessage })
-				: res.status(403).send(noAccessMessage);
-		}
-
-		res.locals.user = user;
-		next();
 		if (!user) {
 			// The client can't follow a redirect to the login page from a fetch, so it's told instead.
 			if (isApiRequest) {

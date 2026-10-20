@@ -1,7 +1,6 @@
 import path from 'path';
 import serverlessExpress from '@codegenie/serverless-express';
 import { getCapiKey } from '@common/config';
-import { getCapiKey } from '@common/config';
 import { getConfig } from '@common/config';
 import { DynamoService } from '@common/database-service';
 import { createApp } from './app';

@@ -43,10 +43,6 @@ export function createTool(
 			CAPI_KEY: capiKeyParam.valueAsString,
 			...(prodData && { PROD_CAPI_KEY: prodData.capiKeyParam.valueAsString }),
 		},
-		environment: {
-			CAPI_KEY: capiKeyParam.valueAsString,
-			...(prodData && { PROD_CAPI_KEY: prodData.capiKeyParam.valueAsString }),
-		},
 		runtime: Runtime.NODEJS_22_X,
 		architecture: Architecture.ARM_64,
 		monitoringConfiguration: { noMonitoring: true },

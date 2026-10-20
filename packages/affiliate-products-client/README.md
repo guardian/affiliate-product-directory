@@ -48,7 +48,6 @@ From the repository root:
 ```
 npm install
 CAPI_KEY=<a CODE CAPI key> npm run affiliate-products-dev
-CAPI_KEY=<a CODE CAPI key> npm run affiliate-products-dev
 ```
 
 The home page lists articles from CODE CAPI, so the server needs a CODE CAPI key. Deployed, it uses the stage's key from the existing `capi-key` SSM parameter. To try the Data filter, also set `PROD_CAPI_KEY` to a PROD CAPI key.
@@ -57,9 +56,6 @@ This starts the server on port 3040 (set `PORT` to change it) and the client's V
 
 Locally, every request is treated as coming from a fake user with a fake permission, because the Panda cookie is only sent to `*.dev-gutools.co.uk` and never to localhost.
 
-The directory's prices need AWS credentials for the frontend account: get them from Janus and set `AWS_PROFILE` to their profile, on the command line or in `packages/affiliate-products-server/.env`. Without them the articles can't be listed.
-
-To run it the way it's deployed, with the server serving the built app, run `npm -w affiliate-products-client run build`, start the server (with `CAPI_KEY` set), and go to http://localhost:3040.
 The directory's prices need AWS credentials for the frontend account: get them from Janus and set `AWS_PROFILE` to their profile, on the command line or in `packages/affiliate-products-server/.env`. Without them the articles can't be listed.
 
 To run it the way it's deployed, with the server serving the built app, run `npm -w affiliate-products-client run build`, start the server (with `CAPI_KEY` set), and go to http://localhost:3040.
