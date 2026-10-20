@@ -23,7 +23,6 @@ const listStyles = css`
 	padding: 0;
 `;
 
-// Like the POC, the header is a shaded bar above the rows.
 const headerStyles = css`
 	${articleColumnsStyles};
 	${convertTypographyToEmotionStringStyle(semanticTypography.headingXs)};
