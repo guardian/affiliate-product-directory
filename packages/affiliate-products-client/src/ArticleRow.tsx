@@ -94,7 +94,7 @@ export const numberColumnStyles = css`
 	font-variant-numeric: tabular-nums;
 `;
 
-// Like the POC, the whole row opens the article, and an open row is marked with a bar
+// The whole row opens the article, and an open row is marked with a bar
 // down its left edge. A draft's row is tinted, with a stripe of its own until it's opened.
 const summaryStyles = (expanded: boolean, draft: boolean) => css`
 	${articleColumnsStyles};
@@ -155,7 +155,7 @@ const linksStyles = css`
 	margin: 0 -${iconPadding};
 `;
 
-// The POC's plain icons, rather than Stand's IconLinkButtons, so the four fit the column.
+// Plain icons, rather than Stand's IconLinkButtons, so the four fit the column.
 const iconLinkStyles = (available: boolean) => css`
 	display: flex;
 	width: 14px;

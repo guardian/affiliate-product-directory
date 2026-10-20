@@ -24,7 +24,7 @@ import { accent } from './style';
 
 const weakText = { color: semanticColors.text.weak };
 
-// The POC's layout: the article's details and its links beside its products, then a bar
+// The article's details and its links beside its products, then a bar
 // of links to the article in other tools.
 const columnsStyles = css`
 	display: grid;
@@ -120,7 +120,6 @@ const statLabelStyles = css`
 	text-transform: uppercase;
 `;
 
-// Like the POC, the actions sit on a bar tinted with its accent.
 const actionBarStyles = css`
 	display: flex;
 	flex-wrap: wrap;

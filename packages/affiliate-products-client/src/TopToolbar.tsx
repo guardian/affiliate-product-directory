@@ -11,7 +11,6 @@ import type { TopBarTheme } from '@guardian/stand/TopBar';
 import { Typography } from '@guardian/stand/Typography';
 import type { ReactNode } from 'react';
 
-// Like Dispatch, Storylines and Newsletters, the tool's colour is in its top bar and icon.
 const topBarTheme: TopBarTheme = {
 	backgroundColor: baseColors.orange[200],
 	toolName: {

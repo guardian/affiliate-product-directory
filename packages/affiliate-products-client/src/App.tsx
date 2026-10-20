@@ -48,7 +48,6 @@ const globalStyles = css`
 	}
 `;
 
-// A message in place of the list, with what to do about it.
 const messageStyles = css`
 	display: grid;
 	justify-items: start;
@@ -64,7 +63,6 @@ const afterFoundStyles = css`
 	padding-left: ${headlineInset};
 `;
 
-// Like the POC, the list takes the main area's full width.
 const mainStyles = css`
 	min-width: 0;
 	padding: 0;

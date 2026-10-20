@@ -30,7 +30,7 @@ const columns = { sm: 'minmax(0, 1fr) 5.5rem 7rem 6.5rem 30%' };
 
 const weakText = { color: semanticColors.text.weak };
 
-// Like the POC, each product is a box with its name on top and a row for each retailer.
+// Each product is a box with its name on top and a row for each retailer.
 const productStyles = css`
 	margin-bottom: ${semanticSpacing.stackXs};
 	border: 1px solid ${semanticColors.border.weak};
@@ -82,8 +82,7 @@ const currentPriceStyles = css`
 	gap: ${semanticSpacing.stackXxs};
 `;
 
-// The edit button is a plain icon beside the price: no border or background, a grey icon
-// that darkens on hover. Stand's outline still shows when it has keyboard focus.
+// Stand's outline still shows when the edit button has keyboard focus.
 const plainIconTheme = {
 	tertiary: {
 		shared: {

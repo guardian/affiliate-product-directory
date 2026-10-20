@@ -77,7 +77,7 @@ const weakText = { color: semanticColors.text.weak };
 
 // Stand's overlay is sized to the page's body, which here is only as tall as the window,
 // so on a scrolled page the dialog was drawn above the view and cut off. Fixed to the
-// window instead, as Dispatch does, it covers whatever is on screen.
+// window instead, it covers whatever is on screen.
 const modalTheme = {
 	overlay: { position: 'fixed', overflow: 'auto' },
 };
