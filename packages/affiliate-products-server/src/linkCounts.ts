@@ -34,6 +34,22 @@ const decodeEntities = (text: string) =>
 		.replace(/&#0?39;/g, "'")
 		.replace(/&amp;/g, '&');
 
+/** Whether a URL is on a host or one of its subdomains. */
+const isOnHost = (url: URL, host: string) =>
+	url.hostname === host || url.hostname.endsWith(`.${host}`);
+
+const isAmazon = (url: URL) =>
+	isOnHost(url, 'amazon.co.uk') || isOnHost(url, 'amazon.com');
+
+/** The URL a Skimlinks link goes to, from its url parameter. */
+const skimlinksTarget = (url: URL) => {
+	try {
+		return new URL(url.searchParams.get('url') ?? '');
+	} catch {
+		return undefined;
+	}
+};
+
 /** The external links on a page, in the order they appear, repeats included, by kind. */
 interface ExternalLinks {
 	amazon: string[];
@@ -53,28 +69,31 @@ interface ExternalLinks {
 const externalLinks = (html: string, pageUrl: string): ExternalLinks => {
 	// CODE's pages also link to www.theguardian.com, which the bookmarklet, run on PROD,
 	// treats as the page's own site.
-	const ownHosts = [new URL(pageUrl).hostname, 'www.theguardian.com'];
+	const ownHosts = new Set([new URL(pageUrl).hostname, 'www.theguardian.com']);
 	const links: ExternalLinks = { amazon: [], skimlinks: [], other: [] };
 
 	for (const [, doubleQuoted, singleQuoted] of html.matchAll(
 		/<a\b[^>]*?\shref=(?:"([^"]*)"|'([^']*)')/g,
 	)) {
 		const rawHref = doubleQuoted ?? singleQuoted ?? '';
-		let href: string;
+		let url: URL;
 		try {
 			// As a browser gives a link's href, made absolute.
-			href = new URL(decodeEntities(rawHref), pageUrl).href;
+			url = new URL(decodeEntities(rawHref), pageUrl);
 		} catch {
 			continue;
 		}
 
-		if (href.includes('amazon.co.uk') || href.includes('amazon.com')) {
+		const { href } = url;
+		const isSkimlinks = isOnHost(url, 'skimresources.com');
+		const target = isSkimlinks ? skimlinksTarget(url) : url;
+		if (target && isAmazon(target)) {
 			links.amazon.push(href);
-		} else if (href.includes('skimresources')) {
+		} else if (isSkimlinks) {
 			links.skimlinks.push(href);
 		} else if (
-			href.startsWith('http') &&
-			!ownHosts.some((host) => href.includes(host))
+			(url.protocol === 'https:' || url.protocol === 'http:') &&
+			!ownHosts.has(url.hostname)
 		) {
 			links.other.push(href);
 		}
@@ -162,12 +181,17 @@ const urlDate = (pageUrl: string) => {
 		: 'N/A';
 };
 
-/** The text of a page's first top-level heading, its headline. */
+/**
+ * The text of a page's first top-level heading, its headline. Any angle brackets left
+ * once its tags are removed and its entities decoded are removed too, so none of its HTML
+ * is left.
+ */
 const headline = (html: string) => {
 	const h1 = /<h1\b[^>]*>(.*?)<\/h1>/s.exec(html)?.[1];
 	return h1 === undefined
 		? 'N/A'
 		: decodeEntities(h1.replace(/<[^>]+>/g, ''))
+				.replace(/[<>]/g, '')
 				.replace(/\s+/g, ' ')
 				.trim();
 };

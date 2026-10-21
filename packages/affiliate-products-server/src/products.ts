@@ -75,9 +75,11 @@ const decodeEntities = (text: string) =>
 		.replace(/&amp;/g, '&');
 
 // Line breaks become spaces, but other tags are removed, as names are sometimes split
-// across several tags, as in "<strong>Pasta</strong><strong> maker</strong>".
+// across several tags, as in "<strong>Pasta</strong><strong> maker</strong>". Any angle
+// brackets left once the entities are decoded are removed too, so no HTML is left.
 const plainText = (html: string) =>
 	decodeEntities(html.replace(/<br\s*\/?>/g, ' ').replace(/<[^>]+>/g, ''))
+		.replace(/[<>]/g, '')
 		.replace(/\s+/g, ' ')
 		.replace(/\s+([:,.])/g, '$1')
 		.trim();

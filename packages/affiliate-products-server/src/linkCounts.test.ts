@@ -61,6 +61,20 @@ describe('countLinks', () => {
 		).toEqual({ amazon: 0, skimlinks: 1, other: 2 });
 	});
 
+	it("doesn't count links that only mention Amazon or Skimlinks as theirs", () => {
+		expect(
+			countLinks(
+				page(
+					'https://www.amazon.com.shop.example/a',
+					'https://shop.example/?from=amazon.co.uk',
+					'https://skimresources.shop.example/a',
+					'https://go.skimresources.com/?id=1&amp;url=https%3A%2F%2Fshop.example%2F%3Ffrom%3Damazon.com',
+				),
+				pageUrl,
+			),
+		).toEqual({ amazon: 0, skimlinks: 1, other: 3 });
+	});
+
 	it('counts every link, repeats included, as the bookmarklet does', () => {
 		expect(
 			countLinks(
@@ -124,6 +138,15 @@ describe('linksCsv', () => {
 			`"https://go.skimresources.com/?id=1&xs=1&url=https%3A%2F%2Fwww.argos.co.uk%2Fp%2F1%3Fsref%3Dabc%26a%3D1","Yes","https://www.argos.co.uk/p/1?a=1","argos.co.uk","${pageUrl}","The best robot vacuums & mops","best-robot-vacuum-mop","2024/11/26"`,
 			`"https://www.youtube.com/@guardian","No","https://www.youtube.com/@guardian","youtube.com","${pageUrl}","The best robot vacuums & mops","best-robot-vacuum-mop","2024/11/26"`,
 		]);
+	});
+
+	it('leaves no HTML in a headline with an unclosed tag', () => {
+		const [, row] = linksCsv(
+			'<h1>A <script headline</h1><a href="https://shop.example/a">x</a>',
+			pageUrl,
+		).split('\n');
+
+		expect(row).toContain('"A script headline"');
 	});
 
 	it('escapes quotes in fields', () => {

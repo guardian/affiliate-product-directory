@@ -148,6 +148,21 @@ describe('extractProducts', () => {
 		]);
 	});
 
+	it('leaves no HTML in a name written with escaped tags', () => {
+		const products = extractProducts([
+			{
+				elements: [
+					html('<h2>A &lt;script&gt;kettle&lt;/script&gt;</h2>'),
+					productButton('https://shop.example/kettle', '£30 at Shop'),
+				],
+			},
+		]);
+
+		expect(grouping(products)).toEqual([
+			['A scriptkettle/script', ['https://shop.example/kettle']],
+		]);
+	});
+
 	it('names a run of product buttons after the heading just before it, without its label', () => {
 		const products = extractProducts([
 			{
