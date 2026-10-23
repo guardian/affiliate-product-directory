@@ -229,6 +229,7 @@ export const PriceOverrideModal = ({
 								description="The price providers won’t change this price until then. Leave it empty to keep it until it’s removed."
 								value={expiry}
 								onChange={setExpiry}
+								minValue={parseDate(today())}
 								error={submitted ? expiryError : undefined}
 							/>
 							{error && <InlineMessage level="error">{error}</InlineMessage>}

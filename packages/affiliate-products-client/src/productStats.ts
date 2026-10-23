@@ -4,11 +4,33 @@ import type { Article } from '@common/tool-models';
 export const retailerLinkCount = (article: Article): number =>
 	article.products.reduce((total, product) => total + product.links.length, 0);
 
-/** The retailers an article links to, each once, in the order they first appear. */
-export const retailersUsed = (article: Article): string[] => [
-	...new Set(
-		article.products.flatMap((product) =>
-			product.links.flatMap((link) => (link.retailer ? [link.retailer] : [])),
-		),
-	),
-];
+export interface RetailerUsed {
+	retailer: string;
+	links: number;
+	/** Whether any of its links go through Skimlinks. */
+	skimlinks: boolean;
+}
+
+/** The retailers an article links to, each with how many links it has, most first, then A–Z. */
+export const retailersUsed = (article: Article): RetailerUsed[] => {
+	const retailers = new Map<string, RetailerUsed>();
+	for (const { retailer, kind } of article.products.flatMap(
+		({ links }) => links,
+	)) {
+		if (retailer) {
+			const used = retailers.get(retailer) ?? {
+				retailer,
+				links: 0,
+				skimlinks: false,
+			};
+			retailers.set(retailer, {
+				...used,
+				links: used.links + 1,
+				skimlinks: used.skimlinks || kind === 'skimlinks',
+			});
+		}
+	}
+	return [...retailers.values()].sort(
+		(a, b) => b.links - a.links || a.retailer.localeCompare(b.retailer),
+	);
+};
