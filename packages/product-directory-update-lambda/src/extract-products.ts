@@ -44,13 +44,16 @@ export function extractAllProductsFromArticle(
 
 		const region = getRegionFromTags(content.tags);
 		if (region === undefined) {
-			console.error(`Could not determine region for article: ${content.id}.`);
+			console.error(
+				`Could not determine region for article: ${content.id}. Default to GB`,
+			);
 		}
 
 		return [...deduplicatedURLs].map((url) => ({
 			pricing: {
 				productMerchantUrl: url,
-				region: region ?? '',
+				// Default to GB
+				region: region ?? 'GB',
 			},
 			article: {
 				productMerchantUrl: url,
