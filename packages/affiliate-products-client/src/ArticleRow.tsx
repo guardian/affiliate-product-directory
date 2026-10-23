@@ -6,17 +6,31 @@ import {
 	semanticTypography,
 } from '@guardian/stand';
 import { Badge } from '@guardian/stand/Badge';
+import { Icon } from '@guardian/stand/Icon';
 import { IconButton } from '@guardian/stand/IconButton';
 import { Typography } from '@guardian/stand/Typography';
 import { convertTypographyToEmotionStringStyle } from '@guardian/stand/utils';
-import { type MouseEvent, type ReactNode, useId, useState } from 'react';
+import {
+	type MouseEvent,
+	type ReactNode,
+	useContext,
+	useId,
+	useState,
+} from 'react';
 import { ArticleDetail } from './ArticleDetail';
 import { formatDate } from './formatDate';
 import { ComposerIcon, LiveSiteIcon, OphanIcon, SkimlinksIcon } from './icons';
-import { retailerLinkCount } from './productStats';
+import { priceGapCount, retailerLinkCount } from './productStats';
 import { describeSection } from './sections';
 import { skimlinksUrl } from './skimlinksUrl';
-import { accent, draftAccent, livePricingAccent } from './style';
+import { StarredContext } from './Starred';
+import {
+	accent,
+	draftAccent,
+	livePricingAccent,
+	priceGapAccent,
+	starColour,
+} from './style';
 
 // The width of the column with the row's toggle, which is a small IconButton.
 const toggleColumnWidth = '2rem';
@@ -87,6 +101,18 @@ export const articleColumnsStyles = css`
 /** How far the headline column is from the row's left edge, for lining other things up with it. */
 export const headlineInset = `calc(${semanticSpacing.stackXs} + ${toggleColumnWidth} + ${semanticSpacing.stackSm})`;
 
+// Links whose Current price is far from the article's, under the counts.
+const gapTagStyles = css`
+	${convertTypographyToEmotionStringStyle(semanticTypography.bodyBoldXs)};
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	margin-top: 2px;
+	padding: 0 ${semanticSpacing.stackXxs} 0 2px;
+	background-color: ${priceGapAccent.tint};
+	color: ${priceGapAccent.text};
+`;
+
 /** The products column: how many products, and under it how many links to their retailers. */
 const countsStyles = css`
 	font-variant-numeric: tabular-nums;
@@ -138,6 +164,32 @@ const toggleStyles = (expanded: boolean) => css`
 	.material-symbols {
 		transform: rotate(${expanded ? 180 : 0}deg);
 		transition: transform 0.15s;
+	}
+`;
+
+// Gold when starred, and faint until then so the headlines stay the first thing read.
+const starTheme = (starred: boolean) => {
+	const color = starred ? starColour : semanticColors.text.disabled;
+	const plain = { border: 'none', backgroundColor: 'transparent' };
+	return {
+		tertiary: {
+			shared: {
+				color,
+				border: 'none',
+				hover: plain,
+				active: plain,
+				disabled: plain,
+			},
+		},
+	};
+};
+
+const starStyles = css`
+	margin: -2px 2px 0 -4px;
+	vertical-align: middle;
+
+	&[data-hovered] {
+		color: ${starColour};
 	}
 `;
 
@@ -295,6 +347,9 @@ export const ArticleRow = ({
 	const panelId = useId();
 	const section = describeSection(article.sectionId);
 	const draft = article.status === 'draft';
+	const gaps = priceGapCount(article);
+	const { isStarred, toggleStar } = useContext(StarredContext);
+	const starred = isStarred(article.id);
 
 	// Clicks on the row's links and toggle do what they do without the row's click too.
 	const onRowClick = (event: MouseEvent) => {
@@ -322,6 +377,16 @@ export const ArticleRow = ({
 				/>
 				<div>
 					<div css={titleStyles}>
+						<IconButton
+							symbol="star"
+							variant="tertiary"
+							size="xs"
+							theme={starTheme(starred)}
+							cssOverrides={starStyles}
+							ariaLabel={`${starred ? 'Unstar' : 'Star'} ${article.webTitle}`}
+							aria-pressed={starred}
+							onPress={() => toggleStar(article.id)}
+						/>
 						{draft && (
 							<Badge size="xs" color="yellow" cssOverrides={draftBadgeStyles}>
 								Draft
@@ -365,6 +430,12 @@ export const ArticleRow = ({
 						{retailerLinkCount(article)}{' '}
 						{retailerLinkCount(article) === 1 ? 'link' : 'links'}
 					</Typography>
+					{gaps > 0 && (
+						<span css={gapTagStyles}>
+							<Icon symbol="warning" size="xs" fill={priceGapAccent.icon} />
+							{gaps} price {gaps === 1 ? 'gap' : 'gaps'}
+						</span>
+					)}
 				</div>
 				<span data-column="published">
 					<ArticleDate article={article} />

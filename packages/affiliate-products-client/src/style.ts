@@ -1,4 +1,4 @@
-import { baseColors, semanticSpacing } from '@guardian/stand';
+import { baseColors, semanticColors, semanticSpacing } from '@guardian/stand';
 
 // The tool's colour, from Stand's orange scale. It marks the tool in its top bar and icon
 // (in TopToolbar) and an open article: the bar down its left edge, its bottom border and
@@ -34,3 +34,14 @@ export const wrappingBannerTheme = {
 		content: { justifyContent: 'flex-start', alignItems: 'flex-start' },
 	},
 };
+
+// A Current price far from the article's is marked in Stand's warning colours: a tinted
+// cell in the product list, and a tag on the article's row.
+export const priceGapAccent = {
+	tint: baseColors.yellow[900],
+	icon: semanticColors.border.warning,
+	text: semanticColors.text.warning,
+};
+
+// A starred article's star, in Stand's yellow.
+export const starColour = baseColors.yellow[500];
