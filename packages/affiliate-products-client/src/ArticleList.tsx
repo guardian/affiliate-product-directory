@@ -8,7 +8,7 @@ import {
 } from '@guardian/stand';
 import { Icon } from '@guardian/stand/Icon';
 import { convertTypographyToEmotionStringStyle } from '@guardian/stand/utils';
-import { useId } from 'react';
+import { type ReactNode, useId } from 'react';
 import {
 	articleColumnsStyles,
 	articleListContainer,
@@ -100,6 +100,8 @@ export interface ArticleGroup {
 	articles: Article[];
 	/** Shown in place of the rows when there are none. */
 	emptyMessage: string;
+	/** Shown under the heading, before any rows, such as to say some couldn't be loaded. */
+	notice?: ReactNode;
 }
 
 const Group = ({
@@ -118,8 +120,10 @@ const Group = ({
 				)}
 				{group.title}
 			</h2>
+			{group.notice && <p css={emptyGroupStyles}>{group.notice}</p>}
 			{group.articles.length === 0 ? (
-				<p css={emptyGroupStyles}>{group.emptyMessage}</p>
+				// The notice says why there are none, if there is one.
+				!group.notice && <p css={emptyGroupStyles}>{group.emptyMessage}</p>
 			) : (
 				<ArticleRows articles={group.articles} initiallyOpen={initiallyOpen} />
 			)}

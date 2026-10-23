@@ -22,6 +22,7 @@ import { headlineInset } from './ArticleRow';
 import { ArticleSearch } from './ArticleSearch';
 import { useListParams } from './hooks/useListParams';
 import { useStarred } from './hooks/useStarred';
+import { useStarredArticles } from './hooks/useStarredArticles';
 import { Pagination } from './Pagination';
 import { PriceEditingContext } from './PriceEditing';
 import { ProdDataContext } from './ProdData';
@@ -104,59 +105,24 @@ export const App = () => {
 		isStarred: (id: string) => starred.includes(id),
 		toggleStar,
 	};
-	// The starred articles by ID, each fetched on its own as they can be on any page.
-	const [starredArticles, setStarredArticles] = useState<{
-		prod: boolean;
-		articles: Map<string, Article>;
-	}>();
-
-	useEffect(() => {
-		if (starred.length === 0) {
-			return;
-		}
-		const controller = new AbortController();
-		void Promise.all(
-			starred.map((id) =>
-				fetchArticles(
-					{
-						page: 1,
-						section: undefined,
-						status: undefined,
-						livePricing: false,
-						prod,
-						path: id,
-					},
-					controller.signal,
-				).catch(() => undefined),
-			),
-		).then((results) => {
-			if (controller.signal.aborted) {
-				return;
-			}
-			const found = results.flatMap((result) =>
-				result?.status === 'loaded' ? result.page.articles : [],
-			);
-			setStarredArticles({
-				prod,
-				articles: new Map(found.map((article) => [article.id, article])),
-			});
-		});
-		return () => controller.abort();
-	}, [starred, prod, reloads]);
+	const {
+		articles: starredArticles,
+		failed: starredFailed,
+		retry: retryStarred,
+	} = useStarredArticles(starred, prod, reloads);
 
 	// The starred articles the sidebar's filters would show, in the order they were starred.
 	const pinned =
-		starredArticles?.prod === prod
-			? starred.flatMap((id) => {
-					const article = starredArticles.articles.get(id);
-					return article &&
-						(!section || article.sectionId === section) &&
-						(!status || article.status === status) &&
-						(!livePricing || article.livePricing)
-						? [article]
-						: [];
-				})
-			: undefined;
+		starredArticles &&
+		starred.flatMap((id) => {
+			const article = starredArticles.get(id);
+			return article &&
+				(!section || article.sectionId === section) &&
+				(!status || article.status === status) &&
+				(!livePricing || article.livePricing)
+				? [article]
+				: [];
+		});
 
 	useEffect(() => {
 		// The name is only shown in the toolbar, so there's nothing to show if this fails.
@@ -266,6 +232,22 @@ export const App = () => {
 									emptyMessage: pinned
 										? 'No starred articles match these filters.'
 										: 'Loading the starred articles…',
+									notice:
+										starredFailed.length > 0 ? (
+											<>
+												{starredFailed.length === 1
+													? '1 starred article'
+													: `${starredFailed.length} starred articles`}{' '}
+												couldn’t be loaded.{' '}
+												<Button
+													variant="secondary"
+													size="xs"
+													onPress={retryStarred}
+												>
+													Try again
+												</Button>
+											</>
+										) : undefined,
 								},
 							]
 						: []),

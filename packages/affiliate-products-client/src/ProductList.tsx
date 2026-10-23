@@ -20,7 +20,7 @@ import { Typography } from '@guardian/stand/Typography';
 import { convertTypographyToEmotionStringStyle } from '@guardian/stand/utils';
 import { useContext, useState } from 'react';
 import { ButtonPreview } from './ButtonPreview';
-import { currencySymbol, type SectionCurrency } from './currency';
+import { type Currency, currencySymbol } from './currency';
 import { formatDate } from './formatDate';
 import { formatPrice } from './formatPrice';
 import { PriceEditingContext } from './PriceEditing';
@@ -121,7 +121,7 @@ const CurrentPrice = ({
 }: {
 	link: ProductLink;
 	productName?: string;
-	articleCurrency?: SectionCurrency;
+	articleCurrency?: Currency;
 }) => {
 	const { canEdit } = useContext(PriceEditingContext);
 	const [editing, setEditing] = useState(false);
@@ -165,7 +165,7 @@ const CurrentPrice = ({
 const renderLinkRow = (
 	link: ProductLink,
 	productName: string | undefined,
-	articleCurrency: SectionCurrency | undefined,
+	articleCurrency: Currency | undefined,
 ) => {
 	const { url, label, retailer, basePrice, updatedAt, updatedBy } = link;
 	const difference = priceDifference(link);
@@ -270,7 +270,7 @@ const ProductTable = ({
 	articleCurrency,
 }: {
 	product: Product;
-	articleCurrency?: SectionCurrency;
+	articleCurrency?: Currency;
 }) => (
 	<div css={productStyles}>
 		<h5 css={productNameStyles}>
@@ -311,7 +311,7 @@ export const ProductList = ({
 }: {
 	products: Product[];
 	/** The currency the article's section is priced in, to warn when a price is set in another. */
-	articleCurrency?: SectionCurrency;
+	articleCurrency?: Currency;
 }) => {
 	if (products.length === 0) {
 		return (

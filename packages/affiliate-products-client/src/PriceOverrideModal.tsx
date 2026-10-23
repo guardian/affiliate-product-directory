@@ -20,7 +20,6 @@ import {
 	currencySymbol,
 	currencySymbols,
 	isCurrency,
-	type SectionCurrency,
 } from './currency';
 import { formatDate } from './formatDate';
 import { formatPrice } from './formatPrice';
@@ -33,7 +32,7 @@ const defaultCurrency = ({ currency, basePrice }: ProductLink): Currency =>
 		? currency
 		: ((basePrice && currencyOfSymbol(basePrice.currencySymbol)) ?? 'GBP');
 
-const sectionNames: Record<SectionCurrency, string> = {
+const sectionNames: Record<Currency, string> = {
 	GBP: 'The Filter UK',
 	USD: 'The Filter US',
 };
@@ -102,7 +101,7 @@ export const PriceOverrideModal = ({
 	link: ProductLink;
 	productName?: string;
 	/** The currency the article's section is priced in, to warn when another is chosen. */
-	articleCurrency?: SectionCurrency;
+	articleCurrency?: Currency;
 	isOpen: boolean;
 	onOpenChange: (isOpen: boolean) => void;
 }) => {
@@ -233,7 +232,6 @@ export const PriceOverrideModal = ({
 								>
 									<Option id="GBP">£ GBP</Option>
 									<Option id="USD">$ USD</Option>
-									<Option id="EUR">€ EUR</Option>
 								</Select>
 								<TextInput
 									label="Price"

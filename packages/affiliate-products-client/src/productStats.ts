@@ -61,9 +61,13 @@ export const priceDifference = ({
 	return (price - basePrice.amount) / basePrice.amount;
 };
 
+// Prices such as £99 and £128.70 are exactly 30% apart, but their difference in floating
+// point is a little under 0.3, so it's compared with this much room.
+const tolerance = 1e-9;
+
 /** Whether a link's Current price is far enough from the article's to be checked. */
 export const hasPriceGap = (link: ProductLink): boolean =>
-	Math.abs(priceDifference(link) ?? 0) >= priceGapThreshold;
+	Math.abs(priceDifference(link) ?? 0) >= priceGapThreshold - tolerance;
 
 /** How many of an article's links have a Current price far from the article's. */
 export const priceGapCount = (article: Article): number =>
