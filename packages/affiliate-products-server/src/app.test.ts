@@ -3,11 +3,7 @@ import { tmpdir } from 'os';
 import path from 'path';
 import type * as DatabaseServiceModule from '@common/database-service';
 import type { Product } from '@common/models';
-import {
-	ArticlesPageSchema,
-	AuthResponseSchema,
-	LinkCountsSchema,
-} from '@common/tool-models';
+import { ArticlesPageSchema, AuthResponseSchema } from '@common/tool-models';
 import type { User } from '@common/tool-models';
 import { jest } from '@jest/globals';
 import {
@@ -64,6 +60,9 @@ describe('createApp', () => {
 		...loggedIn,
 		hasAccess: () => false,
 	};
+
+	// The Skimlinks merchants' domains, which include the shop the article links to.
+	const readSkimlinksDomains = () => Promise.resolve(new Set(['shop.example']));
 
 	// CAPI's answer to a search, with one article that has one product button.
 	const searchResponse = (page: number) => ({
@@ -124,6 +123,7 @@ describe('createApp', () => {
 				],
 			},
 		],
+		linkCounts: { amazon: 0, skimlinks: 1, other: 0 },
 	};
 
 	// The article's one product link, with the directory's price for it.
@@ -197,6 +197,7 @@ describe('createApp', () => {
 			stage: 'CODE',
 			capiKey: 'code-key',
 			dynamoService,
+			readSkimlinksDomains,
 		});
 
 	it.each([
@@ -314,6 +315,7 @@ describe('createApp', () => {
 				capiKey: 'code-key',
 				dynamoService: stageTable,
 				prod: { capiKey: 'prod-key', dynamoService: prodTable },
+				readSkimlinksDomains,
 			});
 			return { withProd, stageTable, prodTable };
 		};
@@ -378,6 +380,7 @@ describe('createApp', () => {
 				capiKey: 'code-key',
 				listDrafts,
 				dynamoService: pricingTable([pricedProduct]),
+				readSkimlinksDomains,
 			});
 
 		it('lists the drafts before the first page of live articles', async () => {
@@ -511,97 +514,73 @@ describe('createApp', () => {
 		},
 	);
 
-	describe('link counts', () => {
-		const pageUrl =
-			'https://m.code.dev-theguardian.com/thefilter/2026/oct/06/an-article';
-		const page = {
-			html: `<h1>An article</h1>
-				<a href="https://www.amazon.co.uk/dp/1">Amazon</a>
-				<a href="https://go.skimresources.com/?id=1&amp;url=https%3A%2F%2Fshop.example%2Fa">Shop</a>
-				<a href="https://jobs.theguardian.com/">Jobs</a>`,
-			url: pageUrl,
-		};
+	describe('links CSV', () => {
+		const csv = (query: Partial<Record<string, string>>) =>
+			request(app()).get('/api/links.csv').query(query);
 
-		const appReadingPage = (
-			fetchPage = jest.fn<(pageUrl: string) => Promise<typeof page>>(() =>
-				Promise.resolve(page),
-			),
-		) => ({
-			fetchPage,
-			withPage: createApp({
-				clientDir,
-				auth: loggedIn,
-				stage: 'CODE',
-				capiKey: 'code-key',
-				dynamoService: pricingTable(),
-				fetchPage,
-			}),
-		});
+		it.each([article.id, article.webUrl])(
+			"downloads a CSV of the links in the body of the article at %s, from the stage's CAPI",
+			async (path) => {
+				const response = await csv({ path });
 
-		const webUrl =
-			'http://www.code.dev-theguardian.com/thefilter/2026/oct/06/an-article';
-
-		it("counts the links on an article's rendered page", async () => {
-			const { withPage, fetchPage } = appReadingPage();
-
-			const response = await request(withPage)
-				.get('/api/link-counts')
-				.query({ url: webUrl });
-
-			expect(response.status).toBe(200);
-			expect(LinkCountsSchema.parse(response.body)).toEqual({
-				amazon: 1,
-				skimlinks: 1,
-				other: 1,
-			});
-			expect(fetchPage).toHaveBeenCalledWith(pageUrl);
-		});
-
-		it("downloads a CSV of the links on an article's rendered page", async () => {
-			const { withPage } = appReadingPage();
-
-			const response = await request(withPage)
-				.get('/api/link-counts.csv')
-				.query({ url: webUrl });
-
-			expect(response.status).toBe(200);
-			expect(response.headers['content-type']).toBe('text/csv; charset=utf-8');
-			expect(response.headers['content-disposition']).toBe(
-				'attachment; filename="an-article-links.csv"',
-			);
-			expect(response.text.split('\n')).toHaveLength(3);
-		});
-
-		it.each([
-			['/api/link-counts', undefined],
-			['/api/link-counts', 'https://evil.example/thefilter/an-article'],
-			['/api/link-counts.csv', 'https://evil.example/thefilter/an-article'],
-		])(
-			"refuses %s for %s, as it isn't an article's web URL",
-			async (path, url) => {
-				const { withPage, fetchPage } = appReadingPage();
-
-				const response = await request(withPage)
-					.get(path)
-					.query(url ? { url } : {});
-
-				expect(response.status).toBe(400);
-				expect(fetchPage).not.toHaveBeenCalled();
+				expect(response.status).toBe(200);
+				expect(response.headers['content-type']).toBe(
+					'text/csv; charset=utf-8',
+				);
+				expect(response.headers['content-disposition']).toBe(
+					'attachment; filename="an-article-links.csv"',
+				);
+				expect(response.text.split('\n')).toEqual([
+					expect.stringContaining('"External Link"'),
+					expect.stringContaining('"https://shop.example/a-product","Yes"'),
+				]);
+				const [lookup] = capiRequests();
+				expect(lookup?.origin).toBe(
+					'https://content.code.dev-guardianapis.com',
+				);
 			},
 		);
 
-		it("fails, hiding the details, when the article's page can't be read", async () => {
-			jest.spyOn(console, 'error').mockImplementation(() => undefined);
-			const { withPage } = appReadingPage(
-				jest.fn(() => Promise.reject(new Error('responded with status 503'))),
-			);
+		it("doesn't fetch the article's page from the site", async () => {
+			await csv({ path: article.id });
 
-			const response = await request(withPage)
-				.get('/api/link-counts')
-				.query({ url: 'https://www.theguardian.com/thefilter/an-article' });
+			expect(
+				capiRequests().every(
+					(url) => url.origin === 'https://content.code.dev-guardianapis.com',
+				),
+			).toBe(true);
+		});
 
-			expect(response.status).toBe(502);
-			expect(JSON.stringify(response.body)).not.toContain('503');
+		it.each([{}, { path: 'not a path' }, { path: article.id, prod: 'yes' }])(
+			'refuses %j',
+			async (query) => {
+				const response = await csv(query);
+
+				expect(response.status).toBe(400);
+			},
+		);
+
+		it("says when there's no article at the path", async () => {
+			const response = await csv({ path: 'thefilter/2026/oct/06/missing' });
+
+			expect(response.status).toBe(404);
+		});
+
+		it("fails when the Skimlinks domains can't be read", async () => {
+			const response = await request(
+				createApp({
+					clientDir,
+					auth: loggedIn,
+					stage: 'CODE',
+					capiKey: 'code-key',
+					dynamoService: pricingTable(),
+					readSkimlinksDomains: () => Promise.resolve(undefined),
+				}),
+			)
+				.get('/api/links.csv')
+				.query({ path: article.id });
+
+			expect(response.status).toBe(503);
 		});
 	});
 
@@ -734,6 +713,7 @@ describe('createApp', () => {
 				stage: 'CODE',
 				capiKey: 'code-key',
 				dynamoService: pricingTable(),
+				readSkimlinksDomains,
 			}),
 		).get('/some/deep/link');
 

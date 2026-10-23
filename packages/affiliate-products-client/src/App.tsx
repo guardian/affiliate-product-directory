@@ -23,6 +23,7 @@ import { ArticleSearch } from './ArticleSearch';
 import { useListParams } from './hooks/useListParams';
 import { Pagination } from './Pagination';
 import { PriceEditingContext } from './PriceEditing';
+import { ProdDataContext } from './ProdData';
 import { Sidebar } from './Sidebar';
 import { TopToolbar } from './TopToolbar';
 import type { ArticlesState, ListParams } from './types';
@@ -247,9 +248,11 @@ export const App = () => {
 					onProdChange={setProd}
 				/>
 				<Layout.Main paddingTop={false} cssOverrides={mainStyles}>
-					<PriceEditingContext.Provider value={priceEditing}>
-						{renderArticles()}
-					</PriceEditingContext.Provider>
+					<ProdDataContext.Provider value={prod}>
+						<PriceEditingContext.Provider value={priceEditing}>
+							{renderArticles()}
+						</PriceEditingContext.Provider>
+					</ProdDataContext.Provider>
 				</Layout.Main>
 			</Layout>
 		</>

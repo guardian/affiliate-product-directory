@@ -44,6 +44,17 @@ export const ProductSchema = z.object({
 	links: z.array(ProductLinkSchema),
 });
 
+/**
+ * The external links in an article's body, repeats included, counted as the Affiliate Link
+ * Counter bookmarklet counts the links on a rendered page.
+ */
+export const LinkCountsSchema = z.object({
+	amazon: z.number(),
+	// Links that are sent through Skimlinks when the article is rendered, other than Amazon's.
+	skimlinks: z.number(),
+	other: z.number(),
+});
+
 export const ArticleSchema = z.object({
 	id: z.string(),
 	sectionId: z.string(),
@@ -61,6 +72,8 @@ export const ArticleSchema = z.object({
 	composerUrl: z.string().optional(),
 	ophanUrl: z.string(),
 	products: z.array(ProductSchema),
+	// Missing if the Skimlinks domains couldn't be read.
+	linkCounts: LinkCountsSchema.optional(),
 });
 
 /** The response from /api/articles. */
@@ -74,16 +87,6 @@ export const ArticlesPageSchema = z.object({
 	currentPage: z.number(),
 	pages: z.number(),
 	total: z.number(),
-});
-
-/**
- * The response from /api/link-counts: the links on an article as it's rendered on the
- * site, counted as the Affiliate Link Counter bookmarklet counts them.
- */
-export const LinkCountsSchema = z.object({
-	amazon: z.number(),
-	skimlinks: z.number(),
-	other: z.number(),
 });
 
 export const UserSchema = z.object({

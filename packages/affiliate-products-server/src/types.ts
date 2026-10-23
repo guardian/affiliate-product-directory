@@ -44,6 +44,24 @@ export type GetProductPrices = (urls: string[]) => Promise<ProductPrices>;
 /** Gets one article by its CAPI ID, or undefined if there isn't one. */
 export type GetArticle = (path: string) => Promise<Article | undefined>;
 
+/** An article's web URL and headline, with the links in its body, in order, repeats included. */
+export interface ArticleLinks {
+	webUrl: string;
+	webTitle: string;
+	links: string[];
+}
+
+/** Gets the links in one article's body by its CAPI ID, or undefined if there isn't one. */
+export type GetArticleLinks = (
+	path: string,
+) => Promise<ArticleLinks | undefined>;
+
+/**
+ * The domains of the merchants Skimlinks supports, without www., which frontend sends
+ * links to through Skimlinks. Undefined if they can't be read.
+ */
+export type ReadSkimlinksDomains = () => Promise<Set<string> | undefined>;
+
 /** A price found in a link's label. */
 export interface ExtractedPrice {
 	entireMatch: string;

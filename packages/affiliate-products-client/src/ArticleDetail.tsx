@@ -13,9 +13,9 @@ import {
 	convertTypographyToEmotionStringStyle,
 	from,
 } from '@guardian/stand/utils';
-import { useEffect, useState } from 'react';
-import { fetchLinkCounts } from './api/linkCounts';
+import { useContext } from 'react';
 import { formatDate } from './formatDate';
+import { ProdDataContext } from './ProdData';
 import { ProductList } from './ProductList';
 import { retailersUsed } from './productStats';
 import { describeSection } from './sections';
@@ -168,44 +168,29 @@ const ActionLink = ({
 	</LinkButton>
 );
 
-type LinkCountsState =
-	| { status: 'loading' }
-	| { status: 'loaded'; counts: LinkCounts }
-	| { status: 'error' };
-
 const formatShare = (part: number, total: number) =>
 	total === 0 ? '—' : `${Math.round((part / total) * 100)}%`;
 
 /**
- * The links on the article as it's rendered, counted as the Affiliate Link Counter
+ * The external links in the article's body, counted as the Affiliate Link Counter
  * bookmarklet counts them, with the share of them that are affiliate links.
  */
-const LinkCountStats = ({ state }: { state: LinkCountsState }) => {
-	if (state.status === 'error') {
+const LinkCountStats = ({ counts }: { counts: LinkCounts | undefined }) => {
+	if (!counts) {
 		return (
 			<Typography element="p" variant="bodySm" theme={weakText}>
-				The article’s page couldn’t be read.
+				The links couldn’t be counted.
 			</Typography>
 		);
 	}
-	const counts = state.status === 'loaded' ? state.counts : undefined;
-	const show = (value: (c: LinkCounts) => string) =>
-		counts ? value(counts) : '…';
+	const { amazon, skimlinks, other } = counts;
 	return (
 		<div css={statsStyles}>
-			<Stat value={show((c) => String(c.amazon))} label="Amazon link count" />
+			<Stat value={String(amazon)} label="Amazon link count" />
+			<Stat value={String(skimlinks)} label="Skimlinks link count" />
+			<Stat value={String(other)} label="Other external link count" />
 			<Stat
-				value={show((c) => String(c.skimlinks))}
-				label="Skimlinks link count"
-			/>
-			<Stat
-				value={show((c) => String(c.other))}
-				label="Other external link count"
-			/>
-			<Stat
-				value={show((c) =>
-					formatShare(c.amazon + c.skimlinks, c.amazon + c.skimlinks + c.other),
-				)}
+				value={formatShare(amazon + skimlinks, amazon + skimlinks + other)}
 				label="Affiliate share"
 			/>
 		</div>
@@ -221,33 +206,15 @@ export const ArticleDetail = ({
 	article: Article;
 }) => {
 	const retailers = retailersUsed(article);
-	// A draft isn't on the site, so has no page to read its links from.
+	const prod = useContext(ProdDataContext);
 	const { webUrl } = article;
+	// A draft isn't in CAPI yet, so its links can only be counted once it's published.
 	const csvUrl =
 		webUrl &&
-		`/api/link-counts.csv?${new URLSearchParams({ url: webUrl }).toString()}`;
-	const [linkCounts, setLinkCounts] = useState<LinkCountsState>({
-		status: 'loading',
-	});
-
-	useEffect(() => {
-		if (!webUrl) {
-			return;
-		}
-		const controller = new AbortController();
-		fetchLinkCounts(webUrl, controller.signal)
-			.then((counts) =>
-				setLinkCounts(
-					counts ? { status: 'loaded', counts } : { status: 'error' },
-				),
-			)
-			.catch(() => {
-				if (!controller.signal.aborted) {
-					setLinkCounts({ status: 'error' });
-				}
-			});
-		return () => controller.abort();
-	}, [webUrl]);
+		`/api/links.csv?${new URLSearchParams({
+			path: article.id,
+			...(prod && { prod: 'true' }),
+		}).toString()}`;
 
 	return (
 		<div id={id}>
@@ -255,7 +222,7 @@ export const ArticleDetail = ({
 				<section css={columnStyles}>
 					<h4 css={headingStyles}>Links</h4>
 					{webUrl ? (
-						<LinkCountStats state={linkCounts} />
+						<LinkCountStats counts={article.linkCounts} />
 					) : (
 						<Typography element="p" variant="bodySm" theme={weakText}>
 							The links are counted once the article is published.
@@ -320,7 +287,7 @@ export const ArticleDetail = ({
 				>
 					Skimlinks
 				</ActionLink>
-				{/* The bookmarklet's CSV of the article's external links, read from its page again. */}
+				{/* The bookmarklet's CSV of the external links in the article's body. */}
 				<LinkButton
 					href={csvUrl}
 					isDisabled={!csvUrl}

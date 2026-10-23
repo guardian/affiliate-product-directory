@@ -1,4 +1,5 @@
 import type { Product, ProductLink } from '@common/tool-models';
+import { decodeEntities, stripTags } from './html';
 import { extractPriceFromLabel, getProductLinkLabelWithPrice } from './price';
 import type { Block, BlockElement, LinkElement } from './types';
 
@@ -65,20 +66,11 @@ const productCard = (card: BlockElement): Product | undefined => {
 	return { name, links: [...cardLinks, ...buttonLinks] };
 };
 
-const decodeEntities = (text: string) =>
-	text
-		.replace(/&nbsp;/g, ' ')
-		.replace(/&quot;/g, '"')
-		.replace(/&#0?39;|&apos;/g, "'")
-		.replace(/&lt;/g, '<')
-		.replace(/&gt;/g, '>')
-		.replace(/&amp;/g, '&');
-
 // Line breaks become spaces, but other tags are removed, as names are sometimes split
 // across several tags, as in "<strong>Pasta</strong><strong> maker</strong>". Any angle
 // brackets left once the entities are decoded are removed too, so no HTML is left.
 const plainText = (html: string) =>
-	decodeEntities(html.replace(/<br\s*\/?>/g, ' ').replace(/<[^>]+>/g, ''))
+	decodeEntities(stripTags(html.replace(/<br\s*\/?>/g, ' ')))
 		.replace(/[<>]/g, '')
 		.replace(/\s+/g, ' ')
 		.replace(/\s+([:,.])/g, '$1')

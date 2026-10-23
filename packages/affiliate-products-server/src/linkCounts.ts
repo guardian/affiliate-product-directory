@@ -1,38 +1,35 @@
 import type { LinkCounts } from '@common/tool-models';
+import { decodeEntities } from './html';
+import type { ArticleLinks, Block, BlockElement } from './types';
 
-// theguardian.com's CDN refuses requests without a browser's User-Agent.
-const browserUserAgent =
-	'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
+/** The hrefs of the links in some HTML, such as a text element's. */
+const hrefs = (html: string) =>
+	[...html.matchAll(/<a\b[^>]*?\shref=(?:"([^"]*)"|'([^']*)')/g)].map(
+		([, doubleQuoted, singleQuoted]) =>
+			decodeEntities(doubleQuoted ?? singleQuoted ?? ''),
+	);
 
-const pageTimeoutMs = 10_000;
+/** The links in a body element: in its text, or its product button or product card. */
+const elementLinks = ({
+	textTypeData,
+	linkTypeData,
+	productTypeData,
+}: BlockElement) => [
+	...hrefs(textTypeData?.html ?? ''),
+	linkTypeData?.url ?? '',
+	...(productTypeData?.productCtas ?? []).map((cta) => cta.url),
+	...(productTypeData?.content ?? []).map(
+		(element) => element.linkTypeData?.url ?? '',
+	),
+];
 
-// The sites articles are rendered on, by the host CAPI gives in their web URLs. CODE's
-// articles are only served from its m. host.
-const renderedHosts: Record<string, string> = {
-	'www.theguardian.com': 'www.theguardian.com',
-	'www.code.dev-theguardian.com': 'm.code.dev-theguardian.com',
-	'm.code.dev-theguardian.com': 'm.code.dev-theguardian.com',
-};
-
-/**
- * The URL an article is rendered at, from the web URL CAPI gives it, or undefined if it
- * isn't on one of the Guardian's sites, so the tool only ever fetches those.
- */
-export const renderedPageUrl = (webUrl: string): string | undefined => {
-	try {
-		const url = new URL(webUrl);
-		const host = renderedHosts[url.hostname];
-		return host ? `https://${host}${url.pathname}` : undefined;
-	} catch {
-		return undefined;
-	}
-};
-
-const decodeEntities = (text: string) =>
-	text
-		.replace(/&quot;/g, '"')
-		.replace(/&#0?39;/g, "'")
-		.replace(/&amp;/g, '&');
+/** The links in an article's body, in order, repeats included. */
+export const bodyLinks = (body: Block[]): string[] =>
+	body
+		.flatMap((block) => block.elements ?? [])
+		.flatMap(elementLinks)
+		.map((link) => link.trim())
+		.filter((link) => link !== '');
 
 /** Whether a URL is on a host or one of its subdomains. */
 const isOnHost = (url: URL, host: string) =>
@@ -40,6 +37,11 @@ const isOnHost = (url: URL, host: string) =>
 
 const isAmazon = (url: URL) =>
 	isOnHost(url, 'amazon.co.uk') || isOnHost(url, 'amazon.com');
+
+const isGuardian = (url: URL) =>
+	isOnHost(url, 'theguardian.com') || isOnHost(url, 'dev-theguardian.com');
+
+const isSkimresources = (url: URL) => isOnHost(url, 'skimresources.com');
 
 /** The URL a Skimlinks link goes to, from its url parameter. */
 const skimlinksTarget = (url: URL) => {
@@ -50,60 +52,70 @@ const skimlinksTarget = (url: URL) => {
 	}
 };
 
-/** The external links on a page, in the order they appear, repeats included, by kind. */
-interface ExternalLinks {
-	amazon: string[];
-	skimlinks: string[];
-	other: string[];
-}
+/** A URL's host without www., as the domains in the Skimlinks file are. */
+const domain = (url: URL) => url.hostname.replace(/^www\./, '');
 
 /**
- * Sorts the links on a rendered page as the Affiliate Link Counter bookmarklet
- * (December 2024) does, so the numbers can be compared with ones it gave: every link,
- * repeats included, is an Amazon link if it goes to amazon.co.uk or amazon.com, even
- * through Skimlinks; otherwise a Skimlinks link if it goes through skimresources; and
- * otherwise another external link if it's to a web page on any other host than the
- * page's. Like the bookmarklet, this includes the Guardian's own links on other hosts, such
- * as jobs.theguardian.com in the footer.
+ * Whether frontend sends a link through Skimlinks when the article is rendered, as its
+ * host, without www., is a Skimlinks merchant's, or it already does.
  */
-const externalLinks = (html: string, pageUrl: string): ExternalLinks => {
-	// CODE's pages also link to www.theguardian.com, which the bookmarklet, run on PROD,
-	// treats as the page's own site.
-	const ownHosts = new Set([new URL(pageUrl).hostname, 'www.theguardian.com']);
-	const links: ExternalLinks = { amazon: [], skimlinks: [], other: [] };
+const goesThroughSkimlinks = (url: URL, skimlinksDomains: Set<string>) =>
+	isSkimresources(url) || skimlinksDomains.has(domain(url));
 
-	for (const [, doubleQuoted, singleQuoted] of html.matchAll(
-		/<a\b[^>]*?\shref=(?:"([^"]*)"|'([^']*)')/g,
-	)) {
-		const rawHref = doubleQuoted ?? singleQuoted ?? '';
-		let url: URL;
-		try {
-			// As a browser gives a link's href, made absolute.
-			url = new URL(decodeEntities(rawHref), pageUrl);
-		} catch {
-			continue;
-		}
+type LinkKind = keyof LinkCounts;
 
-		const { href } = url;
-		const isSkimlinks = isOnHost(url, 'skimresources.com');
-		const target = isSkimlinks ? skimlinksTarget(url) : url;
-		if (target && isAmazon(target)) {
-			links.amazon.push(href);
-		} else if (isSkimlinks) {
-			links.skimlinks.push(href);
-		} else if (
-			(url.protocol === 'https:' || url.protocol === 'http:') &&
-			!ownHosts.has(url.hostname)
-		) {
-			links.other.push(href);
-		}
+/**
+ * Sorts a link as the Affiliate Link Counter bookmarklet sorts the links on a rendered
+ * page: an Amazon link if it goes to amazon.co.uk or amazon.com, even through Skimlinks;
+ * otherwise a Skimlinks link if it goes through Skimlinks; and otherwise another external
+ * link if it's to a web page off the Guardian's sites. Undefined for any other link.
+ */
+const linkKind = (
+	link: string,
+	skimlinksDomains: Set<string>,
+): LinkKind | undefined => {
+	let url: URL;
+	try {
+		url = new URL(link);
+	} catch {
+		// A link without a host, such as /thefilter, is to the Guardian's own site.
+		return undefined;
 	}
-	return links;
+	if (
+		(url.protocol !== 'https:' && url.protocol !== 'http:') ||
+		isGuardian(url)
+	) {
+		return undefined;
+	}
+	const target = isSkimresources(url) ? skimlinksTarget(url) : url;
+	if (target && isAmazon(target)) {
+		return 'amazon';
+	}
+	return goesThroughSkimlinks(url, skimlinksDomains) ? 'skimlinks' : 'other';
 };
 
-/** Counts the links on a rendered page as the bookmarklet does. */
-export const countLinks = (html: string, pageUrl: string): LinkCounts => {
-	const { amazon, skimlinks, other } = externalLinks(html, pageUrl);
+/** The external links, each sorted by kind, keeping their order and repeats. */
+const sortLinks = (links: string[], skimlinksDomains: Set<string>) => {
+	const sorted: Record<LinkKind, string[]> = {
+		amazon: [],
+		skimlinks: [],
+		other: [],
+	};
+	for (const link of links) {
+		const kind = linkKind(link, skimlinksDomains);
+		if (kind) {
+			sorted[kind].push(link);
+		}
+	}
+	return sorted;
+};
+
+/** Counts the external links in an article's body, repeats included, by kind. */
+export const countLinks = (
+	links: string[],
+	skimlinksDomains: Set<string>,
+): LinkCounts => {
+	const { amazon, skimlinks, other } = sortLinks(links, skimlinksDomains);
 	return {
 		amazon: amazon.length,
 		skimlinks: skimlinks.length,
@@ -111,40 +123,10 @@ export const countLinks = (html: string, pageUrl: string): LinkCounts => {
 	};
 };
 
-// The bookmarklet leaves links to these hosts out of its CSV, though not its counts.
-const csvExcludedHosts = [
-	'jobs.theguardian.com',
-	'manage.theguardian.com',
-	'profile.theguardian.com',
-	'support.theguardian.com',
-	'recruiters.theguardian.com',
-	'holidays.theguardian.com',
-	'theguardian.newspapers.com',
-	'patrons.theguardian.com',
-	'licensing.theguardian.com',
-	'policies.google.com',
-	'workforus.theguardian.com',
-	'uploads.guim.co.uk',
-	'advertising.theguardian.com',
-	'media.gutools.co.uk',
-	'viewer.gutools.co.uk',
-	'dashboard.ophan.co.uk',
-	'composer.gutools.co.uk',
-];
-
-/** A URL's host without www., as the bookmarklet's "TLD Domain". */
-const domain = (url: string) => {
-	try {
-		return new URL(url).hostname.replace(/^www\./, '');
-	} catch {
-		return '';
-	}
-};
-
 /** The merchant URL a Skimlinks link goes to, without Skimlinks' sref parameter. */
-const cleanLink = (url: string) => {
-	const wrapped = /url=(.*)$/.exec(url)?.[1];
-	let clean = url;
+const cleanLink = (skimlinksLink: string) => {
+	const wrapped = /url=(.*)$/.exec(skimlinksLink)?.[1];
+	let clean = skimlinksLink;
 	if (wrapped !== undefined) {
 		try {
 			clean = decodeURIComponent(wrapped);
@@ -181,82 +163,60 @@ const urlDate = (pageUrl: string) => {
 		: 'N/A';
 };
 
-/**
- * The text of a page's first top-level heading, its headline. Any angle brackets left
- * once its tags are removed and its entities decoded are removed too, so none of its HTML
- * is left.
- */
-const headline = (html: string) => {
-	const h1 = /<h1\b[^>]*>(.*?)<\/h1>/s.exec(html)?.[1];
-	return h1 === undefined
-		? 'N/A'
-		: decodeEntities(h1.replace(/<[^>]+>/g, ''))
-				.replace(/[<>]/g, '')
-				.replace(/\s+/g, ' ')
-				.trim();
-};
+/** The last part of an article's URL, its "short title". */
+export const shortTitle = (webUrl: string) =>
+	new URL(webUrl).pathname.split('/').filter(Boolean).at(-1) ?? 'article';
 
 const csvField = (value: string) => `"${value.replace(/"/g, '""')}"`;
 
-/**
- * The bookmarklet's CSV of a rendered page's external links: each once, Amazon links
- * first, then Skimlinks links, then the rest, leaving out its list of excluded hosts.
- */
-export const linksCsv = (html: string, pageUrl: string): string => {
-	const { amazon, skimlinks, other } = externalLinks(html, pageUrl);
-	const page = [
-		pageUrl,
-		headline(html),
-		pageUrl.split('/').pop()?.split('?')[0] ?? '',
-		urlDate(pageUrl),
-	];
+const csvHeader = [
+	'External Link',
+	'Is Affiliate Link?',
+	'Clean Product Link',
+	'TLD Domain',
+	'Page',
+	'Full Page Title',
+	'Short Title',
+	'Page URL Date',
+];
 
-	const rows = [...new Set([...amazon, ...skimlinks, ...other])]
-		.filter((link) => !csvExcludedHosts.includes(domain(link)))
-		.map((link) => {
-			const clean = cleanLink(link);
-			return [
-				link,
-				link.includes('skimresources') ? 'Yes' : 'No',
-				clean,
-				domain(clean || link),
-				...page,
-			];
-		});
-
+/** A link's row in the CSV, followed by the page's own columns. */
+const csvRow = (
+	link: string,
+	pageColumns: string[],
+	skimlinksDomains: Set<string>,
+) => {
+	const url = new URL(link);
+	const clean = isSkimresources(url) ? cleanLink(link) : link;
+	let cleanUrl = url;
+	try {
+		cleanUrl = new URL(clean);
+	} catch {
+		// A Skimlinks link whose url parameter isn't a URL keeps its own domain.
+	}
 	return [
-		[
-			'External Link',
-			'Is Affiliate Link?',
-			'Clean Product Link',
-			'TLD Domain',
-			'Page',
-			'Full Page Title',
-			'Short Title',
-			'Page URL Date',
-		],
-		...rows,
-	]
-		.map((row) => row.map(csvField).join(','))
-		.join('\n');
+		link,
+		goesThroughSkimlinks(url, skimlinksDomains) ? 'Yes' : 'No',
+		clean,
+		domain(cleanUrl),
+		...pageColumns,
+	];
 };
 
-/** An article as it's rendered on the site, and the URL it was finally read from. */
-export interface RenderedPage {
-	html: string;
-	url: string;
-}
-
-/** Fetches an article as it's rendered on the site. */
-export const fetchRenderedPage = async (
-	pageUrl: string,
-): Promise<RenderedPage> => {
-	const response = await fetch(pageUrl, {
-		headers: { 'User-Agent': browserUserAgent, Accept: 'text/html' },
-		signal: AbortSignal.timeout(pageTimeoutMs),
-	});
-	if (!response.ok) {
-		throw new Error(`${pageUrl} responded with status ${response.status}`);
-	}
-	return { html: await response.text(), url: response.url || pageUrl };
+/**
+ * The bookmarklet's CSV of an article's external links, in the columns it uses: each link
+ * once, Amazon links first, then Skimlinks links, then the rest.
+ */
+export const linksCsv = (
+	{ webUrl, webTitle, links }: ArticleLinks,
+	skimlinksDomains: Set<string>,
+): string => {
+	const { amazon, skimlinks, other } = sortLinks(links, skimlinksDomains);
+	const pageColumns = [webUrl, webTitle, shortTitle(webUrl), urlDate(webUrl)];
+	const rows = [...new Set([...amazon, ...skimlinks, ...other])].map((link) =>
+		csvRow(link, pageColumns, skimlinksDomains),
+	);
+	return [csvHeader, ...rows]
+		.map((row) => row.map(csvField).join(','))
+		.join('\n');
 };

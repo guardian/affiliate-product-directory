@@ -2,9 +2,13 @@ import { ArticlesPageSchema } from '@common/tool-models';
 import { jest } from '@jest/globals';
 import {
 	createCapiArticle,
+	createCapiArticleLinks,
 	createCapiArticles,
 	getComposerBaseUrl,
 } from './capi';
+
+// The Skimlinks domains, read every time.
+const readSkimlinksDomains = () => Promise.resolve(new Set(['johnlewis.com']));
 
 const result = {
 	id: 'thefilter-us/2026/oct/12/protein-powder-faq-dietitians',
@@ -71,6 +75,7 @@ describe('createCapiArticles', () => {
 		baseUrl: 'https://capi.example.com',
 		apiKey: 'test-key',
 		composerBaseUrl: 'https://composer.example.com',
+		readSkimlinksDomains,
 	});
 
 	it.each(['thefilter', 'thefilter-us'] as const)(
@@ -132,12 +137,27 @@ describe('createCapiArticles', () => {
 							],
 						},
 					],
+					linkCounts: { amazon: 1, skimlinks: 0, other: 0 },
 				},
 			],
 			currentPage: 2,
 			pages: 10,
 			total: 250,
 		});
+	});
+
+	it("leaves out the link counts when the Skimlinks domains can't be read", async () => {
+		stubFetch(Response.json(searchResponse));
+		const withoutDomains = createCapiArticles({
+			baseUrl: 'https://capi.example.com',
+			apiKey: 'test-key',
+			composerBaseUrl: 'https://composer.example.com',
+			readSkimlinksDomains: () => Promise.resolve(undefined),
+		});
+
+		const { articles } = await withoutDomains(2);
+
+		expect(articles[0]?.linkCounts).toBeUndefined();
 	});
 
 	it('returns no products for an article CAPI sends without body blocks', async () => {
@@ -244,6 +264,7 @@ describe('createCapiArticle', () => {
 		baseUrl: 'https://capi.example.com',
 		apiKey: 'test-key',
 		composerBaseUrl: 'https://composer.example.com',
+		readSkimlinksDomains,
 	});
 
 	it('looks up the path with the fields and body the tool needs', async () => {
@@ -283,5 +304,38 @@ describe('createCapiArticle', () => {
 		expect(error).toBeInstanceOf(Error);
 		expect((error as Error).message).toContain('status 500');
 		expect((error as Error).message).not.toContain('test-key');
+	});
+});
+
+describe('createCapiArticleLinks', () => {
+	afterEach(() => {
+		jest.restoreAllMocks();
+	});
+
+	const getArticleLinks = createCapiArticleLinks({
+		baseUrl: 'https://capi.example.com',
+		apiKey: 'test-key',
+	});
+
+	it("returns the article's web URL, headline and the links in its body", async () => {
+		jest
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(Response.json({ response: { content: result } }));
+
+		expect(await getArticleLinks(result.id)).toEqual({
+			webUrl: result.webUrl,
+			webTitle: result.webTitle,
+			links: ['https://www.amazon.com/dp/B0F1ZV7PWW'],
+		});
+	});
+
+	it("returns undefined when CAPI doesn't have the path", async () => {
+		jest
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('', { status: 404 }));
+
+		expect(
+			await getArticleLinks('thefilter/2026/oct/16/missing'),
+		).toBeUndefined();
 	});
 });
