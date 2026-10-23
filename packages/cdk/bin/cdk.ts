@@ -16,7 +16,7 @@ new AffiliateProductDirectory(app, 'AffiliateProductDirectoryLambda-CODE', {
 		region: 'eu-west-1',
 	},
 	app: 'affiliate-product-directory',
-	toolDomainName: 'thefilter.code.dev-gutools.co.uk',
+	toolDomainName: 'affiliate-products.code.dev-gutools.co.uk',
 });
 new AffiliateProductDirectory(app, 'AffiliateProductDirectoryLambda-PROD', {
 	stack: 'frontend',
@@ -25,6 +25,7 @@ new AffiliateProductDirectory(app, 'AffiliateProductDirectoryLambda-PROD', {
 		region: 'eu-west-1',
 	},
 	app: 'affiliate-product-directory',
+	toolDomainName: 'affiliate-products.gutools.co.uk',
 });
 
 new FrontendAccountEventbridgeConnection(
