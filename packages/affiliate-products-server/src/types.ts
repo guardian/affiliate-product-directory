@@ -11,7 +11,7 @@ export type Authenticate = (
 export type ListPermissions = (email: string) => Promise<string[]>;
 
 /** Returns whether a logged-in user may use the tool. */
-export type HasAccess = (email: string) => Promise<boolean>;
+export type HasAccess = (email: string) => boolean;
 
 export interface Auth {
 	authenticate: Authenticate;

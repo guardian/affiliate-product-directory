@@ -155,7 +155,7 @@ export function createApp({
 			);
 		}
 
-		if (!(await auth.hasAccess(user.email))) {
+		if (!auth.hasAccess(user.email)) {
 			return isApiRequest
 				? res.status(403).json({ error: noAccessMessage })
 				: res.status(403).send(noAccessMessage);

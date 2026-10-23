@@ -6,7 +6,7 @@ It is served, along with its API, by [affiliate-products-server](../affiliate-pr
 
 ## Authentication
 
-Every request, for the page or the API, must carry a valid Panda cookie, as for Composer and other editorial tools. Users without one are sent to login.gutools.co.uk (login.code.dev-gutools.co.uk in CODE), except for API requests, which get a 401. The server checks the cookie against the public key in the `pan-domain-auth-settings` bucket, and reads users' permissions from the permissions service's `permissions-cache` bucket using [@guardian/permissions-client](https://github.com/guardian/permissions). `/api/auth` returns the logged-in user and their permissions.
+Every request, for the page or the API, must carry a valid Panda cookie, as for Composer and other editorial tools. Users without one are sent to login.gutools.co.uk (login.code.dev-gutools.co.uk in CODE), except for API requests, which get a 401. The server checks the cookie against the public key in the `pan-domain-auth-settings` bucket. Only the people whose email addresses are listed in [allowedEmails.ts](../affiliate-products-server/src/allowedEmails.ts) can use the tool: anyone else who logs in gets a 403 saying they don't have permission. To give someone access, add their address to that list. The server also reads users' permissions from the permissions service's `permissions-cache` bucket using [@guardian/permissions-client](https://github.com/guardian/permissions). `/api/auth` returns the logged-in user and their permissions.
 
 ## Article list
 

@@ -31,8 +31,8 @@ export function createTool(
 		prodData?: { capiKeyParam: CfnParameter; pricingTableName: string };
 	},
 ): GuApiLambda {
-	// dev-gutools.co.uk isn't in Route 53, so the first deploy waits until the
-	// certificate's DNS validation record has been added manually.
+	// Neither dev-gutools.co.uk nor gutools.co.uk is in Route 53, so the first deploy
+	// waits until the certificate's DNS validation record has been added manually.
 	const certificate = new GuCertificate(scope, { app, domainName });
 
 	const toolLambda = new GuApiLambda(scope, 'AffiliateProductsTool', {
