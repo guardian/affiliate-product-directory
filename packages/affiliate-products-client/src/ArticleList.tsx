@@ -6,6 +6,7 @@ import {
 	semanticSpacing,
 	semanticTypography,
 } from '@guardian/stand';
+import { Icon } from '@guardian/stand/Icon';
 import { convertTypographyToEmotionStringStyle } from '@guardian/stand/utils';
 import { useId } from 'react';
 import {
@@ -14,7 +15,7 @@ import {
 	ArticleRow,
 	headlineInset,
 } from './ArticleRow';
-import { draftAccent } from './style';
+import { draftAccent, starColour } from './style';
 
 const listStyles = css`
 	list-style: none;
@@ -51,6 +52,9 @@ const groupHeadingStyles = (kind: ArticleGroup['kind']) => css`
 	margin: 0;
 	padding: ${semanticSpacing.stackXs} ${semanticSpacing.stackMd};
 	padding-left: ${headlineInset};
+	display: flex;
+	align-items: center;
+	gap: ${semanticSpacing.stackXxs};
 	border-top: ${kind === 'published'
 		? `3px solid ${semanticColors.border.strong}`
 		: 'none'};
@@ -92,7 +96,7 @@ const ArticleRows = ({
 /** A group of the list's rows under a heading of its own, such as the drafts. */
 export interface ArticleGroup {
 	title: string;
-	kind: 'drafts' | 'published';
+	kind: 'starred' | 'drafts' | 'published';
 	articles: Article[];
 	/** Shown in place of the rows when there are none. */
 	emptyMessage: string;
@@ -109,6 +113,9 @@ const Group = ({
 	return (
 		<section aria-labelledby={headingId}>
 			<h2 id={headingId} css={groupHeadingStyles(group.kind)}>
+				{group.kind === 'starred' && (
+					<Icon symbol="star" size="xs" fill={starColour} />
+				)}
 				{group.title}
 			</h2>
 			{group.articles.length === 0 ? (
