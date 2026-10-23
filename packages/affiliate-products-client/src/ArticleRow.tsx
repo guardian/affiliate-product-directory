@@ -16,7 +16,12 @@ import { ComposerIcon, LiveSiteIcon, OphanIcon, SkimlinksIcon } from './icons';
 import { retailerLinkCount } from './productStats';
 import { describeSection } from './sections';
 import { skimlinksUrl } from './skimlinksUrl';
-import { accent, draftAccent, livePricingAccent } from './style';
+import {
+	accent,
+	draftAccent,
+	livePricingAccent,
+	visuallyHidden,
+} from './style';
 
 // The width of the column with the row's toggle, which is a small IconButton.
 const toggleColumnWidth = '2rem';
@@ -328,6 +333,10 @@ export const ArticleRow = ({
 							</Badge>
 						)}
 						{article.webTitle}
+						{article.livePricing && (
+							// The row's tint is all that shows it, so screen readers are told in words.
+							<span css={visuallyHidden}>, live pricing enabled</span>
+						)}
 					</div>
 					<Typography
 						element="div"

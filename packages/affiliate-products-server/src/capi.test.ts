@@ -456,6 +456,42 @@ describe('live pricing', () => {
 		expect(fetch).toHaveBeenCalledTimes(1);
 	});
 
+	it('shares one reading of the fields between requests made at the same time', async () => {
+		const fetch = jest
+			.spyOn(globalThis, 'fetch')
+			.mockImplementation(() =>
+				Promise.resolve(
+					scanResponse([{ ...result, fields: { livePricingEnabled: 'true' } }]),
+				),
+			);
+		const listArticles = createListArticles();
+
+		await Promise.all([
+			listArticles(1, 'thefilter', true),
+			listArticles(2, 'thefilter', true),
+		]);
+
+		// One scan, then a page of the articles for each request.
+		expect(fetch).toHaveBeenCalledTimes(3);
+	});
+
+	it('reads the fields again after a reading fails', async () => {
+		const fetch = jest
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(new Response('', { status: 500 }))
+			.mockImplementation(() =>
+				Promise.resolve(
+					scanResponse([{ ...result, fields: { livePricingEnabled: 'true' } }]),
+				),
+			);
+		const listArticles = createListArticles();
+
+		await expect(listArticles(1, 'thefilter', true)).rejects.toThrow();
+		await listArticles(1, 'thefilter', true);
+
+		expect(fetch).toHaveBeenCalledTimes(3);
+	});
+
 	it('reads the fields again only once the found articles are a few minutes old', async () => {
 		jest.useFakeTimers({ now: 0, doNotFake: ['queueMicrotask', 'nextTick'] });
 		try {

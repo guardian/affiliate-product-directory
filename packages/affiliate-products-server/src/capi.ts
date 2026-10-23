@@ -181,14 +181,11 @@ const createLivePricingIds = ({
 	livePricingIds,
 }: CapiOptions) => {
 	const cache = new Map<string, { ids: string[]; expiresAt: number }>();
+	// The scans still running, so that requests for the same section share one rather than
+	// each reading every article.
+	const scanning = new Map<string, Promise<string[]>>();
 
-	return async (section?: Section): Promise<string[]> => {
-		const key = section ?? '';
-		const cached = cache.get(key);
-		if (cached && cached.expiresAt > Date.now()) {
-			return cached.ids;
-		}
-
+	const scan = async (section?: Section): Promise<string[]> => {
 		const scanPage = (page: number) =>
 			searchCapi(
 				baseUrl,
@@ -213,10 +210,29 @@ const createLivePricingIds = ({
 		const listed = [...livePricingIds].filter(
 			(id) => !section || id.startsWith(`${section}/`),
 		);
-		const ids = [...new Set([...flagged, ...listed])];
+		return [...new Set([...flagged, ...listed])];
+	};
 
-		cache.set(key, { ids, expiresAt: Date.now() + livePricingCacheMs });
-		return ids;
+	return async (section?: Section): Promise<string[]> => {
+		const key = section ?? '';
+		const cached = cache.get(key);
+		if (cached && cached.expiresAt > Date.now()) {
+			return cached.ids;
+		}
+		const running = scanning.get(key);
+		if (running) {
+			return running;
+		}
+
+		const scanned = scan(section)
+			.then((ids) => {
+				cache.set(key, { ids, expiresAt: Date.now() + livePricingCacheMs });
+				return ids;
+			})
+			// Whether it worked or not, so a failed scan is tried again on the next request.
+			.finally(() => scanning.delete(key));
+		scanning.set(key, scanned);
+		return scanned;
 	};
 };
 

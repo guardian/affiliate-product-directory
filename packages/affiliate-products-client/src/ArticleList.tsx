@@ -14,7 +14,7 @@ import {
 	ArticleRow,
 	headlineInset,
 } from './ArticleRow';
-import { draftAccent } from './style';
+import { draftAccent, visuallyHidden } from './style';
 
 const listStyles = css`
 	list-style: none;
@@ -175,15 +175,6 @@ const barStyles = (width: string, height = '0.75rem') => css`
 const headlineBarsStyles = css`
 	display: grid;
 	gap: ${semanticSpacing.stackXxs};
-`;
-
-const visuallyHidden = css`
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	overflow: hidden;
-	clip-path: inset(50%);
-	white-space: nowrap;
 `;
 
 // Varied so the placeholder looks like a list of headlines rather than a grid.
