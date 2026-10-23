@@ -21,10 +21,12 @@ import type { ArticleGroup } from './ArticleList';
 import { headlineInset } from './ArticleRow';
 import { ArticleSearch } from './ArticleSearch';
 import { useListParams } from './hooks/useListParams';
+import { useStarred } from './hooks/useStarred';
 import { Pagination } from './Pagination';
 import { PriceEditingContext } from './PriceEditing';
 import { ProdDataContext } from './ProdData';
 import { Sidebar } from './Sidebar';
+import { StarredContext } from './Starred';
 import { TopToolbar } from './TopToolbar';
 import type { ArticlesState, ListParams } from './types';
 
@@ -96,6 +98,65 @@ export const App = () => {
 		() => ({ canEdit: !prod, onPriceEdit: () => setReloads((n) => n + 1) }),
 		[prod],
 	);
+
+	const { starred, toggleStar } = useStarred(prod);
+	const starredContext = {
+		isStarred: (id: string) => starred.includes(id),
+		toggleStar,
+	};
+	// The starred articles by ID, each fetched on its own as they can be on any page.
+	const [starredArticles, setStarredArticles] = useState<{
+		prod: boolean;
+		articles: Map<string, Article>;
+	}>();
+
+	useEffect(() => {
+		if (starred.length === 0) {
+			return;
+		}
+		const controller = new AbortController();
+		void Promise.all(
+			starred.map((id) =>
+				fetchArticles(
+					{
+						page: 1,
+						section: undefined,
+						status: undefined,
+						livePricing: false,
+						prod,
+						path: id,
+					},
+					controller.signal,
+				).catch(() => undefined),
+			),
+		).then((results) => {
+			if (controller.signal.aborted) {
+				return;
+			}
+			const found = results.flatMap((result) =>
+				result?.status === 'loaded' ? result.page.articles : [],
+			);
+			setStarredArticles({
+				prod,
+				articles: new Map(found.map((article) => [article.id, article])),
+			});
+		});
+		return () => controller.abort();
+	}, [starred, prod, reloads]);
+
+	// The starred articles the sidebar's filters would show, in the order they were starred.
+	const pinned =
+		starredArticles?.prod === prod
+			? starred.flatMap((id) => {
+					const article = starredArticles.articles.get(id);
+					return article &&
+						(!section || article.sectionId === section) &&
+						(!status || article.status === status) &&
+						(!livePricing || article.livePricing)
+						? [article]
+						: [];
+				})
+			: undefined;
 
 	useEffect(() => {
 		// The name is only shown in the toolbar, so there's nothing to show if this fails.
@@ -195,6 +256,19 @@ export const App = () => {
 				// The drafts are only on the first page. The server leaves them out of it when
 				// it can't list them, which it can't yet, as they're only in Preview CAPI.
 				const groups: ArticleGroup[] = [
+					// Pinned above everything else on the first page, and in their place below too.
+					...(page === 1 && starred.length > 0
+						? [
+								{
+									title: pinned ? `Starred (${pinned.length})` : 'Starred',
+									kind: 'starred' as const,
+									articles: pinned ?? [],
+									emptyMessage: pinned
+										? 'No starred articles match these filters.'
+										: 'Loading the starred articles…',
+								},
+							]
+						: []),
 					...(status !== 'live' && page === 1
 						? [
 								{
@@ -260,7 +334,9 @@ export const App = () => {
 				<Layout.Main paddingTop={false} cssOverrides={mainStyles}>
 					<ProdDataContext.Provider value={prod}>
 						<PriceEditingContext.Provider value={priceEditing}>
-							{renderArticles()}
+							<StarredContext.Provider value={starredContext}>
+								{renderArticles()}
+							</StarredContext.Provider>
 						</PriceEditingContext.Provider>
 					</ProdDataContext.Provider>
 				</Layout.Main>
