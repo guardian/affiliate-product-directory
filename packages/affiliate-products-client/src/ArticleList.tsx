@@ -46,14 +46,16 @@ const ArticleListHeader = () => (
 
 // Starts a group of rows, lined up with the headlines. The published articles' heading is
 // also the divider between them and the drafts above.
-const groupHeadingStyles = (draft: boolean) => css`
+const groupHeadingStyles = (kind: ArticleGroup['kind']) => css`
 	${convertTypographyToEmotionStringStyle(semanticTypography.headingXs)};
 	margin: 0;
 	padding: ${semanticSpacing.stackXs} ${semanticSpacing.stackMd};
 	padding-left: ${headlineInset};
-	border-top: ${draft ? 'none' : `3px solid ${semanticColors.border.strong}`};
+	border-top: ${kind === 'published'
+		? `3px solid ${semanticColors.border.strong}`
+		: 'none'};
 	border-bottom: 1px solid ${semanticColors.border.weak};
-	background-color: ${draft
+	background-color: ${kind === 'drafts'
 		? draftAccent.tint
 		: semanticColors.bg.raisedLevel1};
 	color: ${semanticColors.text.weak};
@@ -90,7 +92,7 @@ const ArticleRows = ({
 /** A group of the list's rows under a heading of its own, such as the drafts. */
 export interface ArticleGroup {
 	title: string;
-	draft: boolean;
+	kind: 'drafts' | 'published';
 	articles: Article[];
 	/** Shown in place of the rows when there are none. */
 	emptyMessage: string;
@@ -106,7 +108,7 @@ const Group = ({
 	const headingId = useId();
 	return (
 		<section aria-labelledby={headingId}>
-			<h2 id={headingId} css={groupHeadingStyles(group.draft)}>
+			<h2 id={headingId} css={groupHeadingStyles(group.kind)}>
 				{group.title}
 			</h2>
 			{group.articles.length === 0 ? (
@@ -136,11 +138,7 @@ export const ArticleList = ({
 		<ArticleListHeader />
 		{groups ? (
 			groups.map((group) => (
-				<Group
-					key={group.draft ? 'drafts' : 'published'}
-					group={group}
-					initiallyOpen={initiallyOpen}
-				/>
+				<Group key={group.kind} group={group} initiallyOpen={initiallyOpen} />
 			))
 		) : (
 			<ArticleRows articles={articles} initiallyOpen={initiallyOpen} />

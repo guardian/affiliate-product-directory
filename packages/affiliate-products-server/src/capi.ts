@@ -1,5 +1,5 @@
 import { articlesPageSize, SectionSchema } from '@common/tool-models';
-import type { Article } from '@common/tool-models';
+import type { Article, Section } from '@common/tool-models';
 import { bodyLinks, countLinks, linkKind } from './linkCounts';
 import { extractProducts } from './products';
 import {
@@ -20,7 +20,8 @@ export const getComposerBaseUrl = (stage: string) =>
 
 // The fields of an article that the tool reads, and the body blocks its products are in.
 const articleQuery = (apiKey: string) => ({
-	'show-fields': 'internalComposerCode,byline,isLive,lastModified',
+	'show-fields':
+		'internalComposerCode,byline,isLive,lastModified,livePricingEnabled',
 	// The body as structured elements, which the product links are read from.
 	'show-blocks': 'body',
 	'api-key': apiKey,
@@ -31,15 +32,29 @@ interface CapiOptions {
 	baseUrl: string;
 	apiKey: string;
 	composerBaseUrl: string;
+	/** The CAPI IDs of the articles that frontend's own list gives live pricing to in this stage. */
+	livePricingIds: Set<string>;
 	readSkimlinksDomains: ReadSkimlinksDomains;
 }
+
+/** Whether Composer has set CAPI's result to show live prices. */
+const isLivePricingEnabled = ({ fields }: CapiResult) =>
+	String(fields?.livePricingEnabled) === 'true';
+
+/** Whether CAPI's result is set to show live prices, by its field or frontend's list. */
+const hasLivePricing = (result: CapiResult, livePricingIds: Set<string>) =>
+	isLivePricingEnabled(result) || livePricingIds.has(result.id);
 
 /**
  * An article as the tool shows it, from CAPI's result for it, with the links in its body
  * counted if the Skimlinks domains could be read.
  */
 const toArticle = (
-	{
+	result: CapiResult,
+	{ composerBaseUrl, livePricingIds }: CapiOptions,
+	skimlinksDomains: Set<string> | undefined,
+): Article => {
+	const {
 		id,
 		sectionId,
 		webPublicationDate,
@@ -47,10 +62,7 @@ const toArticle = (
 		webUrl,
 		fields,
 		blocks,
-	}: CapiResult,
-	composerBaseUrl: string,
-	skimlinksDomains: Set<string> | undefined,
-): Article => {
+	} = result;
 	const composerId = fields?.internalComposerCode;
 	// Only Preview CAPI has drafts, and it says which are with isLive.
 	const status = fields?.isLive === 'false' ? 'draft' : 'live';
@@ -65,6 +77,7 @@ const toArticle = (
 		webUrl: status === 'live' ? webUrl : undefined,
 		// CAPI can send an empty byline.
 		byline: fields?.byline?.trim() ? fields.byline : undefined,
+		livePricing: hasLivePricing(result, livePricingIds),
 		composerUrl: composerId
 			? `${composerBaseUrl}/content/${composerId}`
 			: undefined,
@@ -111,9 +124,7 @@ export function createCapiArticle(options: CapiOptions): GetArticle {
 			fetchItem(options, path),
 			options.readSkimlinksDomains(),
 		]);
-		return (
-			content && toArticle(content, options.composerBaseUrl, skimlinksDomains)
-		);
+		return content && toArticle(content, options, skimlinksDomains);
 	};
 }
 
@@ -136,42 +147,111 @@ export function createCapiArticleLinks(
 	};
 }
 
+/** Searches CAPI, and throws if it fails or its response isn't the shape the tool relies on. */
+const searchCapi = async (
+	baseUrl: string,
+	params: Record<string, string>,
+	description: string,
+) => {
+	const response = await fetch(
+		`${baseUrl}/search?${new URLSearchParams(params).toString()}`,
+	);
+	if (!response.ok) {
+		// The URL isn't included, as it contains the API key.
+		throw new Error(`${description} failed with status ${response.status}`);
+	}
+	return SearchResponseSchema.parse(await response.json()).response;
+};
+
+// CAPI's largest page, so that every article can be checked for live pricing in few requests.
+const scanPageSize = 200;
+
+// How long the articles found with live pricing are kept, so that paging through them, or
+// coming back to them, doesn't search every article again.
+const livePricingCacheMs = 5 * 60 * 1000;
+
 /**
- * Lists articles from one or both Filter sections, newest first. Both sections are
- * searched in one query so that each page is ordered correctly across the two.
+ * Lists the CAPI IDs of the articles in one or both Filter sections with live pricing.
+ * CAPI can't search by the livePricingEnabled field, so every article's field is read,
+ * without its body, and the ones frontend's list names are added.
  */
-export function createCapiArticles({
+const createLivePricingIds = ({
 	baseUrl,
 	apiKey,
-	composerBaseUrl,
-	readSkimlinksDomains,
-}: CapiOptions): ListArticles {
-	return async (page, section) => {
-		const params = new URLSearchParams({
-			section: section ?? SectionSchema.options.join('|'),
+	livePricingIds,
+}: CapiOptions) => {
+	const cache = new Map<string, { ids: string[]; expiresAt: number }>();
+
+	return async (section?: Section): Promise<string[]> => {
+		const key = section ?? '';
+		const cached = cache.get(key);
+		if (cached && cached.expiresAt > Date.now()) {
+			return cached.ids;
+		}
+
+		const scanPage = (page: number) =>
+			searchCapi(
+				baseUrl,
+				{
+					section: section ?? SectionSchema.options.join('|'),
+					'order-by': 'newest',
+					'page-size': String(scanPageSize),
+					page: String(page),
+					'show-fields': 'livePricingEnabled',
+					'api-key': apiKey,
+				},
+				`CAPI search for live pricing, page ${page}`,
+			);
+		const first = await scanPage(1);
+		const rest = await Promise.all(
+			Array.from({ length: first.pages - 1 }, (_, i) => scanPage(i + 2)),
+		);
+		const flagged = [first, ...rest]
+			.flatMap(({ results }) => results)
+			.filter(isLivePricingEnabled)
+			.map(({ id }) => id);
+		const listed = [...livePricingIds].filter(
+			(id) => !section || id.startsWith(`${section}/`),
+		);
+		const ids = [...new Set([...flagged, ...listed])];
+
+		cache.set(key, { ids, expiresAt: Date.now() + livePricingCacheMs });
+		return ids;
+	};
+};
+
+/**
+ * Lists articles from one or both Filter sections, newest first, or just those with live
+ * pricing. Both sections are searched in one query so that each page is ordered correctly
+ * across the two.
+ */
+export function createCapiArticles(options: CapiOptions): ListArticles {
+	const { baseUrl, apiKey, readSkimlinksDomains } = options;
+	const listLivePricingIds = createLivePricingIds(options);
+
+	return async (page, section, onlyLivePricing = false) => {
+		const ids = onlyLivePricing ? await listLivePricingIds(section) : [];
+		if (onlyLivePricing && ids.length === 0) {
+			return { articles: [], currentPage: 1, pages: 0, total: 0 };
+		}
+		const params = {
+			// Just the articles with live pricing, which are already only from the section.
+			...(onlyLivePricing
+				? { ids: ids.join(',') }
+				: { section: section ?? SectionSchema.options.join('|') }),
 			'order-by': 'newest',
 			'page-size': String(articlesPageSize),
 			page: String(page),
 			...articleQuery(apiKey),
-		});
-		const [response, skimlinksDomains] = await Promise.all([
-			fetch(`${baseUrl}/search?${params.toString()}`),
-			readSkimlinksDomains(),
-		]);
-		if (!response.ok) {
-			// The URL isn't included, as it contains the API key.
-			throw new Error(
-				`CAPI search for page ${page} failed with status ${response.status}`,
-			);
-		}
-
-		// Throws if CAPI's response isn't the shape the tool relies on.
-		const { currentPage, pages, total, results } = SearchResponseSchema.parse(
-			await response.json(),
-		).response;
+		};
+		const [{ currentPage, pages, total, results }, skimlinksDomains] =
+			await Promise.all([
+				searchCapi(baseUrl, params, `CAPI search for page ${page}`),
+				readSkimlinksDomains(),
+			]);
 		return {
 			articles: results.map((result) =>
-				toArticle(result, composerBaseUrl, skimlinksDomains),
+				toArticle(result, options, skimlinksDomains),
 			),
 			currentPage,
 			pages,

@@ -2,6 +2,7 @@ import path from 'path';
 import { articlePath } from '@common/articlePath';
 import { getCapiBaseUrl } from '@common/config';
 import type { DynamoService } from '@common/database-service';
+import { livePricingAllowListIds } from '@common/livePricing';
 import { ArticleStatusSchema, SectionSchema } from '@common/tool-models';
 import type { ArticlesPage, AuthResponse, User } from '@common/tool-models';
 import express from 'express';
@@ -50,6 +51,7 @@ const readStage = ({
 		baseUrl: getCapiBaseUrl(stage),
 		apiKey: capiKey,
 		composerBaseUrl: getComposerBaseUrl(stage),
+		livePricingIds: livePricingAllowListIds(stage),
 		readSkimlinksDomains,
 	};
 	return {
@@ -226,6 +228,16 @@ export function createApp({
 			});
 			return;
 		}
+		// Just the articles with live pricing, which are all published.
+		const livePricing = z
+			.literal('true')
+			.optional()
+			.safeParse(req.query.livePricing);
+		if (!livePricing.success) {
+			res.status(400).json({ error: 'livePricing must be true, or left out' });
+			return;
+		}
+		const onlyLivePricing = livePricing.data === 'true';
 		const dataSource = readDataSource(req, res);
 		if (!dataSource) {
 			return;
@@ -233,6 +245,7 @@ export function createApp({
 		// The drafts come before the live articles, so they're only on the first page.
 		const showDrafts =
 			!path &&
+			!onlyLivePricing &&
 			(status.data === 'draft' || (status.data === undefined && page === '1'));
 		const showLive = status.data !== 'draft';
 		const [drafts, livePage] = await Promise.all([
@@ -242,7 +255,7 @@ export function createApp({
 			path
 				? findArticle(dataSource.getArticle, path)
 				: showLive
-					? dataSource.listArticles(Number(page), section.data)
+					? dataSource.listArticles(Number(page), section.data, onlyLivePricing)
 					: Promise.resolve(noArticles),
 		]);
 		const articlesPage: ArticlesPage = drafts

@@ -102,6 +102,7 @@ describe('productUrls', () => {
 		webPublicationDate: '2026-10-06T09:00:00Z',
 		webTitle: id,
 		webUrl: `https://www.theguardian.com/${id}`,
+		livePricing: false,
 		ophanUrl: `https://dashboard.ophan.co.uk/info?capi-id=${id}`,
 		products: urls.map((url) => ({ links: [{ url, label: 'Buy at Shop' }] })),
 	});
@@ -151,6 +152,7 @@ describe('attachProductPrices', () => {
 				webPublicationDate: '2026-10-06T09:00:00Z',
 				webTitle: 'An article',
 				webUrl: 'https://www.theguardian.com/thefilter/2026/oct/06/an-article',
+				livePricing: false,
 				ophanUrl:
 					'https://dashboard.ophan.co.uk/info?capi-id=thefilter%2F2026%2Foct%2F06%2Fan-article',
 				products: [

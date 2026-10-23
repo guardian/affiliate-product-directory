@@ -16,7 +16,7 @@ import { ComposerIcon, LiveSiteIcon, OphanIcon, SkimlinksIcon } from './icons';
 import { retailerLinkCount } from './productStats';
 import { describeSection } from './sections';
 import { skimlinksUrl } from './skimlinksUrl';
-import { accent, draftAccent } from './style';
+import { accent, draftAccent, livePricingAccent } from './style';
 
 // The width of the column with the row's toggle, which is a small IconButton.
 const toggleColumnWidth = '2rem';
@@ -93,8 +93,13 @@ const countsStyles = css`
 `;
 
 // The whole row opens the article, and an open row is marked with a bar
-// down its left edge. A draft's row is tinted, with a stripe of its own until it's opened.
-const summaryStyles = (expanded: boolean, draft: boolean) => css`
+// down its left edge. A draft's row is tinted, with a stripe of its own until it's opened,
+// and so is the row of an article with live pricing, without one.
+const summaryStyles = (
+	expanded: boolean,
+	draft: boolean,
+	livePricing: boolean,
+) => css`
 	${articleColumnsStyles};
 	${convertTypographyToEmotionStringStyle(semanticTypography.bodySm)};
 	padding-top: ${semanticSpacing.stackXs};
@@ -104,7 +109,9 @@ const summaryStyles = (expanded: boolean, draft: boolean) => css`
 		? semanticColors.bg.raisedLevel2
 		: draft
 			? draftAccent.tint
-			: 'transparent'};
+			: livePricing
+				? livePricingAccent.tint
+				: 'transparent'};
 	box-shadow: ${expanded
 		? `inset 4px 0 0 ${accent.strong}`
 		: draft
@@ -116,7 +123,9 @@ const summaryStyles = (expanded: boolean, draft: boolean) => css`
 			? semanticColors.bg.raisedLevel2
 			: draft
 				? draftAccent.tintHover
-				: semanticColors.bg.raisedLevel1};
+				: livePricing
+					? livePricingAccent.tintHover
+					: semanticColors.bg.raisedLevel1};
 	}
 `;
 
@@ -297,7 +306,10 @@ export const ArticleRow = ({
 	return (
 		<li css={rowStyles(expanded)}>
 			{/* The toggle makes the row's click usable from the keyboard. */}
-			<div css={summaryStyles(expanded, draft)} onClick={onRowClick}>
+			<div
+				css={summaryStyles(expanded, draft, article.livePricing)}
+				onClick={onRowClick}
+			>
 				<IconButton
 					variant="tertiary"
 					size="sm"

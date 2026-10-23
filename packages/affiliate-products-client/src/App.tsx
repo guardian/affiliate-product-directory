@@ -75,11 +75,13 @@ export const App = () => {
 		page,
 		section,
 		status,
+		livePricing,
 		prod,
 		path,
 		setPage,
 		setSection,
 		setStatus,
+		setLivePricing,
 		setProd,
 		setPath,
 	} = useListParams();
@@ -104,7 +106,7 @@ export const App = () => {
 
 	useEffect(() => {
 		const controller = new AbortController();
-		const params = { page, section, status, prod, path };
+		const params = { page, section, status, livePricing, prod, path };
 		fetchArticles(params, controller.signal)
 			.then((state) => setFetched({ params, state }))
 			.catch(() => {
@@ -113,13 +115,14 @@ export const App = () => {
 				}
 			});
 		return () => controller.abort();
-	}, [page, section, status, prod, path, reloads]);
+	}, [page, section, status, livePricing, prod, path, reloads]);
 
 	// Whatever was fetched last is for a previous view until the current one's articles arrive.
 	const articles: ArticlesState =
 		fetched?.params.page === page &&
 		fetched.params.section === section &&
 		fetched.params.status === status &&
+		fetched.params.livePricing === livePricing &&
 		fetched.params.prod === prod &&
 		fetched.params.path === path
 			? fetched.state
@@ -196,11 +199,14 @@ export const App = () => {
 						? [
 								{
 									title: drafts ? `Drafts (${drafts.length})` : 'Drafts',
-									draft: true,
+									kind: 'drafts' as const,
 									articles: drafts ?? [],
-									emptyMessage: drafts
-										? 'There are no drafts.'
-										: 'Drafts aren’t available yet.',
+									// Live prices are only shown in published articles.
+									emptyMessage: livePricing
+										? 'Live pricing is only listed for published articles.'
+										: drafts
+											? 'There are no drafts.'
+											: 'Drafts aren’t available yet.',
 								},
 							]
 						: []),
@@ -208,9 +214,11 @@ export const App = () => {
 						? [
 								{
 									title: `Published (${total})`,
-									draft: false,
+									kind: 'published' as const,
 									articles: articles.page.articles,
-									emptyMessage: 'There are no published articles.',
+									emptyMessage: livePricing
+										? 'There are no published articles with live pricing.'
+										: 'There are no published articles.',
 								},
 							]
 						: []),
@@ -244,6 +252,8 @@ export const App = () => {
 					onSectionChange={setSection}
 					status={status}
 					onStatusChange={setStatus}
+					livePricing={livePricing}
+					onLivePricingChange={setLivePricing}
 					prod={prod}
 					onProdChange={setProd}
 				/>
