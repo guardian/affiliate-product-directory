@@ -80,6 +80,17 @@ export function createTool(
 		}),
 	);
 
+	// The Skimlinks merchants' domains, written by skimlinks-lambda, for counting the links
+	// in articles that are sent through Skimlinks.
+	toolLambda.addToRolePolicy(
+		new PolicyStatement({
+			actions: ['s3:GetObject'],
+			resources: [
+				'arn:aws:s3:::gu-skimlinks-store/skimlinks/skimlinks-domains.csv',
+			],
+		}),
+	);
+
 	// The products' prices, read from the pricing table on every request, and written to it.
 	attachPoliciesToLambda(toolLambda, [
 		productPricingReadPolicy,

@@ -1,12 +1,19 @@
 import path from 'path';
+import { articlePath } from '@common/articlePath';
 import { getCapiBaseUrl } from '@common/config';
 import type { DynamoService } from '@common/database-service';
-import { SectionSchema } from '@common/tool-models';
-import type { AuthResponse, User } from '@common/tool-models';
+import { ArticleStatusSchema, SectionSchema } from '@common/tool-models';
+import type { ArticlesPage, AuthResponse, User } from '@common/tool-models';
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
-import { createCapiArticles, getComposerBaseUrl } from './capi';
+import {
+	createCapiArticle,
+	createCapiArticleLinks,
+	createCapiArticles,
+	getComposerBaseUrl,
+} from './capi';
+import { linksCsv, shortTitle } from './linkCounts';
 import {
 	handleOverrideDeleteRequest,
 	handleOverrideRequest,
@@ -16,33 +23,89 @@ import {
 	createProductPrices,
 	productUrls,
 } from './productPrices';
-import type { Auth } from './types';
+import type {
+	Auth,
+	GetArticle,
+	ListDrafts,
+	ReadSkimlinksDomains,
+} from './types';
 
 const noAccessMessage =
 	"You don't have permission to access the affiliate products tool.";
 
-/**
- * Lists a stage's articles from its CAPI, linking to its Composer, with their prices from
- * its pricing table, read on every request so nothing is cached between them.
- */
 const readStage = ({
 	stage,
 	capiKey,
+	listDrafts,
 	dynamoService,
+	readSkimlinksDomains,
 }: {
 	stage: string;
 	capiKey: string;
+	listDrafts?: ListDrafts;
 	dynamoService: DynamoService;
-}) => ({
-	listArticles: createCapiArticles({
+	readSkimlinksDomains: ReadSkimlinksDomains;
+}) => {
+	const capi = {
 		baseUrl: getCapiBaseUrl(stage),
 		apiKey: capiKey,
 		composerBaseUrl: getComposerBaseUrl(stage),
-	}),
-	getProductPrices: createProductPrices((urls) =>
-		dynamoService.getProductsByUrl(urls),
-	),
-});
+		readSkimlinksDomains,
+	};
+	return {
+		listDrafts,
+		listArticles: createCapiArticles(capi),
+		getArticle: createCapiArticle(capi),
+		getArticleLinks: createCapiArticleLinks(capi),
+		getProductPrices: createProductPrices((urls) =>
+			dynamoService.getProductsByUrl(urls),
+		),
+	};
+};
+
+/** The article path in a query parameter, an article's URL or path, if it is one. */
+const readArticlePath = (param: unknown) =>
+	typeof param === 'string' ? articlePath(param) : undefined;
+
+/** The article at a path as a page of its own, with no articles if there isn't one. */
+const findArticle = async (
+	getArticle: GetArticle,
+	path: string,
+): Promise<ArticlesPage> => {
+	const article = await getArticle(path);
+	return {
+		articles: article ? [article] : [],
+		currentPage: 1,
+		pages: 1,
+		total: article ? 1 : 0,
+	};
+};
+
+const noArticles: ArticlesPage = {
+	articles: [],
+	currentPage: 1,
+	pages: 0,
+	total: 0,
+};
+
+/**
+ * The drafts, or undefined if they can't be read, so that the live articles are still
+ * listed when the drafts can't be.
+ */
+const readDrafts = async (
+	listDrafts: ListDrafts | undefined,
+	section: Parameters<ListDrafts>[0],
+) => {
+	if (!listDrafts) {
+		return undefined;
+	}
+	try {
+		return await listDrafts(section);
+	} catch (error) {
+		console.error(error);
+		return undefined;
+	}
+};
 
 /**
  * Serves the affiliate-products-client build and its API from a single origin,
@@ -53,23 +116,57 @@ export function createApp({
 	auth,
 	stage,
 	capiKey,
+	listDrafts,
 	dynamoService,
 	prod,
+	readSkimlinksDomains,
 }: {
 	clientDir: string;
 	auth: Auth;
 	/** The stage whose CAPI, Composer and pricing table the articles come from by default. */
 	stage: string;
 	capiKey: string;
+	listDrafts?: ListDrafts;
 	dynamoService: DynamoService;
-	/** PROD's CAPI key and pricing table, used instead when asked for with prod=true. */
-	prod?: { capiKey: string; dynamoService: DynamoService };
+	/** PROD's CAPI key, drafts and pricing table, used instead when asked for with prod=true. */
+	prod?: {
+		capiKey: string;
+		listDrafts?: ListDrafts;
+		dynamoService: DynamoService;
+	};
+	/** The Skimlinks merchants' domains, for sorting the links in articles. */
+	readSkimlinksDomains: ReadSkimlinksDomains;
 }) {
 	const app = express();
 	app.use(express.json());
 
-	const stageData = readStage({ stage, capiKey, dynamoService });
-	const prodData = prod && readStage({ stage: 'PROD', ...prod });
+	const stageData = readStage({
+		stage,
+		capiKey,
+		listDrafts,
+		dynamoService,
+		readSkimlinksDomains,
+	});
+	const prodData =
+		prod && readStage({ stage: 'PROD', ...prod, readSkimlinksDomains });
+
+	/**
+	 * The stage's data, or PROD's when asked for with prod=true. Undefined, having responded
+	 * with an error, if prod is anything else, or PROD's data can't be read here.
+	 */
+	const readDataSource = (req: Request, res: Response) => {
+		const prodParam = z.literal('true').optional().safeParse(req.query.prod);
+		if (!prodParam.success) {
+			res.status(400).json({ error: 'prod must be true, or left out' });
+			return undefined;
+		}
+		const dataSource = prodParam.data ? prodData : stageData;
+		// Fails rather than reading this stage's articles as if they were PROD's.
+		if (!dataSource) {
+			res.status(400).json({ error: "PROD's articles can't be read here" });
+		}
+		return dataSource;
+	};
 
 	app.use(async (req, res, next) => {
 		const isApiRequest = req.path.startsWith('/api/');
@@ -116,25 +213,73 @@ export function createApp({
 			});
 			return;
 		}
-		const prodParam = z.literal('true').optional().safeParse(req.query.prod);
-		if (!prodParam.success) {
-			res.status(400).json({ error: 'prod must be true, or left out' });
+		// An article's URL or path, to show just that article rather than a page of them.
+		const path = readArticlePath(req.query.path);
+		if (req.query.path !== undefined && !path) {
+			res.status(400).json({ error: "path must be an article's URL or path" });
 			return;
 		}
-		const dataSource = prodParam.data ? prodData : stageData;
-		// Fails rather than listing this stage's articles as if they were PROD's.
+		const status = ArticleStatusSchema.optional().safeParse(req.query.status);
+		if (!status.success) {
+			res.status(400).json({
+				error: `status must be one of ${ArticleStatusSchema.options.join(', ')}`,
+			});
+			return;
+		}
+		const dataSource = readDataSource(req, res);
 		if (!dataSource) {
-			res.status(400).json({ error: "PROD's articles can't be listed here" });
 			return;
 		}
-		const articlesPage = await dataSource.listArticles(
-			Number(page),
-			section.data,
-		);
+		// The drafts come before the live articles, so they're only on the first page.
+		const showDrafts =
+			!path &&
+			(status.data === 'draft' || (status.data === undefined && page === '1'));
+		const showLive = status.data !== 'draft';
+		const [drafts, livePage] = await Promise.all([
+			showDrafts
+				? readDrafts(dataSource.listDrafts, section.data)
+				: Promise.resolve(undefined),
+			path
+				? findArticle(dataSource.getArticle, path)
+				: showLive
+					? dataSource.listArticles(Number(page), section.data)
+					: Promise.resolve(noArticles),
+		]);
+		const articlesPage: ArticlesPage = drafts
+			? { drafts, ...livePage }
+			: livePage;
 		const productPrices = await dataSource.getProductPrices(
 			productUrls(articlesPage),
 		);
 		res.json(attachProductPrices(articlesPage, productPrices));
+	});
+
+	// The bookmarklet's CSV of the external links in an article's body.
+	app.get('/api/links.csv', async (req, res) => {
+		const path = readArticlePath(req.query.path);
+		if (!path) {
+			res.status(400).json({ error: "path must be an article's URL or path" });
+			return;
+		}
+		const dataSource = readDataSource(req, res);
+		if (!dataSource) {
+			return;
+		}
+		const [article, skimlinksDomains] = await Promise.all([
+			dataSource.getArticleLinks(path),
+			readSkimlinksDomains(),
+		]);
+		if (!article) {
+			res.status(404).json({ error: 'There is no article at that path' });
+			return;
+		}
+		if (!skimlinksDomains) {
+			res.status(503).json({ error: "The Skimlinks domains couldn't be read" });
+			return;
+		}
+		res.attachment(`${shortTitle(article.webUrl)}-links.csv`);
+		res.type('text/csv; charset=utf-8');
+		res.send(linksCsv(article, skimlinksDomains));
 	});
 
 	app.post('/api/manualOverride', async (req, res) => {

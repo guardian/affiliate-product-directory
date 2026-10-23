@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+	<!-- Stand's Favicon, as the top bar shows it: a white bold Guardian Headline F, 1.25rem
+	     in a 2rem square, on the tool's orange (baseColors.orange[400]). A favicon can't load
+	     web fonts, so it falls back to Georgia where Guardian Headline isn't installed. -->
+	<rect width="32" height="32" fill="#f58633" />
+	<text x="16" y="23" fill="#ffffff" font-family="'GH Guardian Headline', Georgia, 'Times New Roman', serif" font-size="20" font-weight="700" text-anchor="middle">F</text>
+</svg>

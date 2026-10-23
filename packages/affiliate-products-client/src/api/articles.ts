@@ -1,17 +1,26 @@
 import { ArticlesPageSchema } from '@common/tool-models';
 import type { ArticlesState, ListParams } from '../types';
 
-/** Fetches a page of articles from one section, or from both if none is given, from PROD if asked. */
+/**
+ * Fetches a page of articles from one section, or from both if none is given, from PROD if
+ * asked. The first page has the drafts too, unless just live articles are asked for.
+ */
 export const fetchArticles = async (
-	{ page, section, prod }: ListParams,
+	{ page, section, status, prod, path }: ListParams,
 	signal: AbortSignal,
 ): Promise<ArticlesState> => {
 	const params = new URLSearchParams({ page: String(page) });
 	if (section) {
 		params.set('section', section);
 	}
+	if (status) {
+		params.set('status', status);
+	}
 	if (prod) {
 		params.set('prod', 'true');
+	}
+	if (path) {
+		params.set('path', path);
 	}
 	const response = await fetch(`/api/articles?${params.toString()}`, {
 		signal,

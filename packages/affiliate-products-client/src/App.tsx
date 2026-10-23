@@ -1,23 +1,29 @@
+import type { Article } from '@common/tool-models';
 import { css, Global } from '@emotion/react';
 import {
 	semanticColors,
 	semanticSpacing,
 	semanticTypography,
 } from '@guardian/stand';
+import { Button } from '@guardian/stand/Button';
 import { InlineMessage } from '@guardian/stand/InlineMessage';
 import { Layout } from '@guardian/stand/Layout';
-import { Link } from '@guardian/stand/Link';
-import { Typography } from '@guardian/stand/Typography';
+import { LinkButton } from '@guardian/stand/LinkButton';
 import {
 	convertTypographyToEmotionStringStyle,
 	GlobalResetStyles,
 } from '@guardian/stand/utils';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { fetchArticles } from './api/articles';
 import { fetchUserName } from './api/auth';
-import { ArticleList } from './ArticleList';
+import { ArticleList, ArticleListPlaceholder } from './ArticleList';
+import type { ArticleGroup } from './ArticleList';
+import { headlineInset } from './ArticleRow';
+import { ArticleSearch } from './ArticleSearch';
 import { useListParams } from './hooks/useListParams';
 import { Pagination } from './Pagination';
+import { PriceEditingContext } from './PriceEditing';
+import { ProdDataContext } from './ProdData';
 import { Sidebar } from './Sidebar';
 import { TopToolbar } from './TopToolbar';
 import type { ArticlesState, ListParams } from './types';
@@ -43,19 +49,51 @@ const globalStyles = css`
 	}
 `;
 
+const messageStyles = css`
+	display: grid;
+	justify-items: start;
+	gap: ${semanticSpacing.stackMd};
+	max-width: 40rem;
+	padding: ${semanticSpacing.stackLg} ${semanticSpacing.stackMd};
+	padding-left: ${headlineInset};
+`;
+
+// Below a found article, where the pagination is below the list.
+const afterFoundStyles = css`
+	padding: ${semanticSpacing.stackLg} ${semanticSpacing.stackMd};
+	padding-left: ${headlineInset};
+`;
+
 const mainStyles = css`
 	min-width: 0;
-	padding-left: ${semanticSpacing.stackMd};
-	padding-right: ${semanticSpacing.stackMd};
+	padding: 0;
 `;
 
 export const App = () => {
 	const [userName, setUserName] = useState<string>();
-	const { page, section, prod, setPage, setSection, setProd } = useListParams();
+	const {
+		page,
+		section,
+		status,
+		prod,
+		path,
+		setPage,
+		setSection,
+		setStatus,
+		setProd,
+		setPath,
+	} = useListParams();
 	const [fetched, setFetched] = useState<{
 		params: ListParams;
 		state: ArticlesState;
 	}>();
+	// Bumped to fetch the list again after a price is set, keeping the current one on screen
+	// (and its open articles open) until the new one arrives.
+	const [reloads, setReloads] = useState(0);
+	const priceEditing = useMemo(
+		() => ({ canEdit: !prod, onPriceEdit: () => setReloads((n) => n + 1) }),
+		[prod],
+	);
 
 	useEffect(() => {
 		// The name is only shown in the toolbar, so there's nothing to show if this fails.
@@ -66,7 +104,7 @@ export const App = () => {
 
 	useEffect(() => {
 		const controller = new AbortController();
-		const params = { page, section, prod };
+		const params = { page, section, status, prod, path };
 		fetchArticles(params, controller.signal)
 			.then((state) => setFetched({ params, state }))
 			.catch(() => {
@@ -75,13 +113,15 @@ export const App = () => {
 				}
 			});
 		return () => controller.abort();
-	}, [page, section, prod]);
+	}, [page, section, status, prod, path, reloads]);
 
 	// Whatever was fetched last is for a previous view until the current one's articles arrive.
 	const articles: ArticlesState =
 		fetched?.params.page === page &&
 		fetched.params.section === section &&
-		fetched.params.prod === prod
+		fetched.params.status === status &&
+		fetched.params.prod === prod &&
+		fetched.params.path === path
 			? fetched.state
 			: { status: 'loading' };
 
@@ -90,39 +130,100 @@ export const App = () => {
 		window.scrollTo(0, 0);
 	};
 
+	const showAllButton = (
+		<Button variant="secondary" size="sm" onPress={() => setPath(undefined)}>
+			Show all articles
+		</Button>
+	);
+
+	// The article searched for, open, or a message if there isn't one at that path.
+	const renderFound = (found: Article[]) =>
+		found.length === 0 ? (
+			<div css={messageStyles}>
+				<InlineMessage level="information">
+					There’s no article at /{path}
+					{prod ? ' in PROD' : ''}. Check the URL, or that it has been
+					published.
+				</InlineMessage>
+				{showAllButton}
+			</div>
+		) : (
+			<>
+				<ArticleList articles={found} initiallyOpen={true} />
+				<div css={afterFoundStyles}>{showAllButton}</div>
+			</>
+		);
+
 	const renderArticles = () => {
 		switch (articles.status) {
 			case 'loading':
-				return (
-					<Typography element="p" variant="bodyMd">
-						Loading articles…
-					</Typography>
-				);
+				return <ArticleListPlaceholder />;
 			case 'unauthenticated':
 				return (
-					<InlineMessage level="information">
-						Your login has expired.{' '}
-						<Link
+					<div css={messageStyles}>
+						<InlineMessage level="information">
+							Your login has expired, so the articles can’t be loaded.
+						</InlineMessage>
+						<LinkButton
 							href={`${window.location.pathname}${window.location.search}`}
-							typography="bodyMd"
+							size="sm"
 						>
-							Reload the page
-						</Link>{' '}
-						to log in again.
-					</InlineMessage>
+							Log in again
+						</LinkButton>
+					</div>
 				);
 			case 'error':
 				return (
-					<InlineMessage level="error">Could not load articles.</InlineMessage>
+					<div css={messageStyles}>
+						<InlineMessage level="error">
+							The articles couldn’t be loaded. The tool may not be able to reach
+							CAPI or the pricing table right now.
+						</InlineMessage>
+						<Button size="sm" onPress={() => setReloads((n) => n + 1)}>
+							Try again
+						</Button>
+					</div>
 				);
-			case 'loaded':
+			case 'loaded': {
+				if (path) {
+					return renderFound(articles.page.articles);
+				}
+				const { drafts, total } = articles.page;
+				// The drafts are only on the first page. The server leaves them out of it when
+				// it can't list them, which it can't yet, as they're only in Preview CAPI.
+				const groups: ArticleGroup[] = [
+					...(status !== 'live' && page === 1
+						? [
+								{
+									title: drafts ? `Drafts (${drafts.length})` : 'Drafts',
+									draft: true,
+									articles: drafts ?? [],
+									emptyMessage: drafts
+										? 'There are no drafts.'
+										: 'Drafts aren’t available yet.',
+								},
+							]
+						: []),
+					...(status !== 'draft'
+						? [
+								{
+									title: `Published (${total})`,
+									draft: false,
+									articles: articles.page.articles,
+									emptyMessage: 'There are no published articles.',
+								},
+							]
+						: []),
+				];
 				return (
 					<>
-						<Pagination page={articles.page} onChange={changePage} />
-						<ArticleList articles={articles.page.articles} />
-						<Pagination page={articles.page} onChange={changePage} />
+						<ArticleList groups={groups} />
+						{status !== 'draft' && (
+							<Pagination page={articles.page} onChange={changePage} />
+						)}
 					</>
 				);
+			}
 		}
 	};
 
@@ -131,16 +232,27 @@ export const App = () => {
 			<Global styles={globalStyles} />
 			<Layout>
 				<Layout.TopBar>
-					<TopToolbar userName={userName} />
+					<TopToolbar
+						userName={userName}
+						search={
+							<ArticleSearch key={path ?? ''} path={path} onSearch={setPath} />
+						}
+					/>
 				</Layout.TopBar>
 				<Sidebar
 					section={section}
 					onSectionChange={setSection}
+					status={status}
+					onStatusChange={setStatus}
 					prod={prod}
 					onProdChange={setProd}
 				/>
 				<Layout.Main paddingTop={false} cssOverrides={mainStyles}>
-					{renderArticles()}
+					<ProdDataContext.Provider value={prod}>
+						<PriceEditingContext.Provider value={priceEditing}>
+							{renderArticles()}
+						</PriceEditingContext.Provider>
+					</ProdDataContext.Provider>
 				</Layout.Main>
 			</Layout>
 		</>

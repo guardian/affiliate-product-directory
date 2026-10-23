@@ -1,5 +1,5 @@
 import type { Product } from '@common/models';
-import type { ArticlesPage, Section, User } from '@common/tool-models';
+import type { Article, ArticlesPage, Section, User } from '@common/tool-models';
 import { z } from 'zod';
 
 /** Returns the user a request's cookies belong to, or undefined if they aren't logged in. */
@@ -26,14 +26,41 @@ export type ListArticles = (
 	section?: Section,
 ) => Promise<ArticlesPage>;
 
+/**
+ * Lists one section's drafts, or both sections' if none is given, most recently changed
+ * first. Drafts aren't paged, as there are few of them.
+ */
+export type ListDrafts = (section?: Section) => Promise<Article[]>;
+
 /** A product's price in the pricing table, with only the fields the tool uses, by its URL. */
 export type ProductPrices = Map<
 	string,
-	Pick<Product, 'currency' | 'price' | 'updatedAt' | 'updatedBy'>
+	Pick<Product, 'currency' | 'price' | 'updatedAt' | 'updatedBy' | 'expiresAt'>
 >;
 
 /** Returns the directory's price for each of these URLs that is an active product with one. */
 export type GetProductPrices = (urls: string[]) => Promise<ProductPrices>;
+
+/** Gets one article by its CAPI ID, or undefined if there isn't one. */
+export type GetArticle = (path: string) => Promise<Article | undefined>;
+
+/** An article's web URL and headline, with the links in its body, in order, repeats included. */
+export interface ArticleLinks {
+	webUrl: string;
+	webTitle: string;
+	links: string[];
+}
+
+/** Gets the links in one article's body by its CAPI ID, or undefined if there isn't one. */
+export type GetArticleLinks = (
+	path: string,
+) => Promise<ArticleLinks | undefined>;
+
+/**
+ * The domains of the merchants Skimlinks supports, without www., which frontend sends
+ * links to through Skimlinks. Undefined if they can't be read.
+ */
+export type ReadSkimlinksDomains = () => Promise<Set<string> | undefined>;
 
 /** A price found in a link's label. */
 export interface ExtractedPrice {
@@ -65,6 +92,8 @@ const ProductCtaSchema = z.object({
 
 /** An element of an article's body, with only the fields the tool uses. */
 const BlockElementSchema = LinkElementSchema.extend({
+	// Only text elements have this.
+	textTypeData: z.object({ html: z.string().optional() }).optional(),
 	// Only product elements (product cards) have this.
 	productTypeData: z
 		.object({
@@ -90,11 +119,27 @@ export type Block = z.infer<typeof BlockSchema>;
 const SearchResultSchema = z.object({
 	id: z.string(),
 	sectionId: z.string(),
-	webPublicationDate: z.string(),
+	// Preview CAPI leaves this out for a draft.
+	webPublicationDate: z.string().optional(),
 	webTitle: z.string(),
 	webUrl: z.string(),
-	fields: z.object({ internalComposerCode: z.string().optional() }).optional(),
+	fields: z
+		.object({
+			internalComposerCode: z.string().optional(),
+			byline: z.string().optional(),
+			// 'true' or 'false'. Only Preview CAPI has articles that aren't live.
+			isLive: z.string().optional(),
+			lastModified: z.string().optional(),
+		})
+		.optional(),
 	blocks: z.object({ body: z.array(BlockSchema).optional() }).optional(),
+});
+
+export type CapiResult = z.infer<typeof SearchResultSchema>;
+
+/** CAPI's response for a single item, such as one article. */
+export const ItemResponseSchema = z.object({
+	response: z.object({ content: SearchResultSchema }),
 });
 
 export const SearchResponseSchema = z.object({
