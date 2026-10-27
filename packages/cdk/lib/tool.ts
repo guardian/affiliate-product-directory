@@ -20,17 +20,19 @@ export function createTool(
 		domainName,
 		capiKeyParam,
 		productPricingReadPolicy,
+		productPricingWritePolicy,
 		prodData,
 	}: {
 		domainName: string;
 		capiKeyParam: CfnParameter;
 		productPricingReadPolicy: Policy;
+		productPricingWritePolicy: Policy;
 		/** PROD's CAPI key and pricing table, for a stage other than PROD to also list PROD's articles and prices. */
 		prodData?: { capiKeyParam: CfnParameter; pricingTableName: string };
 	},
 ): GuApiLambda {
-	// dev-gutools.co.uk isn't in Route 53, so the first deploy waits until the
-	// certificate's DNS validation record has been added manually.
+	// Neither dev-gutools.co.uk nor gutools.co.uk is in Route 53, so the first deploy
+	// waits until the certificate's DNS validation record has been added manually.
 	const certificate = new GuCertificate(scope, { app, domainName });
 
 	const toolLambda = new GuApiLambda(scope, 'AffiliateProductsTool', {
@@ -78,8 +80,11 @@ export function createTool(
 		}),
 	);
 
-	// The products' prices, read from the pricing table on every request.
-	attachPoliciesToLambda(toolLambda, [productPricingReadPolicy]);
+	// The products' prices, read from the pricing table on every request, and written to it.
+	attachPoliciesToLambda(toolLambda, [
+		productPricingReadPolicy,
+		productPricingWritePolicy,
+	]);
 
 	if (prodData) {
 		const prodPricingTableArn = `arn:aws:dynamodb:${scope.region}:${scope.account}:table/${prodData.pricingTableName}`;

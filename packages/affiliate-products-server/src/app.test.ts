@@ -60,7 +60,7 @@ describe('createApp', () => {
 
 	const loggedIn: Auth = {
 		authenticate: () => Promise.resolve(user),
-		hasAccess: (email) => Promise.resolve(email === user.email),
+		hasAccess: (email) => email === user.email,
 		listPermissions: (email) =>
 			Promise.resolve(email === user.email ? ['some_permission'] : []),
 		loginUrl: 'https://login.example.com/login',
@@ -73,7 +73,7 @@ describe('createApp', () => {
 
 	const loggedInWithoutAccess: Auth = {
 		...loggedIn,
-		hasAccess: () => Promise.resolve(false),
+		hasAccess: () => false,
 	};
 
 	// CAPI's answer to a search, with one article that has one product button.

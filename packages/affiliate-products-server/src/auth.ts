@@ -3,9 +3,8 @@ import {
 	PanDomainAuthentication,
 } from '@guardian/pan-domain-node';
 import { init as initPermissions } from '@guardian/permissions-client';
+import { isAllowedEmail } from './allowedEmails';
 import type { Auth } from './types';
-
-const requiredPermission = 'composer_access';
 
 const pandaDomains: Record<string, string> = {
 	CODE: 'code.dev-gutools.co.uk',
@@ -30,7 +29,7 @@ export function createPandaAuth(stage: string): Auth {
 		guardianValidation,
 	);
 
-	const { hasPermission, listUserPermissions } = initPermissions({ stage });
+	const { listUserPermissions } = initPermissions({ stage });
 
 	return {
 		authenticate: async (cookieHeader) => {
@@ -41,7 +40,7 @@ export function createPandaAuth(stage: string): Auth {
 			const { email, firstName, lastName, avatarUrl } = result.user;
 			return { email, firstName, lastName, avatarUrl };
 		},
-		hasAccess: (email) => hasPermission(requiredPermission, email),
+		hasAccess: isAllowedEmail,
 		listPermissions: listUserPermissions,
 		loginUrl: `https://login.${pandaDomain}/login`,
 	};
