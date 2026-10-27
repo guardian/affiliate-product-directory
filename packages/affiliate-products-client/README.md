@@ -50,6 +50,8 @@ Composer links need CAPI's `internalComposerCode` field, which CAPI only returns
 3. The embed posts the message to `/api/embed/products`, which turns the elements into CAPI's shape (`composerElements.ts`), finds the products as the article list does, and adds their prices. Links the directory doesn't have yet are marked `notInDirectory`, as they won't have a live price until the article is published and priced.
 4. The embed posts `{ source: 'affiliate-products', type: 'height', version: 1, height }` whenever its height changes, so Composer can size the iframe.
 
+Editors can set a price by hand in the embed, as in the article list. For a link the directory doesn't have yet, this adds it to the directory, in the article's region, with that price. When the article is published the directory keeps the product as it is, so the price is live straight away, and the price providers leave it alone until it expires.
+
 The messages are defined in [common/src/embed.ts](../common/src/embed.ts). The embed only accepts messages from the stage's Composer, and the server only lets that Composer frame `/embed`, with a `frame-ancestors` policy. An editor who isn't logged in gets a link to log in in a new tab, as Panda's login page can't be shown in a frame.
 
 The shape of Composer's elements is a guess until Composer sends a real one: see `@mocks/ComposerContentFixture`.

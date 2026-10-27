@@ -815,6 +815,63 @@ describe('createApp', () => {
 		}
 	});
 
+	it("adds a draft's product to the directory with the price set for it", async () => {
+		mockGetProductPrice.mockResolvedValueOnce(undefined);
+		mockUpdateProducts.mockResolvedValueOnce({ skipped: [] });
+
+		const response = await request(app()).post('/api/manualOverride').send({
+			productMerchantUrl: 'https://shop.example.com/products/new',
+			currency: 'USD',
+			price: 30,
+			region: 'US',
+		});
+
+		expect(response.status).toBe(204);
+		expect(mockUpdateProducts).toHaveBeenCalledWith({
+			items: [
+				expect.objectContaining({
+					productMerchantUrl: 'https://shop.example.com/products/new',
+					region: 'US',
+					price: 30,
+					currency: 'USD',
+					updatedBy: 'manualOverride',
+				}),
+			],
+		});
+	});
+
+	it("doesn't add a product without its region", async () => {
+		mockGetProductPrice.mockResolvedValueOnce(undefined);
+
+		const response = await request(app()).post('/api/manualOverride').send({
+			productMerchantUrl: 'https://shop.example.com/products/new',
+			currency: 'GBP',
+			price: 30,
+		});
+
+		expect(response.status).toBe(404);
+		expect(mockUpdateProducts).not.toHaveBeenCalled();
+	});
+
+	it("keeps a stored product's region when a region is sent", async () => {
+		mockGetProductPrice.mockResolvedValueOnce({
+			productMerchantUrl: 'https://shop.example.com/products/123',
+			region: 'GB',
+		});
+		mockUpdateProducts.mockResolvedValueOnce({ skipped: [] });
+
+		await request(app()).post('/api/manualOverride').send({
+			productMerchantUrl: 'https://shop.example.com/products/123',
+			currency: 'GBP',
+			price: 30,
+			region: 'US',
+		});
+
+		expect(mockUpdateProducts).toHaveBeenCalledWith({
+			items: [expect.objectContaining({ region: 'GB', price: 30 })],
+		});
+	});
+
 	it('rejects malformed manual override input', async () => {
 		const response = await request(app()).post('/api/manualOverride').send({
 			productMerchantUrl: 'https://shop.example.com/products/123',

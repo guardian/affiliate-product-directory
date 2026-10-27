@@ -31,7 +31,7 @@ import { priceGapAccent } from './style';
 // The columns are fixed so that a long URL is cut short rather than stretching its column.
 const columns = { sm: 'minmax(0, 1fr) 5.5rem 7rem 6.5rem 30%' };
 // Composer's narrow panel has room for just the prices, so the rest goes under the retailer.
-const compactColumns = { sm: 'minmax(0, 1fr) 4rem 5.5rem' };
+const compactColumns = { sm: 'minmax(0, 1fr) 5.5rem 5.5rem' };
 
 const weakText = { color: semanticColors.text.weak };
 
@@ -50,6 +50,8 @@ const numberStyles = css`
 	justify-content: flex-end;
 	text-align: right;
 	font-variant-numeric: tabular-nums;
+	/* A price wraps mid-number in a narrow column, e.g. "£16.5" over "0". */
+	white-space: nowrap;
 `;
 
 // Lets the URL under the retailer be cut short rather than widen the column.
