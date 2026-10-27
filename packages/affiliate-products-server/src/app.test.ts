@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import type * as DatabaseServiceModule from '@common/database-service';
+import { EmbedProductsResponseSchema } from '@common/embed';
 import { livePricingAllowListIds } from '@common/livePricing';
 import type { Region } from '@common/models';
 import type { Product } from '@common/models';
@@ -9,6 +10,7 @@ import { ArticlesPageSchema, AuthResponseSchema } from '@common/tool-models';
 import type { User } from '@common/tool-models';
 import { jest } from '@jest/globals';
 import { mockAmazonRefreshPrices } from '@mocks/AmazonPriceProviderMock';
+import { composerContentFixture } from '@mocks/ComposerContentFixture';
 import {
 	mockGetProductPrice,
 	mockUpdateProducts,
@@ -889,5 +891,77 @@ describe('createApp', () => {
 		expect(mockAmazonRefreshPrices).not.toHaveBeenCalled();
 		expect(mockShopifyRefreshPrices).not.toHaveBeenCalled();
 		expect(mockUpdateProducts).not.toHaveBeenCalled();
+	});
+
+	describe('Composer embed', () => {
+		it('lists the products Composer sends, with their prices', async () => {
+			const response = await request(
+				app(
+					loggedIn,
+					pricingTable([
+						{
+							productMerchantUrl:
+								'https://www.argos.co.uk/product/example-shark',
+							region: 'GB',
+							price: 179,
+							currency: 'GBP',
+						},
+					]),
+				),
+			)
+				.post('/api/embed/products')
+				.send(composerContentFixture);
+
+			expect(response.status).toBe(200);
+			const body = EmbedProductsResponseSchema.parse(response.body);
+			expect(body.region).toBe('GB');
+			expect(body.products).toHaveLength(2);
+		});
+
+		it('rejects a message it can not read', async () => {
+			const response = await request(app())
+				.post('/api/embed/products')
+				.send({ ...composerContentFixture, version: 2 });
+
+			expect(response.status).toBe(400);
+		});
+
+		it("tells a logged-out embed it isn't logged in", async () => {
+			const response = await request(app(loggedOut))
+				.post('/api/embed/products')
+				.send(composerContentFixture);
+
+			expect(response.status).toBe(401);
+		});
+
+		it('lets only Composer frame the embed', async () => {
+			const response = await request(app()).get('/embed');
+
+			expect(response.status).toBe(200);
+			expect(response.headers['content-security-policy']).toBe(
+				'frame-ancestors https://composer.code.dev-gutools.co.uk https://composer.local.dev-gutools.co.uk',
+			);
+		});
+
+		it("doesn't limit framing anywhere else", async () => {
+			const response = await request(app()).get('/');
+
+			expect(response.headers['content-security-policy']).toBeUndefined();
+		});
+
+		it('links a logged-out editor to login in a new tab, rather than redirecting the frame', async () => {
+			const response = await request(app(loggedOut))
+				.get('/embed')
+				.set('Host', 'affiliate-products.code.dev-gutools.co.uk');
+
+			expect(response.status).toBe(401);
+			expect(response.headers['content-security-policy']).toMatch(
+				/^frame-ancestors /,
+			);
+			expect(response.text).toContain('target="_blank"');
+			expect(response.text).toContain(
+				`https://login.example.com/login?returnUrl=${encodeURIComponent('https://affiliate-products.code.dev-gutools.co.uk/')}`,
+			);
+		});
 	});
 });

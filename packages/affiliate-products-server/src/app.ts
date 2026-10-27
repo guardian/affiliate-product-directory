@@ -2,6 +2,7 @@ import path from 'path';
 import { articlePath } from '@common/articlePath';
 import { getCapiBaseUrl } from '@common/config';
 import type { DynamoService } from '@common/database-service';
+import { composerOriginsForStage } from '@common/embed';
 import { livePricingAllowListIds } from '@common/livePricing';
 import { ArticleStatusSchema, SectionSchema } from '@common/tool-models';
 import type { ArticlesPage, AuthResponse, User } from '@common/tool-models';
@@ -15,6 +16,7 @@ import {
 	createCapiArticles,
 	getComposerBaseUrl,
 } from './capi';
+import { embedProducts } from './embedProducts';
 import { linksCsv, shortTitle } from './linkCounts';
 import {
 	handleOverrideDeleteRequest,
@@ -111,6 +113,26 @@ const readDrafts = async (
 	}
 };
 
+const escapeHtml = (text: string) =>
+	text.replace(
+		/[&<>"]/g,
+		(char) =>
+			({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[char] ?? char,
+	);
+
+/**
+ * What the embed shows to an editor who isn't logged in. Panda's login page can't be
+ * shown in Composer's iframe, so it's opened in a new tab instead.
+ */
+const embedLoginPage = (loginUrl: string) => `<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Log in to the affiliate products tool</title></head>
+<body style="font-family: system-ui, sans-serif; font-size: 14px; margin: 12px;">
+<p><a href="${escapeHtml(loginUrl)}" target="_blank" rel="noreferrer">Log in to the affiliate products tool</a> to see live prices for this article's products.</p>
+<p>Then reload this panel.</p>
+</body>
+</html>`;
+
 /**
  * Serves the affiliate-products-client build and its API from a single origin,
  * so the page and the API sit behind the same auth middleware.
@@ -144,7 +166,16 @@ export function createApp({
 	const productsUpdater = new ProductsUpdater(dynamoService);
 
 	const app = express();
+	// Composer sends the whole body of a draft, which can be bigger than express.json's default.
+	app.use('/api/embed', express.json({ limit: '2mb' }));
 	app.use(express.json());
+
+	// Only Composer may show the embed in a frame.
+	const embedFrameAncestors = `frame-ancestors ${composerOriginsForStage(stage).join(' ')}`;
+	app.use('/embed', (_req, res, next) => {
+		res.setHeader('Content-Security-Policy', embedFrameAncestors);
+		next();
+	});
 
 	const stageData = readStage({
 		stage,
@@ -182,6 +213,17 @@ export function createApp({
 			// The client can't follow a redirect to the login page from a fetch, so it's told instead.
 			if (isApiRequest) {
 				return res.status(401).json({ error: 'Not authenticated' });
+			}
+			if (req.path === '/embed') {
+				const returnUrl = `https://${req.get('host')}/`;
+				return res
+					.status(401)
+					.type('html')
+					.send(
+						embedLoginPage(
+							`${auth.loginUrl}?returnUrl=${encodeURIComponent(returnUrl)}`,
+						),
+					);
 			}
 			const returnUrl = `https://${req.get('host')}${req.originalUrl}`;
 			return res.redirect(
@@ -323,6 +365,17 @@ export function createApp({
 			return res.status(result.status).json({ error: result.error });
 		}
 		return res.status(200).json(result.products);
+	});
+
+	// The products in a draft that Composer has sent to the embed, with their prices.
+	app.post('/api/embed/products', async (req, res) => {
+		const result = await embedProducts(req.body, (urls) =>
+			dynamoService.getProductsByUrl(urls),
+		);
+		if (!result.ok) {
+			return res.status(400).json({ error: result.error });
+		}
+		return res.json(result.body);
 	});
 
 	// Unknown API paths shouldn't fall through to the SPA's index.html.

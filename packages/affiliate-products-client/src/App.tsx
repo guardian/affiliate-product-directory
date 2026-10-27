@@ -31,7 +31,7 @@ import { StarredContext } from './Starred';
 import { TopToolbar } from './TopToolbar';
 import type { ArticlesState, ListParams } from './types';
 
-const globalStyles = css`
+export const globalStyles = css`
 	${GlobalResetStyles};
 
 	/* Stand's title typography is set in the bold Guardian Headline. */

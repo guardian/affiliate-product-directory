@@ -130,7 +130,9 @@ const CurrentPrice = ({
 		currency !== undefined && price !== undefined ? (
 			formatCurrentPrice(currency, price)
 		) : (
-			<Missing>—</Missing>
+			<Missing>
+				{link.notInDirectory ? 'Not in the directory yet' : '—'}
+			</Missing>
 		);
 
 	if (!canEdit) {

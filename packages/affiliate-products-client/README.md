@@ -41,6 +41,21 @@ In CODE, the sidebar's Data filter switches the list to PROD's articles and pric
 
 Composer links need CAPI's `internalComposerCode` field, which CAPI only returns to internal-tier keys. With a developer-tier key they show as unavailable.
 
+## Composer embed
+
+`/embed` is a panel of the products in a draft, with their prices in the directory, for Composer to show in an iframe beside the article. The tool can't read drafts itself, so Composer sends the article with `postMessage`:
+
+1. The embed posts `{ source: 'affiliate-products', type: 'ready', version: 1 }` to Composer when it loads.
+2. Composer replies with `{ source: 'composer', type: 'content', version: 1, composerId, section, elements }`, where `elements` are the body's elements as Composer holds them. It sends it again after every `ready`, and about a second after each edit.
+3. The embed posts the message to `/api/embed/products`, which turns the elements into CAPI's shape (`composerElements.ts`), finds the products as the article list does, and adds their prices. Links the directory doesn't have yet are marked `notInDirectory`, as they won't have a live price until the article is published and priced.
+4. The embed posts `{ source: 'affiliate-products', type: 'height', version: 1, height }` whenever its height changes, so Composer can size the iframe.
+
+The messages are defined in [common/src/embed.ts](../common/src/embed.ts). The embed only accepts messages from the stage's Composer, and the server only lets that Composer frame `/embed`, with a `frame-ancestors` policy. An editor who isn't logged in gets a link to log in in a new tab, as Panda's login page can't be shown in a frame.
+
+The shape of Composer's elements is a guess until Composer sends a real one: see `@mocks/ComposerContentFixture`.
+
+To try it locally, run the dev servers as below and go to http://localhost:5173/embed-harness.html, which stands in for Composer. Edit the message there to change what the embed is sent.
+
 ## Running locally
 
 From the repository root:
