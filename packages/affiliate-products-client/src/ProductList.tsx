@@ -30,6 +30,8 @@ import { priceGapAccent } from './style';
 
 // The columns are fixed so that a long URL is cut short rather than stretching its column.
 const columns = { sm: 'minmax(0, 1fr) 5.5rem 7rem 6.5rem 30%' };
+// Composer's narrow panel has room for just the prices, so the rest goes under the retailer.
+const compactColumns = { sm: 'minmax(0, 1fr) 4rem 5.5rem' };
 
 const weakText = { color: semanticColors.text.weak };
 
@@ -48,6 +50,11 @@ const numberStyles = css`
 	justify-content: flex-end;
 	text-align: right;
 	font-variant-numeric: tabular-nums;
+`;
+
+// Lets the URL under the retailer be cut short rather than widen the column.
+const compactRetailerStyles = css`
+	min-width: 0;
 `;
 
 const ellipsisStyles = css`
@@ -130,9 +137,7 @@ const CurrentPrice = ({
 		currency !== undefined && price !== undefined ? (
 			formatCurrentPrice(currency, price)
 		) : (
-			<Missing>
-				{link.notInDirectory ? 'Not in the directory yet' : '—'}
-			</Missing>
+			<Missing>—</Missing>
 		);
 
 	if (!canEdit) {
@@ -164,18 +169,35 @@ const CurrentPrice = ({
 	);
 };
 
+/** When a link's price was set and by what, or why it has none. */
+const updatedText = ({
+	updatedAt,
+	updatedBy,
+	expiresAt,
+	notInDirectory,
+}: ProductLink) => {
+	if (updatedAt === undefined) {
+		return notInDirectory ? 'Not in the directory yet' : 'Not priced yet';
+	}
+	if (updatedBy === 'manualOverride') {
+		return `Set manually ${formatDate(updatedAt)}${expiresAt !== undefined ? `, until ${formatDate(expiresAt)}` : ''}`;
+	}
+	return `Updated ${formatDate(updatedAt)}${updatedBy ? ` by ${updatedBy}` : ''}`;
+};
+
 const renderLinkRow = (
 	link: ProductLink,
 	productName: string | undefined,
 	articleCurrency: Currency | undefined,
+	compact: boolean,
 ) => {
-	const { url, label, retailer, basePrice, updatedAt, updatedBy } = link;
+	const { url, label, retailer, basePrice } = link;
 	const difference = priceDifference(link);
 	const gap = hasPriceGap(link);
 	return (
 		<TableRow key={url} id={url}>
 			<TableCell>
-				<div>
+				<div css={compact && compactRetailerStyles}>
 					<ButtonPreview link={link}>
 						<Link
 							href={url}
@@ -191,6 +213,21 @@ const renderLinkRow = (
 						<Typography element="div" variant="bodyXs" theme={weakText}>
 							{label}
 						</Typography>
+					)}
+					{compact && (
+						<>
+							<Typography
+								element="div"
+								variant="bodyXs"
+								theme={weakText}
+								cssOverrides={ellipsisStyles}
+							>
+								{shortenUrl(url)}
+							</Typography>
+							<Typography element="div" variant="bodyXs" theme={weakText}>
+								{updatedText(link)}
+							</Typography>
+						</>
 					)}
 				</div>
 			</TableCell>
@@ -229,6 +266,16 @@ const renderLinkRow = (
 					/>
 				)}
 			</TableCell>
+			{!compact && renderDetailCells(link)}
+		</TableRow>
+	);
+};
+
+/** The full list's Updated and Link columns. */
+const renderDetailCells = (link: ProductLink) => {
+	const { url, updatedAt, updatedBy } = link;
+	return (
+		<>
 			<TableCell>
 				{updatedAt !== undefined ? (
 					<div>
@@ -248,7 +295,9 @@ const renderLinkRow = (
 						)}
 					</div>
 				) : (
-					<Missing>N/A</Missing>
+					<Missing>
+						{link.notInDirectory ? 'Not in the directory yet' : 'N/A'}
+					</Missing>
 				)}
 			</TableCell>
 			<TableCell>
@@ -262,7 +311,7 @@ const renderLinkRow = (
 					{shortenUrl(url)}
 				</Link>
 			</TableCell>
-		</TableRow>
+		</>
 	);
 };
 
@@ -270,9 +319,11 @@ const renderLinkRow = (
 const ProductTable = ({
 	product: { name, links },
 	articleCurrency,
+	compact,
 }: {
 	product: Product;
 	articleCurrency?: Currency;
+	compact: boolean;
 }) => (
 	<div css={productStyles}>
 		<h5 css={productNameStyles}>
@@ -284,7 +335,7 @@ const ProductTable = ({
 		</h5>
 		<Table
 			aria-label={name ? `Retailers for ${name}` : 'Retailers'}
-			columns={columns}
+			columns={compact ? compactColumns : columns}
 			headerVisibleFrom="sm"
 		>
 			<TableHeader>
@@ -293,11 +344,13 @@ const ProductTable = ({
 				<TableColumnHeader cssOverrides={numberStyles}>
 					Current
 				</TableColumnHeader>
-				<TableColumnHeader>Updated</TableColumnHeader>
-				<TableColumnHeader>Link</TableColumnHeader>
+				{!compact && <TableColumnHeader>Updated</TableColumnHeader>}
+				{!compact && <TableColumnHeader>Link</TableColumnHeader>}
 			</TableHeader>
 			<TableBody>
-				{links.map((link) => renderLinkRow(link, name, articleCurrency))}
+				{links.map((link) =>
+					renderLinkRow(link, name, articleCurrency, compact),
+				)}
 			</TableBody>
 		</Table>
 	</div>
@@ -310,10 +363,13 @@ const ProductTable = ({
 export const ProductList = ({
 	products,
 	articleCurrency,
+	compact = false,
 }: {
 	products: Product[];
 	/** The currency the article's section is priced in, to warn when a price is set in another. */
 	articleCurrency?: Currency;
+	/** For a narrow column, such as Composer's panel: just the prices, with the rest under the retailer. */
+	compact?: boolean;
 }) => {
 	if (products.length === 0) {
 		return (
@@ -331,6 +387,7 @@ export const ProductList = ({
 					key={product.links[0]?.url}
 					product={product}
 					articleCurrency={articleCurrency}
+					compact={compact}
 				/>
 			))}
 		</>

@@ -45,7 +45,7 @@ describe('composerElementsToBlocks', () => {
 			expect(
 				productsIn([
 					{
-						elementType: 'link',
+						elementType: 'link-element',
 						fields: {
 							linkType,
 							url: 'https://example.com/a',
@@ -61,7 +61,7 @@ describe('composerElementsToBlocks', () => {
 		expect(
 			productsIn([
 				{
-					elementType: 'link',
+					elementType: 'link-element',
 					fields: { linkType: 'standard', url: 'https://example.com/a' },
 				},
 			]),
@@ -93,7 +93,7 @@ describe('composerElementsToBlocks', () => {
 					productName: 'Kettle',
 					content: [
 						{
-							elementType: 'link',
+							elementType: 'link-element',
 							fields: {
 								linkType: 'product-button',
 								url: 'https://example.com/k',
@@ -112,7 +112,7 @@ describe('composerElementsToBlocks', () => {
 			{ elementType: 'text', fields: { text: '<h2>Best kettle: Kettle</h2>' } },
 			{ elementType: 'image', fields: {} },
 			{
-				elementType: 'link',
+				elementType: 'link-element',
 				fields: {
 					linkType: 'product-button',
 					url: 'https://example.com/k',

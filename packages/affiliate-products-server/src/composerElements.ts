@@ -1,11 +1,10 @@
 import { z } from 'zod';
 import type { Block, BlockElement, LinkElement, ProductCta } from './types';
 
-/*
- * GUESSED: how Composer holds the elements that products are in. These follow
- * flexible-model (an elementType with string fields) but haven't been checked against a
- * real message from Composer. When the sample arrives, fix them here and in
- * @mocks/ComposerContentFixture, and nowhere else.
+/**
+ * How Composer holds the elements that products are in, as in the sample message saved
+ * in flexible-content (flexible-frontend/src/fixtures/affiliate-products-content.sample.json).
+ * If Composer's model changes, fix them here and in @mocks/ComposerContentFixture.
  */
 const composerFieldNames = {
 	text: { html: 'text' },
@@ -18,7 +17,11 @@ const composerFieldNames = {
 	},
 } as const;
 
-// Composer may write a product button's link type in either case.
+// Composer calls a link a link-element, and CAPI calls it a link.
+const isLink = (elementType: string | undefined) =>
+	elementType === 'link-element' || elementType === 'link';
+
+// Composer writes a product button's link type as PRODUCT_BUTTON, and CAPI as product-button.
 const isProductButtonType = (linkType: string | undefined) =>
 	linkType !== undefined && /^product[-_]?button$/i.test(linkType);
 
@@ -92,7 +95,7 @@ const productElement = (fields: Record<string, unknown>): BlockElement => {
 	// The elements shown inside the card. Only its product buttons matter.
 	const content = listField(fields, names.content).flatMap((raw) => {
 		const element = parseElement(raw);
-		return element && (element.elementType ?? element.type) === 'link'
+		return element && isLink(element.elementType ?? element.type)
 			? [linkElement(element.fields)]
 			: [];
 	});
@@ -112,7 +115,11 @@ const toBlockElement = (raw: unknown): BlockElement | undefined => {
 	if (!element) {
 		return undefined;
 	}
-	switch (element.elementType ?? element.type) {
+	const elementType = element.elementType ?? element.type;
+	if (isLink(elementType)) {
+		return linkElement(element.fields);
+	}
+	switch (elementType) {
 		case 'text':
 			return {
 				type: 'text',
@@ -120,13 +127,11 @@ const toBlockElement = (raw: unknown): BlockElement | undefined => {
 					html: stringField(element.fields, composerFieldNames.text.html),
 				},
 			};
-		case 'link':
-			return linkElement(element.fields);
 		case 'product':
 			return productElement(element.fields);
 		default:
 			// Kept, so a product isn't named by text from before an image or embed.
-			return { type: element.elementType ?? element.type ?? 'unknown' };
+			return { type: elementType ?? 'unknown' };
 	}
 };
 

@@ -1,11 +1,8 @@
 import type { ComposerContentMessage } from '@common/embed';
 
 /**
- * A content message as Composer would send it to the embed.
- *
- * GUESSED: the element shapes follow flexible-model's (elementType and string fields), but
- * haven't been checked against a real message. Replace them with the sample the Composer
- * change saves, then fix composerElements.ts to match.
+ * A content message as Composer sends it to the embed, in the shape of the sample saved
+ * in flexible-content (flexible-frontend/src/fixtures/affiliate-products-content.sample.json).
  */
 export const composerContentFixture: ComposerContentMessage = {
 	source: 'composer',
@@ -23,6 +20,7 @@ export const composerContentFixture: ComposerContentMessage = {
 		{
 			elementType: 'product',
 			fields: {
+				id: '3f6b2a8e-1c4d-4e5f-9a7b-2c3d4e5f6a7b',
 				productName: 'V15 Detect',
 				brandName: 'Dyson',
 				productCtas: [
@@ -46,13 +44,30 @@ export const composerContentFixture: ComposerContentMessage = {
 			fields: { text: '<h2>Best budget: Shark Stratos</h2>' },
 		},
 		{
-			elementType: 'link',
+			elementType: 'link-element',
 			fields: {
-				linkType: 'product-button',
-				url: 'https://www.argos.co.uk/product/example-shark',
 				label: '£199 at Argos',
+				url: 'https://www.argos.co.uk/product/example-shark',
+				linkType: 'PRODUCT_BUTTON',
+				priority: 'PRIMARY',
 			},
+			assets: [],
 		},
-		{ elementType: 'image', fields: { caption: 'The Shark Stratos' } },
+		{
+			elementType: 'image',
+			fields: { caption: 'The Shark Stratos' },
+			assets: [],
+		},
+		{
+			elementType: 'product-summary',
+			fields: {
+				title: 'At a glance',
+				displayType: 'CTA_LIST',
+				products: [
+					{ productId: '3f6b2a8e-1c4d-4e5f-9a7b-2c3d4e5f6a7b', ctaIndex: 0 },
+				],
+			},
+			assets: [],
+		},
 	],
 };

@@ -146,6 +146,7 @@ export const Embed = () => {
 					<ProductList
 						products={state.response.products}
 						articleCurrency={state.response.region === 'US' ? 'USD' : 'GBP'}
+						compact
 					/>
 				);
 		}
