@@ -5,6 +5,7 @@ import type { DynamoService } from '@common/database-service';
 import { livePricingAllowListIds } from '@common/livePricing';
 import { ArticleStatusSchema, SectionSchema } from '@common/tool-models';
 import type { ArticlesPage, AuthResponse, User } from '@common/tool-models';
+import { ProductsUpdater } from '@price-update/ProductsUpdater';
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
@@ -19,6 +20,7 @@ import {
 	handleOverrideDeleteRequest,
 	handleOverrideRequest,
 } from './manual-override/manualOverrideHandlers';
+import { handlePreviewRequest } from './preview/previewRequestHandler';
 import {
 	attachProductPrices,
 	createProductPrices,
@@ -139,6 +141,8 @@ export function createApp({
 	/** The Skimlinks merchants' domains, for sorting the links in articles. */
 	readSkimlinksDomains: ReadSkimlinksDomains;
 }) {
+	const productsUpdater = new ProductsUpdater(dynamoService);
+
 	const app = express();
 	app.use(express.json());
 
@@ -311,6 +315,14 @@ export function createApp({
 			return res.status(result.status).json({ error: result.error });
 		}
 		return res.sendStatus(204);
+	});
+
+	app.post('/api/preview', async (req, res) => {
+		const result = await handlePreviewRequest(req.body, productsUpdater);
+		if (!result.ok) {
+			return res.status(result.status).json({ error: result.error });
+		}
+		return res.status(200).json(result.products);
 	});
 
 	// Unknown API paths shouldn't fall through to the SPA's index.html.
