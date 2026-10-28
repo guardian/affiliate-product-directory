@@ -7,6 +7,7 @@ import { EmbedProductsResponseSchema } from '@common/embed';
 export type EmbedProductsState =
 	| { status: 'loaded'; response: EmbedProductsResponse }
 	| { status: 'unauthenticated' }
+	| { status: 'forbidden' }
 	| { status: 'error' };
 
 /** The products in the draft Composer has sent, with their prices in the directory. */
@@ -22,6 +23,9 @@ export const fetchEmbedProducts = async (
 	});
 	if (response.status === 401) {
 		return { status: 'unauthenticated' };
+	}
+	if (response.status === 403) {
+		return { status: 'forbidden' };
 	}
 	if (!response.ok) {
 		return { status: 'error' };

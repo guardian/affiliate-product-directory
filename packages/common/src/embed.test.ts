@@ -76,13 +76,23 @@ describe('composerOriginsForHost', () => {
 		).not.toContain(origin);
 	});
 
-	it('accepts the dev harness on localhost', () => {
+	it.each([
+		['localhost', 'http://localhost:5173'],
+		[
+			'affiliate-products.local.dev-gutools.co.uk',
+			'https://affiliate-products.local.dev-gutools.co.uk',
+		],
+	])('accepts the dev harness on %s', (hostname, origin) => {
 		expect(
 			composerOriginsForHost({
-				hostname: 'localhost',
-				origin: 'http://localhost:5173',
+				hostname,
+				origin,
 			}),
-		).toContain('http://localhost:5173');
+		).toEqual([
+			'https://composer.code.dev-gutools.co.uk',
+			'https://composer.local.dev-gutools.co.uk',
+			origin,
+		]);
 	});
 });
 

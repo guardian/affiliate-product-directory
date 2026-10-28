@@ -37,7 +37,9 @@ The affiliate share is the Amazon and Skimlinks links as a share of all three. T
 
 ### PROD data
 
-In CODE, the sidebar's Data filter switches the list to PROD's articles and prices, adding `prod=true` to the page's URL and to `/api/articles`. The server then does the same as above, against PROD CAPI (with the PROD `capi-key` SSM parameter, as `PROD_CAPI_KEY`), PROD's Composer, and PROD's pricing table. The tool's role can only `BatchGetItem` from PROD's table, and explicitly denies everything else on it, so it can never write to it. PROD's tool only shows its own data, so the client hides the Data filter on `*.gutools.co.uk`.
+In CODE, the sidebar's Data filter switches the list to PROD's articles and prices, adding `prod=true` to the page's URL and to `/api/articles`. The server then does the same as above, against PROD CAPI (with the PROD `capi-key` SSM parameter, as `PROD_CAPI_KEY`), PROD's Composer, and PROD's pricing table. The tool's role can only `BatchGetItem`, `GetItem` and `PutItem` on PROD's table, and explicitly denies everything else on it.
+
+Setting PROD's prices by hand from CODE is behind a switch: the SSM parameter `/CODE/frontend/affiliate-product-directory/edit-prod-prices`. While it's `true`, the edit buttons show for PROD's data and `/api/manualOverride?prod=true` writes to PROD's table. Otherwise, including when the parameter doesn't exist, they're hidden and the server refuses with a 403. The server reads it at most once a minute, so a change takes effect within a minute, with no deploy, though the page must be reloaded to show or hide the buttons. PROD's tool only shows its own data, so the client hides the Data filter on `*.gutools.co.uk`.
 
 Composer links need CAPI's `internalComposerCode` field, which CAPI only returns to internal-tier keys. With a developer-tier key they show as unavailable.
 
@@ -57,6 +59,29 @@ The messages are defined in [common/src/embed.ts](../common/src/embed.ts). The e
 The shape of Composer's elements is a guess until Composer sends a real one: see `@mocks/ComposerContentFixture`.
 
 To try it locally, run the dev servers as below and go to http://localhost:5173/embed-harness.html, which stands in for Composer. Edit the message there to change what the embed is sent.
+
+To serve it through HTTPS for Composer's local dev build, install dev-nginx on the host:
+
+```
+brew tap guardian/homebrew-devtools
+brew install guardian/devtools/dev-nginx
+```
+
+From the repository root, configure the local proxy once:
+
+```
+dev-nginx setup-app nginx/nginx-mapping.yml
+dev-nginx restart
+```
+
+`setup-app` also creates the local HTTPS certificate for
+`affiliate-products.local.dev-gutools.co.uk`.
+
+With the dev servers running, the embed and harness are then at
+https://affiliate-products.local.dev-gutools.co.uk/embed and
+https://affiliate-products.local.dev-gutools.co.uk/embed-harness.html. The nginx mapping
+also proxies Vite's `/vite-hmr` WebSocket connection for hot reload. The localhost URLs
+continue to work.
 
 ## Running locally
 

@@ -174,6 +174,12 @@ export const Embed = () => {
 						, then reload this panel.
 					</InlineMessage>
 				);
+			case 'forbidden':
+				return (
+					<InlineMessage level="error">
+						Your account doesn’t have access to the affiliate products tool.
+					</InlineMessage>
+				);
 			case 'error':
 				return (
 					<InlineMessage level="error">

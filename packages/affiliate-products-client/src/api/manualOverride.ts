@@ -6,12 +6,16 @@ export type OverrideResult = { error: string } | undefined;
 const sendOverride = async (
 	method: 'POST' | 'DELETE',
 	body: object,
+	prod: boolean,
 ): Promise<OverrideResult> => {
-	const response = await fetch('/api/manualOverride', {
-		method,
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(body),
-	});
+	const response = await fetch(
+		prod ? '/api/manualOverride?prod=true' : '/api/manualOverride',
+		{
+			method,
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+		},
+	);
 	if (response.ok) {
 		return undefined;
 	}
@@ -33,16 +37,20 @@ const sendOverride = async (
  * Sets a product's price by hand. The price providers leave it as it is until the expiry
  * date, if there is one, or until the override is removed.
  */
-export const setPriceOverride = (override: {
-	productMerchantUrl: string;
-	currency: Currency;
-	price: number;
-	// When the price stops being kept, as an ISO instant such as 2026-10-31T23:59:59.999Z.
-	expiryDate?: string;
-	// Adds the product to the directory in this region if it doesn't have it yet.
-	region?: Region;
-}) => sendOverride('POST', override);
+export const setPriceOverride = (
+	override: {
+		productMerchantUrl: string;
+		currency: Currency;
+		price: number;
+		// When the price stops being kept, as an ISO instant such as 2026-10-31T23:59:59.999Z.
+		expiryDate?: string;
+		// Adds the product to the directory in this region if it doesn't have it yet.
+		region?: Region;
+	},
+	// In PROD's pricing table, from another stage.
+	prod = false,
+) => sendOverride('POST', override, prod);
 
 /** Removes a manual override, leaving the product unpriced until a price provider prices it. */
-export const removePriceOverride = (productMerchantUrl: string) =>
-	sendOverride('DELETE', { productMerchantUrl });
+export const removePriceOverride = (productMerchantUrl: string, prod = false) =>
+	sendOverride('DELETE', { productMerchantUrl }, prod);

@@ -5,6 +5,7 @@ import {
 	semanticSpacing,
 	semanticTypography,
 } from '@guardian/stand';
+import { AlertBanner } from '@guardian/stand/AlertBanner';
 import { Button } from '@guardian/stand/Button';
 import { InlineMessage } from '@guardian/stand/InlineMessage';
 import { Layout } from '@guardian/stand/Layout';
@@ -15,7 +16,7 @@ import {
 } from '@guardian/stand/utils';
 import { useEffect, useMemo, useState } from 'react';
 import { fetchArticles } from './api/articles';
-import { fetchUserName } from './api/auth';
+import { fetchCanEditProdPrices, fetchUserName } from './api/auth';
 import { ArticleList, ArticleListPlaceholder } from './ArticleList';
 import type { ArticleGroup } from './ArticleList';
 import { headlineInset } from './ArticleRow';
@@ -25,7 +26,7 @@ import { useStarred } from './hooks/useStarred';
 import { useStarredArticles } from './hooks/useStarredArticles';
 import { Pagination } from './Pagination';
 import { PriceEditingContext } from './PriceEditing';
-import { ProdDataContext } from './ProdData';
+import { isProd, ProdDataContext } from './ProdData';
 import { Sidebar } from './Sidebar';
 import { StarredContext } from './Starred';
 import { TopToolbar } from './TopToolbar';
@@ -59,6 +60,13 @@ const messageStyles = css`
 	max-width: 40rem;
 	padding: ${semanticSpacing.stackLg} ${semanticSpacing.stackMd};
 	padding-left: ${headlineInset};
+`;
+
+const forbiddenPageStyles = css`
+	box-sizing: border-box;
+	min-height: 100vh;
+	padding: ${semanticSpacing.stackLg} ${semanticSpacing.stackMd};
+	background-color: #f6f6f6;
 `;
 
 // Below a found article, where the pagination is below the list.
@@ -95,9 +103,14 @@ export const App = () => {
 	// Bumped to fetch the list again after a price is set, keeping the current one on screen
 	// (and its open articles open) until the new one arrives.
 	const [reloads, setReloads] = useState(0);
+	// PROD's prices can only be set from here while their switch is on.
+	const [canEditProdPrices, setCanEditProdPrices] = useState(false);
 	const priceEditing = useMemo(
-		() => ({ canEdit: !prod, onPriceEdit: () => setReloads((n) => n + 1) }),
-		[prod],
+		() => ({
+			canEdit: !prod || canEditProdPrices,
+			onPriceEdit: () => setReloads((n) => n + 1),
+		}),
+		[prod, canEditProdPrices],
 	);
 
 	const { starred, toggleStar } = useStarred(prod);
@@ -128,6 +141,9 @@ export const App = () => {
 		// The name is only shown in the toolbar, so there's nothing to show if this fails.
 		fetchUserName()
 			.then(setUserName)
+			.catch(() => undefined);
+		fetchCanEditProdPrices()
+			.then(setCanEditProdPrices)
 			.catch(() => undefined);
 	}, []);
 
@@ -202,6 +218,8 @@ export const App = () => {
 						</LinkButton>
 					</div>
 				);
+			case 'forbidden':
+				return null;
 			case 'error':
 				return (
 					<div css={messageStyles}>
@@ -291,10 +309,30 @@ export const App = () => {
 		}
 	};
 
+	if (articles.status === 'forbidden') {
+		return (
+			<>
+				<Global styles={globalStyles} />
+				<main css={forbiddenPageStyles}>
+					<InlineMessage level="error">
+						Your account doesn’t have access to the affiliate products tool.
+					</InlineMessage>
+				</main>
+			</>
+		);
+	}
+
 	return (
 		<>
 			<Global styles={globalStyles} />
 			<Layout>
+				{!isProd && (
+					<Layout.AlertBanner>
+						<AlertBanner level="warning" showIcon={true}>
+							You are working in the CODE Environment
+						</AlertBanner>
+					</Layout.AlertBanner>
+				)}
 				<Layout.TopBar>
 					<TopToolbar
 						userName={userName}

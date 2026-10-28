@@ -14,6 +14,7 @@ const allowedEmails = new Set([
 	'ella.jinadu@guardian.co.uk',
 	'jessie.willms@guardian.co.uk',
 	'nick.mokey@guardian.co.uk',
+	'monica.horridge@guardian.co.uk',
 ]);
 
 /** Whether a user may use the tool. Case is ignored, as it is in email addresses. */

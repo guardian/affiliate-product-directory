@@ -5,6 +5,7 @@ import { getConfig } from '@common/config';
 import { DynamoService } from '@common/database-service';
 import { createApp } from './app';
 import { createPandaAuth } from './auth';
+import { createProdPriceEditingSwitch } from './prodPriceEditing';
 import { createSkimlinksDomains } from './skimlinksDomains';
 
 const { stage } = getConfig();
@@ -15,6 +16,7 @@ const clientDir = path.join(process.env.LAMBDA_TASK_ROOT ?? '', 'client');
 // Created once per Lambda instance, so warm invocations reuse the cached Panda key and permissions.
 const auth = createPandaAuth(stage);
 const prodCapiKey = process.env.PROD_CAPI_KEY;
+const editProdPricesParameter = process.env.EDIT_PROD_PRICES_PARAMETER;
 
 export const handler = serverlessExpress({
 	app: createApp({
@@ -29,6 +31,9 @@ export const handler = serverlessExpress({
 				? {
 						capiKey: prodCapiKey,
 						dynamoService: new DynamoService('PROD'),
+						canEditPrices: editProdPricesParameter
+							? createProdPriceEditingSwitch(editProdPricesParameter)
+							: undefined,
 					}
 				: undefined,
 	}),

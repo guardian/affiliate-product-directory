@@ -24,6 +24,7 @@ import {
 import { formatDate } from './formatDate';
 import { formatPrice } from './formatPrice';
 import { PriceEditingContext } from './PriceEditing';
+import { ProdDataContext } from './ProdData';
 import { wrappingBannerTheme } from './style';
 
 /** The link's current currency, or else the one its base price is written in. */
@@ -106,6 +107,7 @@ export const PriceOverrideModal = ({
 	onOpenChange: (isOpen: boolean) => void;
 }) => {
 	const { onPriceEdit, draftRegion } = useContext(PriceEditingContext);
+	const prod = useContext(ProdDataContext);
 	const formId = useId();
 	const isOverridden = link.updatedBy === 'manualOverride';
 	const [currency, setCurrency] = useState<Currency>(defaultCurrency(link));
@@ -157,13 +159,16 @@ export const PriceOverrideModal = ({
 		setSaving(true);
 		setError(undefined);
 		finish(
-			await setPriceOverride({
-				productMerchantUrl: link.url,
-				currency,
-				price: amount,
-				expiryDate: expiry ? endOfDay(expiry).toISOString() : undefined,
-				region: draftRegion,
-			}).catch(() => ({ error: 'The price couldn’t be saved.' })),
+			await setPriceOverride(
+				{
+					productMerchantUrl: link.url,
+					currency,
+					price: amount,
+					expiryDate: expiry ? endOfDay(expiry).toISOString() : undefined,
+					region: draftRegion,
+				},
+				prod,
+			).catch(() => ({ error: 'The price couldn’t be saved.' })),
 		);
 	};
 
@@ -171,7 +176,7 @@ export const PriceOverrideModal = ({
 		setSaving(true);
 		setError(undefined);
 		finish(
-			await removePriceOverride(link.url).catch(() => ({
+			await removePriceOverride(link.url, prod).catch(() => ({
 				error: 'The manual price couldn’t be removed.',
 			})),
 		);

@@ -3,8 +3,8 @@ import { createContext } from 'react';
 
 export interface PriceEditing {
 	/**
-	 * Whether prices can be set by hand. Not when PROD is shown from another stage, as the
-	 * server only writes to its own stage's pricing table.
+	 * Whether prices can be set by hand. Not when PROD is shown from another stage, unless
+	 * the switch for setting PROD's prices from there is on.
 	 */
 	canEdit: boolean;
 	/** Fetches the list again, to show a price that has just been set. */

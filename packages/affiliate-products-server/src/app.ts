@@ -159,6 +159,8 @@ export function createApp({
 		capiKey: string;
 		listDrafts?: ListDrafts;
 		dynamoService: DynamoService;
+		/** Whether PROD's prices may be set by hand from here, which is switched on and off. */
+		canEditPrices?: () => Promise<boolean>;
 	};
 	/** The Skimlinks merchants' domains, for sorting the links in articles. */
 	readSkimlinksDomains: ReadSkimlinksDomains;
@@ -205,6 +207,35 @@ export function createApp({
 		return dataSource;
 	};
 
+	const canEditProdPrices = async () =>
+		(await prod?.canEditPrices?.()) ?? false;
+
+	/**
+	 * The stage's pricing table, or PROD's when asked for with prod=true and its switch is
+	 * on. Undefined, having responded with an error, otherwise.
+	 */
+	const pricingTableToWrite = async (req: Request, res: Response) => {
+		const prodParam = z.literal('true').optional().safeParse(req.query.prod);
+		if (!prodParam.success) {
+			res.status(400).json({ error: 'prod must be true, or left out' });
+			return undefined;
+		}
+		if (!prodParam.data) {
+			return dynamoService;
+		}
+		if (!prod) {
+			res.status(400).json({ error: "PROD's prices can't be set here" });
+			return undefined;
+		}
+		if (!(await canEditProdPrices())) {
+			res
+				.status(403)
+				.json({ error: "Setting PROD's prices from here is switched off" });
+			return undefined;
+		}
+		return prod.dynamoService;
+	};
+
 	app.use(async (req, res, next) => {
 		const isApiRequest = req.path.startsWith('/api/');
 
@@ -239,6 +270,11 @@ export function createApp({
 
 		res.locals.user = user;
 		next();
+	});
+
+	// The switches the client needs, to show what can be done.
+	app.get('/api/switches', async (_req, res) => {
+		res.json({ editProdPrices: await canEditProdPrices() });
 	});
 
 	app.get('/api/auth', async (_req, res) => {
@@ -343,7 +379,11 @@ export function createApp({
 
 	app.post('/api/manualOverride', async (req, res) => {
 		// ToDo: check user has permission to perform this
-		const result = await handleOverrideRequest(req.body, dynamoService);
+		const table = await pricingTableToWrite(req, res);
+		if (!table) {
+			return;
+		}
+		const result = await handleOverrideRequest(req.body, table);
 		if (!result.ok) {
 			return res.status(result.status).json({ error: result.error });
 		}
@@ -352,7 +392,11 @@ export function createApp({
 
 	app.delete('/api/manualOverride', async (req, res) => {
 		// ToDo: check user has permission to perform this
-		const result = await handleOverrideDeleteRequest(req.body, dynamoService);
+		const table = await pricingTableToWrite(req, res);
+		if (!table) {
+			return;
+		}
+		const result = await handleOverrideDeleteRequest(req.body, table);
 		if (!result.ok) {
 			return res.status(result.status).json({ error: result.error });
 		}

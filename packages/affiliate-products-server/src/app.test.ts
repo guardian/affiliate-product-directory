@@ -324,7 +324,7 @@ describe('createApp', () => {
 	describe('with PROD data', () => {
 		const prodProduct: Product = { ...pricedProduct, price: 30 };
 
-		const appWithProd = () => {
+		const appWithProd = (canEditPrices = false) => {
 			const stageTable = pricingTable([pricedProduct]);
 			const prodTable = pricingTable([prodProduct]);
 			const withProd = createApp({
@@ -333,7 +333,11 @@ describe('createApp', () => {
 				stage: 'CODE',
 				capiKey: 'code-key',
 				dynamoService: stageTable,
-				prod: { capiKey: 'prod-key', dynamoService: prodTable },
+				prod: {
+					capiKey: 'prod-key',
+					dynamoService: prodTable,
+					canEditPrices: () => Promise.resolve(canEditPrices),
+				},
 				readSkimlinksDomains,
 			});
 			return { withProd, stageTable, prodTable };
@@ -377,6 +381,88 @@ describe('createApp', () => {
 			).toEqual(withPrice(pricedProduct));
 			expect(stageTable.getProductsByUrl).toHaveBeenCalled();
 			expect(prodTable.getProductsByUrl).not.toHaveBeenCalled();
+		});
+
+		it("sets a price by hand in PROD's pricing table given prod=true, while switched on", async () => {
+			const { withProd, stageTable, prodTable } = appWithProd(true);
+			// Each table's own functions, rather than the ones all DynamoServices share.
+			const tableSpies = (table: typeof stageTable) => {
+				const spies = {
+					getProductPrice: jest.fn<
+						DatabaseServiceModule.DynamoService['getProductPrice']
+					>(() => Promise.resolve(prodProduct)),
+					updateProducts: jest.fn<
+						DatabaseServiceModule.DynamoService['updateProducts']
+					>(() => Promise.resolve({ skipped: [] })),
+				};
+				Object.assign(table, spies);
+				return { get: spies.getProductPrice, update: spies.updateProducts };
+			};
+			const stage = tableSpies(stageTable);
+			const prodSpies = tableSpies(prodTable);
+
+			const response = await request(withProd)
+				.post('/api/manualOverride?prod=true')
+				.send({
+					productMerchantUrl: prodProduct.productMerchantUrl,
+					currency: 'GBP',
+					price: 12,
+				});
+
+			expect(response.status).toBe(204);
+			expect(prodSpies.update).toHaveBeenCalled();
+			expect(stage.get).not.toHaveBeenCalled();
+			expect(stage.update).not.toHaveBeenCalled();
+		});
+
+		it.each(['post', 'delete'] as const)(
+			"refuses to %s PROD's prices by hand while switched off",
+			async (method) => {
+				const { withProd } = appWithProd(false);
+
+				const agent = request(withProd);
+				const response = await agent[method](
+					'/api/manualOverride?prod=true',
+				).send({
+					productMerchantUrl: prodProduct.productMerchantUrl,
+					currency: 'GBP',
+					price: 12,
+				});
+
+				expect(response.status).toBe(403);
+				expect(mockGetProductPrice).not.toHaveBeenCalled();
+				expect(mockUpdateProducts).not.toHaveBeenCalled();
+			},
+		);
+
+		it.each([true, false])(
+			'tells the client whether PROD prices can be set (%s)',
+			async (canEditPrices) => {
+				const response = await request(appWithProd(canEditPrices).withProd).get(
+					'/api/switches',
+				);
+
+				expect(response.body).toEqual({ editProdPrices: canEditPrices });
+			},
+		);
+
+		it('says PROD prices cannot be set where there is no PROD data', async () => {
+			const response = await request(app()).get('/api/switches');
+
+			expect(response.body).toEqual({ editProdPrices: false });
+		});
+
+		it("refuses to set PROD's prices where PROD's data can't be read", async () => {
+			const response = await request(app())
+				.post('/api/manualOverride?prod=true')
+				.send({
+					productMerchantUrl: 'https://shop.example.com/products/123',
+					currency: 'GBP',
+					price: 12,
+				});
+
+			expect(response.status).toBe(400);
+			expect(mockUpdateProducts).not.toHaveBeenCalled();
 		});
 	});
 

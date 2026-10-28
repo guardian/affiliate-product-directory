@@ -141,7 +141,8 @@ export class AffiliateProductDirectory extends GuStack {
 				capiKeyParam,
 				productPricingReadPolicy: productPricingDynamoDBReadPolicy,
 				productPricingWritePolicy: productPricingDynamoDBWritePolicy,
-				// PROD's tool always shows PROD's data. Elsewhere it can also show PROD's, read-only.
+				// PROD's tool always shows PROD's data. Elsewhere it can also show PROD's, and set
+				// its prices by hand while a switch is on.
 				prodData:
 					stage === 'PROD'
 						? undefined
@@ -151,6 +152,7 @@ export class AffiliateProductDirectory extends GuStack {
 									default: `/PROD/${this.stack}/${appName}/capi-key`,
 								}),
 								pricingTableName: `${appName}-pricing-PROD`,
+								editPricesParameterName: `/${stage}/${this.stack}/${appName}/edit-prod-prices`,
 							},
 			});
 		}

@@ -71,7 +71,10 @@ export const composerOriginsForHost = (location: {
 	if (location.hostname === 'affiliate-products.gutools.co.uk') {
 		return composerOriginsForStage('PROD');
 	}
-	if (location.hostname === 'localhost') {
+	if (
+		location.hostname === 'localhost' ||
+		location.hostname === 'affiliate-products.local.dev-gutools.co.uk'
+	) {
 		return [...composerOriginsForStage('CODE'), location.origin];
 	}
 	return composerOriginsForStage('CODE');

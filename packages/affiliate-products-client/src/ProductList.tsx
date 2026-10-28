@@ -21,7 +21,7 @@ import { convertTypographyToEmotionStringStyle } from '@guardian/stand/utils';
 import { useContext, useState } from 'react';
 import { ButtonPreview } from './ButtonPreview';
 import { type Currency, currencySymbol } from './currency';
-import { formatDate } from './formatDate';
+import { formatDate, formatDateTime } from './formatDate';
 import { formatPrice } from './formatPrice';
 import { PriceEditingContext } from './PriceEditing';
 import { PriceOverrideModal } from './PriceOverrideModal';
@@ -227,7 +227,15 @@ const renderLinkRow = (
 								{shortenUrl(url)}
 							</Typography>
 							<Typography element="div" variant="bodyXs" theme={weakText}>
-								{updatedText(link)}
+								<span
+									title={
+										link.updatedAt !== undefined
+											? formatDateTime(link.updatedAt)
+											: undefined
+									}
+								>
+									{updatedText(link)}
+								</span>
 							</Typography>
 						</>
 					)}
@@ -281,7 +289,12 @@ const renderDetailCells = (link: ProductLink) => {
 			<TableCell>
 				{updatedAt !== undefined ? (
 					<div>
-						{formatDate(updatedAt)}
+						<time
+							dateTime={new Date(updatedAt).toISOString()}
+							title={formatDateTime(updatedAt)}
+						>
+							{formatDate(updatedAt)}
+						</time>
 						{updatedBy === 'manualOverride' ? (
 							<Typography element="div" variant="bodyXs" theme={weakText}>
 								set manually
