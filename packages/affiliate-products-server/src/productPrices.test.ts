@@ -12,7 +12,6 @@ import type { ProductPrices } from './types';
 const pricedItem: Product = {
 	productMerchantUrl: 'https://shop.example/a',
 	region: 'GB',
-	createdAt: 1750000000000,
 	currency: 'GBP',
 	price: 24.5,
 	updatedAt: 1760000000000,
@@ -70,7 +69,6 @@ describe('createProductPrices', () => {
 		const unpriced: Product = {
 			productMerchantUrl: 'https://shop.example/c',
 			region: 'US',
-			createdAt: 1750000000000,
 			updatedAt: 1750000000000,
 			updatedBy: 'test',
 		};
