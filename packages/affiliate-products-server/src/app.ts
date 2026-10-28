@@ -9,6 +9,7 @@ import type { ArticlesPage, AuthResponse, User } from '@common/tool-models';
 import { ProductsUpdater } from '@price-update/ProductsUpdater';
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
+import { rateLimit } from 'express-rate-limit';
 import { z } from 'zod';
 import {
 	createCapiArticle,
@@ -168,6 +169,15 @@ export function createApp({
 	const productsUpdater = new ProductsUpdater(dynamoService);
 
 	const app = express();
+	app.use(
+		rateLimit({
+			windowMs: 15 * 60 * 1000,
+			limit: 500,
+			standardHeaders: 'draft-8',
+			legacyHeaders: false,
+			message: { error: 'Too many requests, please try again later.' },
+		}),
+	);
 	// Composer sends the whole body of a draft, which can be bigger than express.json's default.
 	app.use('/api/embed', express.json({ limit: '2mb' }));
 	app.use(express.json());

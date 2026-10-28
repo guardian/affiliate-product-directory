@@ -19,6 +19,7 @@
 		"@codegenie/serverless-express": "5.0.0",
 		"@guardian/pan-domain-node": "1.2.5",
 		"@guardian/permissions-client": "0.0.4",
+		"express-rate-limit": "^8.2.1",
 		"express": "5.2.1",
 		"zod": "4.5.4"
 	},

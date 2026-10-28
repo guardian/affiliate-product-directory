@@ -792,6 +792,19 @@ describe('createApp', () => {
 		},
 	);
 
+	it('rate limits requests', async () => {
+		const limitedApp = app();
+		let response;
+		for (let i = 0; i < 501; i++) {
+			response = await request(limitedApp).get('/api/unknown');
+		}
+
+		expect(response?.status).toBe(429);
+		expect(response?.body).toEqual({
+			error: 'Too many requests, please try again later.',
+		});
+	});
+
 	it.each(['/', '/assets/index-abc123.js'])(
 		'tells logged-in users without access that they lack permission at %s',
 		async (url) => {
