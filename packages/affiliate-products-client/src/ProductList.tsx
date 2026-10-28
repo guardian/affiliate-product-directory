@@ -223,6 +223,7 @@ const renderLinkRow = (
 								variant="bodyXs"
 								theme={weakText}
 								cssOverrides={ellipsisStyles}
+								title={url}
 							>
 								{shortenUrl(url)}
 							</Typography>
@@ -316,15 +317,17 @@ const renderDetailCells = (link: ProductLink) => {
 				)}
 			</TableCell>
 			<TableCell>
-				<Link
-					href={url}
-					target="_blank"
-					rel="noreferrer"
-					typography="bodySm"
-					cssOverrides={ellipsisStyles}
-				>
-					{shortenUrl(url)}
-				</Link>
+				<span title={url}>
+					<Link
+						href={url}
+						target="_blank"
+						rel="noreferrer"
+						typography="bodySm"
+						cssOverrides={ellipsisStyles}
+					>
+						{shortenUrl(url)}
+					</Link>
+				</span>
 			</TableCell>
 		</>
 	);

@@ -11,12 +11,12 @@ type Result =
 
 /**
  * The products in the draft Composer has sent, with their prices in the directory. Links
- * the directory doesn't have yet are marked, as they won't get a live price until the
- * article is published and the next price run has priced them.
+ * not yet in the directory are previewed, and successfully priced products are saved.
  */
 export const embedProducts = async (
 	request: unknown,
 	getProductsByUrl: (urls: string[]) => Promise<StoredProduct[]>,
+	getPreviewPrices: (products: StoredProduct[]) => Promise<StoredProduct[]>,
 ): Promise<Result> => {
 	const message = ComposerContentMessageSchema.safeParse(request);
 	if (!message.success) {
@@ -27,21 +27,34 @@ export const embedProducts = async (
 	const products = extractProducts(
 		composerElementsToBlocks(message.data.elements),
 	);
-	const urls = products.flatMap((product) =>
-		product.links.map((link) => link.url),
-	);
+	const urls = [
+		...new Set(
+			products.flatMap((product) => product.links.map((link) => link.url)),
+		),
+	];
 
 	const stored = urls.length > 0 ? await getProductsByUrl(urls) : [];
+	const storedUrls = new Set(
+		stored.map((product) => product.productMerchantUrl),
+	);
+	const missingUrls = urls.filter((url) => !storedUrls.has(url));
+	const previewed =
+		missingUrls.length > 0
+			? await getPreviewPrices(
+					missingUrls.map((productMerchantUrl) => ({
+						productMerchantUrl,
+						region,
+					})),
+				)
+			: [];
 	const inDirectory = new Set(
-		stored
+		[...stored, ...previewed]
 			.filter((product) => product.removed !== 'true')
 			.map((product) => product.productMerchantUrl),
 	);
-	const prices = await createProductPrices(() => Promise.resolve(stored))(urls);
-
-	// Live prices for the links not in the directory will come from the price providers
-	// here, through ProductsUpdater.getPreviewPrices with this region, once it's decided
-	// whether a preview should write them to the pricing table.
+	const prices = await createProductPrices(() =>
+		Promise.resolve([...stored, ...previewed]),
+	)(urls);
 	return {
 		ok: true,
 		body: {

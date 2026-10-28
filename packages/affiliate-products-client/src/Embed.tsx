@@ -27,9 +27,6 @@ const rootStyles = css`
 
 const weakText = { color: semanticColors.text.weak };
 
-// The room a dialog needs around it, so the iframe is tall enough to show it whole.
-const dialogMargin = 32;
-
 /**
  * Composer's panel of the products in the draft it has open, with their prices in the
  * directory. Composer shows this page in an iframe and sends it the article with
@@ -86,18 +83,12 @@ export const Embed = () => {
 		};
 		window.addEventListener('message', onMessage);
 
-		// The panel's height, or a dialog's with room around it if that's taller, as dialogs
-		// are drawn over the page rather than in it.
+		// Size the iframe to the panel, not the modal. The modal is fixed to the visible
+		// iframe viewport and scrolls there if its contents are taller than the viewport.
 		const root = rootRef.current;
 		let lastHeight = 0;
 		const sendHeight = () => {
-			const dialog = document.querySelector('[role="dialog"]');
-			const height = Math.ceil(
-				Math.max(
-					root?.getBoundingClientRect().height ?? 0,
-					dialog ? dialog.getBoundingClientRect().height + 2 * dialogMargin : 0,
-				),
-			);
+			const height = Math.ceil(root?.getBoundingClientRect().height ?? 0);
 			if (height !== lastHeight) {
 				lastHeight = height;
 				post({
@@ -112,15 +103,6 @@ export const Embed = () => {
 		if (root) {
 			resizeObserver.observe(root);
 		}
-		// Dialogs are added to the end of the body, outside the panel.
-		const dialogObserver = new MutationObserver(() => {
-			const dialog = document.querySelector('[role="dialog"]');
-			if (dialog) {
-				resizeObserver.observe(dialog);
-			}
-			sendHeight();
-		});
-		dialogObserver.observe(document.body, { childList: true, subtree: true });
 
 		// Composer's origin isn't known yet, but ready says nothing about the article.
 		window.parent.postMessage(
@@ -135,7 +117,6 @@ export const Embed = () => {
 		return () => {
 			window.removeEventListener('message', onMessage);
 			resizeObserver.disconnect();
-			dialogObserver.disconnect();
 			request?.abort();
 		};
 	}, []);

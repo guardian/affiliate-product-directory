@@ -423,8 +423,10 @@ export function createApp({
 
 	// The products in a draft that Composer has sent to the embed, with their prices.
 	app.post('/api/embed/products', async (req, res) => {
-		const result = await embedProducts(req.body, (urls) =>
-			dynamoService.getProductsByUrl(urls),
+		const result = await embedProducts(
+			req.body,
+			(urls) => dynamoService.getProductsByUrl(urls),
+			(products) => productsUpdater.getPreviewPrices(products),
 		);
 		if (!result.ok) {
 			return res.status(400).json({ error: result.error });

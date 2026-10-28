@@ -1050,6 +1050,52 @@ describe('createApp', () => {
 	});
 
 	describe('Composer embed', () => {
+		it('previews and saves products that are not in the directory', async () => {
+			const amazonUrl = 'https://www.amazon.co.uk/dp/B0EXAMPLE15';
+			const previewedAmazon: Product = {
+				productMerchantUrl: amazonUrl,
+				region: 'GB',
+				price: 479,
+				currency: 'GBP',
+				updatedAt: 1760000000000,
+				updatedBy: 'amazon',
+			};
+			mockAmazonRefreshPrices.mockImplementationOnce((products) =>
+				Promise.resolve({
+					updated: [
+						{
+							...products[0]!,
+							price: previewedAmazon.price,
+							currency: previewedAmazon.currency,
+							updatedAt: previewedAmazon.updatedAt,
+							updatedBy: previewedAmazon.updatedBy,
+						},
+					],
+					notUpdated: [],
+				}),
+			);
+
+			const response = await request(app())
+				.post('/api/embed/products')
+				.send(composerContentFixture);
+
+			expect(response.status).toBe(200);
+			expect(mockAmazonRefreshPrices).toHaveBeenCalledWith([
+				{ productMerchantUrl: amazonUrl, region: 'GB' },
+			]);
+			expect(mockUpdateProducts).toHaveBeenCalledWith({
+				items: [previewedAmazon],
+			});
+			const body = EmbedProductsResponseSchema.parse(response.body);
+			const amazonLink = body.products
+				.flatMap((product) => product.links)
+				.find((link) => link.url === amazonUrl);
+			expect(amazonLink).toMatchObject({
+				price: 479,
+			});
+			expect(amazonLink?.notInDirectory).toBeUndefined();
+		});
+
 		it('lists the products Composer sends, with their prices', async () => {
 			const response = await request(
 				app(
