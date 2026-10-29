@@ -1,3 +1,4 @@
+import type { Currency } from '../currency';
 /** The result of changing a manual override: undefined if it worked, or what went wrong. */
 export type OverrideResult = { error: string } | undefined;
 
@@ -33,7 +34,7 @@ const sendOverride = async (
  */
 export const setPriceOverride = (override: {
 	productMerchantUrl: string;
-	currency: 'GBP' | 'USD';
+	currency: Currency;
 	price: number;
 	// When the price stops being kept, as an ISO instant such as 2026-10-31T23:59:59.999Z.
 	expiryDate?: string;

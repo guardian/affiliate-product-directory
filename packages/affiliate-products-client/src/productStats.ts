@@ -1,4 +1,5 @@
-import type { Article } from '@common/tool-models';
+import type { Article, ProductLink } from '@common/tool-models';
+import { currencyOfSymbol } from './currency';
 
 /** How many links an article has to its products' retailers. */
 export const retailerLinkCount = (article: Article): number =>
@@ -34,3 +35,40 @@ export const retailersUsed = (article: Article): RetailerUsed[] => {
 		(a, b) => b.links - a.links || a.retailer.localeCompare(b.retailer),
 	);
 };
+
+/** How far a Current price can be from the price written in the article before it's flagged. */
+export const priceGapThreshold = 0.3;
+
+/**
+ * How far a link's Current price is from the price written in the article, as a fraction
+ * of it: 0.31 for 31% higher, -0.66 for 66% lower. Undefined when either is missing, or
+ * they're in different currencies.
+ */
+export const priceDifference = ({
+	basePrice,
+	currency,
+	price,
+}: ProductLink): number | undefined => {
+	if (
+		!basePrice ||
+		basePrice.amount <= 0 ||
+		price === undefined ||
+		currency === undefined ||
+		currencyOfSymbol(basePrice.currencySymbol) !== currency
+	) {
+		return undefined;
+	}
+	return (price - basePrice.amount) / basePrice.amount;
+};
+
+// Prices such as £99 and £128.70 are exactly 30% apart, but their difference in floating
+// point is a little under 0.3, so it's compared with this much room.
+const tolerance = 1e-9;
+
+/** Whether a link's Current price is far enough from the article's to be checked. */
+export const hasPriceGap = (link: ProductLink): boolean =>
+	Math.abs(priceDifference(link) ?? 0) >= priceGapThreshold - tolerance;
+
+/** How many of an article's links have a Current price far from the article's. */
+export const priceGapCount = (article: Article): number =>
+	article.products.flatMap(({ links }) => links).filter(hasPriceGap).length;

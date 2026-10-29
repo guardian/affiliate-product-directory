@@ -1,6 +1,7 @@
 import type { ProductLink } from '@common/tool-models';
 import { css } from '@emotion/react';
 import { semanticColors, semanticSpacing } from '@guardian/stand';
+import { AlertBanner } from '@guardian/stand/AlertBanner';
 import { Button } from '@guardian/stand/Button';
 import { DatePicker } from '@guardian/stand/DatePicker';
 import { InlineMessage } from '@guardian/stand/InlineMessage';
@@ -12,24 +13,28 @@ import { parseDate } from '@internationalized/date';
 import { type FormEvent, useContext, useId, useState } from 'react';
 import type { DateValue } from 'react-aria-components';
 import { removePriceOverride, setPriceOverride } from './api/manualOverride';
+import {
+	cleanPrice,
+	type Currency,
+	currencyOfSymbol,
+	currencySymbol,
+	currencySymbols,
+	isCurrency,
+} from './currency';
 import { formatDate } from './formatDate';
 import { formatPrice } from './formatPrice';
 import { PriceEditingContext } from './PriceEditing';
-
-type Currency = 'GBP' | 'USD';
-
-// The currencies the directory prices products in. Any other is shown by its code.
-const currencySymbols: Record<string, string | undefined> = {
-	GBP: '£',
-	USD: '$',
-};
+import { wrappingBannerTheme } from './style';
 
 /** The link's current currency, or else the one its base price is written in. */
-const defaultCurrency = ({ currency, basePrice }: ProductLink): Currency => {
-	if (currency === 'GBP' || currency === 'USD') {
-		return currency;
-	}
-	return basePrice?.currencySymbol === '$' ? 'USD' : 'GBP';
+const defaultCurrency = ({ currency, basePrice }: ProductLink): Currency =>
+	isCurrency(currency)
+		? currency
+		: ((basePrice && currencyOfSymbol(basePrice.currencySymbol)) ?? 'GBP');
+
+const sectionNames: Record<Currency, string> = {
+	GBP: 'The Filter UK',
+	USD: 'The Filter US',
 };
 
 /** Today as a date such as 2026-10-16, in the user's time zone. */
@@ -89,11 +94,14 @@ const modalTheme = {
 export const PriceOverrideModal = ({
 	link,
 	productName,
+	articleCurrency,
 	isOpen,
 	onOpenChange,
 }: {
 	link: ProductLink;
 	productName?: string;
+	/** The currency the article's section is priced in, to warn when another is chosen. */
+	articleCurrency?: Currency;
 	isOpen: boolean;
 	onOpenChange: (isOpen: boolean) => void;
 }) => {
@@ -104,7 +112,18 @@ export const PriceOverrideModal = ({
 	const [price, setPrice] = useState(
 		link.price !== undefined ? String(link.price) : '',
 	);
+	// What was taken out of the price as it was typed or pasted, such as "Removed £".
+	const [cleaned, setCleaned] = useState<string>();
 	const [expiry, setExpiry] = useState<DateValue | null>(savedExpiry(link));
+
+	const changePrice = (text: string) => {
+		const { value, removed, currency: typedCurrency } = cleanPrice(text);
+		setPrice(value);
+		setCleaned(removed);
+		if (typedCurrency) {
+			setCurrency(typedCurrency);
+		}
+	};
 	const [submitted, setSubmitted] = useState(false);
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string>();
@@ -192,7 +211,7 @@ export const PriceOverrideModal = ({
 									: 'no price'}
 								{' · '}Current:{' '}
 								{link.currency !== undefined && link.price !== undefined
-									? `${currencySymbols[link.currency] ?? `${link.currency} `}${formatPrice(link.price)}${isOverridden ? ', set by hand' : link.updatedBy ? ` by ${link.updatedBy}` : ''}`
+									? `${currencySymbol(link.currency)}${formatPrice(link.price)}${isOverridden ? ', set by hand' : link.updatedBy ? ` by ${link.updatedBy}` : ''}`
 									: 'no price'}
 								{isOverridden &&
 									link.expiresAt !== undefined &&
@@ -205,7 +224,7 @@ export const PriceOverrideModal = ({
 									label="Currency"
 									selectedKey={currency}
 									onSelectionChange={(key) => {
-										if (key === 'GBP' || key === 'USD') {
+										if (isCurrency(key)) {
 											setCurrency(key);
 										}
 									}}
@@ -217,13 +236,26 @@ export const PriceOverrideModal = ({
 								<TextInput
 									label="Price"
 									value={price}
-									onChange={setPrice}
+									onChange={changePrice}
+									description={cleaned}
 									inputMode="decimal"
 									autoFocus
 									error={submitted ? priceError : undefined}
 									fluid
 								/>
 							</div>
+							{articleCurrency && currency !== articleCurrency && (
+								<AlertBanner
+									level="warning"
+									showIcon={true}
+									icon="warning"
+									theme={wrappingBannerTheme}
+								>
+									This article is in {sectionNames[articleCurrency]}, where
+									prices are in {currencySymbols[articleCurrency]}. Check the
+									currency before saving.
+								</AlertBanner>
+							)}
 							<DatePicker
 								label="Keep until (optional)"
 								description="The price providers won’t change this price until then. Leave it empty to keep it until it’s removed."

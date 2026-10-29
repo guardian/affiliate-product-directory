@@ -5,6 +5,7 @@ import {
 	semanticSpacing,
 	semanticTypography,
 } from '@guardian/stand';
+import { Icon } from '@guardian/stand/Icon';
 import { IconButton } from '@guardian/stand/IconButton';
 import { Link } from '@guardian/stand/Link';
 import {
@@ -19,10 +20,13 @@ import { Typography } from '@guardian/stand/Typography';
 import { convertTypographyToEmotionStringStyle } from '@guardian/stand/utils';
 import { useContext, useState } from 'react';
 import { ButtonPreview } from './ButtonPreview';
+import { type Currency, currencySymbol } from './currency';
 import { formatDate } from './formatDate';
 import { formatPrice } from './formatPrice';
 import { PriceEditingContext } from './PriceEditing';
 import { PriceOverrideModal } from './PriceOverrideModal';
+import { hasPriceGap, priceDifference } from './productStats';
+import { priceGapAccent } from './style';
 
 // The columns are fixed so that a long URL is cut short rather than stretching its column.
 const columns = { sm: 'minmax(0, 1fr) 5.5rem 7rem 6.5rem 30%' };
@@ -56,11 +60,25 @@ const ellipsisStyles = css`
 /** A URL as shown in the list: without its scheme or www, as those only take up room. */
 const shortenUrl = (url: string) => url.replace(/^https?:\/\/(www\.)?/, '');
 
-// The currencies the directory prices products in. Any other is shown by its code.
-const currencySymbols: Record<string, string> = { GBP: '£', USD: '$' };
-
 const formatCurrentPrice = (currency: string, price: number) =>
-	`${currencySymbols[currency] ?? `${currency} `}${formatPrice(price)}`;
+	`${currencySymbol(currency)}${formatPrice(price)}`;
+
+const gapCellStyles = css`
+	${numberStyles};
+	background-color: ${priceGapAccent.tint};
+`;
+
+const gapPriceStyles = css`
+	display: inline-flex;
+	align-items: center;
+	gap: ${semanticSpacing.stackXxs};
+`;
+
+const gapTheme = { color: priceGapAccent.text };
+
+/** How far a price is from the article's, such as "31% higher". */
+const describeDifference = (difference: number) =>
+	`${Math.round(Math.abs(difference) * 100)}% ${difference > 0 ? 'higher' : 'lower'}`;
 
 const Missing = ({ children }: { children: string }) => (
 	<Typography variant="bodySm" theme={weakText}>
@@ -99,9 +117,11 @@ const plainIconStyles = css`
 const CurrentPrice = ({
 	link,
 	productName,
+	articleCurrency,
 }: {
 	link: ProductLink;
 	productName?: string;
+	articleCurrency?: Currency;
 }) => {
 	const { canEdit } = useContext(PriceEditingContext);
 	const [editing, setEditing] = useState(false);
@@ -133,6 +153,7 @@ const CurrentPrice = ({
 				<PriceOverrideModal
 					link={link}
 					productName={productName}
+					articleCurrency={articleCurrency}
 					isOpen={editing}
 					onOpenChange={setEditing}
 				/>
@@ -141,8 +162,14 @@ const CurrentPrice = ({
 	);
 };
 
-const renderLinkRow = (link: ProductLink, productName?: string) => {
+const renderLinkRow = (
+	link: ProductLink,
+	productName: string | undefined,
+	articleCurrency: Currency | undefined,
+) => {
 	const { url, label, retailer, basePrice, updatedAt, updatedBy } = link;
+	const difference = priceDifference(link);
+	const gap = hasPriceGap(link);
 	return (
 		<TableRow key={url} id={url}>
 			<TableCell>
@@ -172,8 +199,33 @@ const renderLinkRow = (link: ProductLink, productName?: string) => {
 					<Missing>—</Missing>
 				)}
 			</TableCell>
-			<TableCell cssOverrides={numberStyles}>
-				<CurrentPrice link={link} productName={productName} />
+			<TableCell cssOverrides={gap ? gapCellStyles : numberStyles}>
+				{gap && difference !== undefined ? (
+					<div>
+						<span css={gapPriceStyles}>
+							<Icon
+								symbol="warning"
+								size="xs"
+								fill={priceGapAccent.icon}
+								alt="Far from the article’s price"
+							/>
+							<CurrentPrice
+								link={link}
+								productName={productName}
+								articleCurrency={articleCurrency}
+							/>
+						</span>
+						<Typography element="div" variant="bodyBoldXs" theme={gapTheme}>
+							{describeDifference(difference)}
+						</Typography>
+					</div>
+				) : (
+					<CurrentPrice
+						link={link}
+						productName={productName}
+						articleCurrency={articleCurrency}
+					/>
+				)}
 			</TableCell>
 			<TableCell>
 				{updatedAt !== undefined ? (
@@ -213,7 +265,13 @@ const renderLinkRow = (link: ProductLink, productName?: string) => {
 };
 
 // Under the panel's PRODUCTS heading, which is an h4.
-const ProductTable = ({ product: { name, links } }: { product: Product }) => (
+const ProductTable = ({
+	product: { name, links },
+	articleCurrency,
+}: {
+	product: Product;
+	articleCurrency?: Currency;
+}) => (
 	<div css={productStyles}>
 		<h5 css={productNameStyles}>
 			{name ?? (
@@ -236,7 +294,9 @@ const ProductTable = ({ product: { name, links } }: { product: Product }) => (
 				<TableColumnHeader>Updated</TableColumnHeader>
 				<TableColumnHeader>Link</TableColumnHeader>
 			</TableHeader>
-			<TableBody>{links.map((link) => renderLinkRow(link, name))}</TableBody>
+			<TableBody>
+				{links.map((link) => renderLinkRow(link, name, articleCurrency))}
+			</TableBody>
 		</Table>
 	</div>
 );
@@ -245,7 +305,14 @@ const ProductTable = ({ product: { name, links } }: { product: Product }) => (
  * The products found in an article, each with its links to the retailers that sell it,
  * the price each link had when it was written and its latest price in the directory.
  */
-export const ProductList = ({ products }: { products: Product[] }) => {
+export const ProductList = ({
+	products,
+	articleCurrency,
+}: {
+	products: Product[];
+	/** The currency the article's section is priced in, to warn when a price is set in another. */
+	articleCurrency?: Currency;
+}) => {
 	if (products.length === 0) {
 		return (
 			<Typography element="p" variant="bodySm" theme={weakText}>
@@ -258,7 +325,11 @@ export const ProductList = ({ products }: { products: Product[] }) => {
 		<>
 			{products.map((product) => (
 				// A URL is only in one product, so the first identifies it.
-				<ProductTable key={product.links[0]?.url} product={product} />
+				<ProductTable
+					key={product.links[0]?.url}
+					product={product}
+					articleCurrency={articleCurrency}
+				/>
 			))}
 		</>
 	);
