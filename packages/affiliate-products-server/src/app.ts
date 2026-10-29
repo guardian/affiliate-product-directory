@@ -167,6 +167,12 @@ export function createApp({
 	const productsUpdater = new ProductsUpdater(dynamoService);
 
 	const app = express();
+	// The body must be parsed before any async middleware. In Lambda, serverless-express's
+	// request looks finished after a tick, so express.json would skip it, leaving req.body
+	// as the raw Buffer.
+	// Composer sends the whole body of a draft, which can be bigger than express.json's default.
+	app.use('/api/embed', express.json({ limit: '2mb' }));
+	app.use(express.json());
 	app.use(
 		rateLimit({
 			windowMs: 15 * 60 * 1000,
@@ -176,9 +182,6 @@ export function createApp({
 			message: { error: 'Too many requests, please try again later.' },
 		}),
 	);
-	// Composer sends the whole body of a draft, which can be bigger than express.json's default.
-	app.use('/api/embed', express.json({ limit: '2mb' }));
-	app.use(express.json());
 
 	// Only Composer may show the embed in a frame.
 	const embedFrameAncestors = `frame-ancestors ${composerOriginsForStage(stage).join(' ')}`;
