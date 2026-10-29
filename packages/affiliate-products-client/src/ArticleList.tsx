@@ -13,7 +13,6 @@ import {
 	articleListContainer,
 	ArticleRow,
 	headlineInset,
-	numberColumnStyles,
 } from './ArticleRow';
 import { draftAccent } from './style';
 
@@ -23,14 +22,15 @@ const listStyles = css`
 	padding: 0;
 `;
 
+// Bigger than the rows' text, in Stand's condensed heading so the labels fit their columns.
+// A label too long for its column, such as "Retailer links", wraps onto a second line.
 const headerStyles = css`
 	${articleColumnsStyles};
-	${convertTypographyToEmotionStringStyle(semanticTypography.headingXs)};
+	${convertTypographyToEmotionStringStyle(semanticTypography.headingCompactMd)};
 	min-height: 3rem;
 	border-bottom: 1px solid ${semanticColors.border.strong};
 	background-color: ${semanticColors.bg.raisedLevel2};
 	color: ${semanticColors.text.weak};
-	white-space: nowrap;
 `;
 
 const ArticleListHeader = () => (
@@ -39,11 +39,7 @@ const ArticleListHeader = () => (
 		<span>Headline</span>
 		<span data-column="byline">Byline</span>
 		<span data-column="open-in">Open in</span>
-		<span>Section</span>
-		<span css={numberColumnStyles}>Products</span>
-		<span data-column="retailer-links" css={numberColumnStyles}>
-			Retailer links
-		</span>
+		<span>Products</span>
 		<span data-column="published">Published</span>
 	</div>
 );
@@ -211,12 +207,7 @@ export const ArticleListPlaceholder = () => (
 				</span>
 				<span data-column="byline" css={barStyles('70%')} />
 				<span data-column="open-in" css={barStyles('5rem')} />
-				<span css={barStyles('5rem', '1.1rem')} />
-				<span css={[numberColumnStyles, barStyles('1.5rem')]} />
-				<span
-					data-column="retailer-links"
-					css={[numberColumnStyles, barStyles('1.5rem')]}
-				/>
+				<span css={barStyles('5rem')} />
 				<span data-column="published" css={barStyles('5rem')} />
 			</div>
 		))}

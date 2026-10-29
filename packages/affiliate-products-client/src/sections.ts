@@ -12,8 +12,8 @@ const newsRed = '#C70000';
 
 /** How each section is shown in the sidebar filter and on article rows. */
 export const sections: Record<Section, SectionDisplay> = {
-	thefilter: { name: 'The Filter UK', colour: brandBlue },
-	'thefilter-us': { name: 'The Filter US', colour: newsRed },
+	thefilter: { name: 'UK', colour: brandBlue },
+	'thefilter-us': { name: 'US', colour: newsRed },
 };
 
 /** How to show an article's section, falling back to its ID if it isn't one the tool lists. */

@@ -62,7 +62,7 @@ const domain = (url: URL) => url.hostname.replace(/^www\./, '');
 const goesThroughSkimlinks = (url: URL, skimlinksDomains: Set<string>) =>
 	isSkimresources(url) || skimlinksDomains.has(domain(url));
 
-type LinkKind = keyof LinkCounts;
+export type LinkKind = keyof LinkCounts;
 
 /**
  * Sorts a link as the Affiliate Link Counter bookmarklet sorts the links on a rendered
@@ -70,7 +70,7 @@ type LinkKind = keyof LinkCounts;
  * otherwise a Skimlinks link if it goes through Skimlinks; and otherwise another external
  * link if it's to a web page off the Guardian's sites. Undefined for any other link.
  */
-const linkKind = (
+export const linkKind = (
 	link: string,
 	skimlinksDomains: Set<string>,
 ): LinkKind | undefined => {
