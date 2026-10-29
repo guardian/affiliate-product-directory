@@ -24,6 +24,13 @@ const allowedEmails = new Set([
 	// US Editorial team
 	'jessie.willms@guardian.co.uk',
 	'nick.mokey@guardian.co.uk',
+	'karen.yuan@guardian.co.uk',
+	'lauren.gould@guardian.co.uk',
+	'jeffrey.vancamp@guardian.co.uk', // contractor
+	'megan.reynolds.contractor@guardian.co.uk', // contractor
+	'david.strauss@guardian.co.uk',
+	'alastair.gee@guardian.co.uk',
+	'tracy.allison@guardian.co.uk',
 ]);
 
 /** Whether a user may use the tool. Case is ignored, as it is in email addresses. */
