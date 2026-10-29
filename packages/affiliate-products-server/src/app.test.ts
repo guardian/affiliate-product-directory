@@ -2,25 +2,40 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import type * as DatabaseServiceModule from '@common/database-service';
-import { livePricingAllowListIds } from '@common/livePricing';
+import { EmbedProductsResponseSchema } from '@common/embed';
+import type { Region } from '@common/models';
 import type { Product } from '@common/models';
 import { ArticlesPageSchema, AuthResponseSchema } from '@common/tool-models';
 import type { User } from '@common/tool-models';
 import { jest } from '@jest/globals';
+import { mockAmazonRefreshPrices } from '@mocks/AmazonPriceProviderMock';
+import { composerContentFixture } from '@mocks/ComposerContentFixture';
 import {
 	mockGetProductPrice,
 	mockUpdateProducts,
 } from '@mocks/DatabaseServiceMock';
+import { mockShopifyRefreshPrices } from '@mocks/ShopifyPriceProviderMock';
+import { mockSkimlinksRefreshPrices } from '@mocks/SkimlinksPriceProviderMock';
 import request from 'supertest';
-import { createApp } from './app';
+import type * as AppModule from './app';
 import type { Auth, ListDrafts } from './types';
 
 let DynamoService: typeof DatabaseServiceModule.DynamoService;
+let createApp: typeof AppModule.createApp;
 
 describe('createApp', () => {
 	let clientDir: string;
 	beforeEach(() => {
 		jest.clearAllMocks();
+		[
+			mockAmazonRefreshPrices,
+			mockShopifyRefreshPrices,
+			mockSkimlinksRefreshPrices,
+		].forEach((mock) =>
+			mock.mockImplementation((products) =>
+				Promise.resolve({ updated: [], notUpdated: products }),
+			),
+		);
 	});
 
 	beforeAll(async () => {
@@ -32,6 +47,7 @@ describe('createApp', () => {
 			'console.log("app");',
 		);
 		({ DynamoService } = await import('@common/database-service'));
+		({ createApp } = await import('./app'));
 	});
 
 	afterAll(() => {
@@ -139,7 +155,6 @@ describe('createApp', () => {
 	const pricedProduct: Product = {
 		productMerchantUrl: 'https://shop.example/a-product',
 		region: 'GB',
-		createdAt: 1750000000000,
 		currency: 'GBP',
 		price: 24.5,
 		updatedAt: 1760000000000,
@@ -308,7 +323,7 @@ describe('createApp', () => {
 	describe('with PROD data', () => {
 		const prodProduct: Product = { ...pricedProduct, price: 30 };
 
-		const appWithProd = () => {
+		const appWithProd = (canEditPrices = false) => {
 			const stageTable = pricingTable([pricedProduct]);
 			const prodTable = pricingTable([prodProduct]);
 			const withProd = createApp({
@@ -317,7 +332,11 @@ describe('createApp', () => {
 				stage: 'CODE',
 				capiKey: 'code-key',
 				dynamoService: stageTable,
-				prod: { capiKey: 'prod-key', dynamoService: prodTable },
+				prod: {
+					capiKey: 'prod-key',
+					dynamoService: prodTable,
+					canEditPrices: () => Promise.resolve(canEditPrices),
+				},
 				readSkimlinksDomains,
 			});
 			return { withProd, stageTable, prodTable };
@@ -361,6 +380,88 @@ describe('createApp', () => {
 			).toEqual(withPrice(pricedProduct));
 			expect(stageTable.getProductsByUrl).toHaveBeenCalled();
 			expect(prodTable.getProductsByUrl).not.toHaveBeenCalled();
+		});
+
+		it("sets a price by hand in PROD's pricing table given prod=true, while switched on", async () => {
+			const { withProd, stageTable, prodTable } = appWithProd(true);
+			// Each table's own functions, rather than the ones all DynamoServices share.
+			const tableSpies = (table: typeof stageTable) => {
+				const spies = {
+					getProductPrice: jest.fn<
+						DatabaseServiceModule.DynamoService['getProductPrice']
+					>(() => Promise.resolve(prodProduct)),
+					updateProducts: jest.fn<
+						DatabaseServiceModule.DynamoService['updateProducts']
+					>(() => Promise.resolve({ skipped: [] })),
+				};
+				Object.assign(table, spies);
+				return { get: spies.getProductPrice, update: spies.updateProducts };
+			};
+			const stage = tableSpies(stageTable);
+			const prodSpies = tableSpies(prodTable);
+
+			const response = await request(withProd)
+				.post('/api/manualOverride?prod=true')
+				.send({
+					productMerchantUrl: prodProduct.productMerchantUrl,
+					currency: 'GBP',
+					price: 12,
+				});
+
+			expect(response.status).toBe(204);
+			expect(prodSpies.update).toHaveBeenCalled();
+			expect(stage.get).not.toHaveBeenCalled();
+			expect(stage.update).not.toHaveBeenCalled();
+		});
+
+		it.each(['post', 'delete'] as const)(
+			"refuses to %s PROD's prices by hand while switched off",
+			async (method) => {
+				const { withProd } = appWithProd(false);
+
+				const agent = request(withProd);
+				const response = await agent[method](
+					'/api/manualOverride?prod=true',
+				).send({
+					productMerchantUrl: prodProduct.productMerchantUrl,
+					currency: 'GBP',
+					price: 12,
+				});
+
+				expect(response.status).toBe(403);
+				expect(mockGetProductPrice).not.toHaveBeenCalled();
+				expect(mockUpdateProducts).not.toHaveBeenCalled();
+			},
+		);
+
+		it.each([true, false])(
+			'tells the client whether PROD prices can be set (%s)',
+			async (canEditPrices) => {
+				const response = await request(appWithProd(canEditPrices).withProd).get(
+					'/api/switches',
+				);
+
+				expect(response.body).toEqual({ editProdPrices: canEditPrices });
+			},
+		);
+
+		it('says PROD prices cannot be set where there is no PROD data', async () => {
+			const response = await request(app()).get('/api/switches');
+
+			expect(response.body).toEqual({ editProdPrices: false });
+		});
+
+		it("refuses to set PROD's prices where PROD's data can't be read", async () => {
+			const response = await request(app())
+				.post('/api/manualOverride?prod=true')
+				.send({
+					productMerchantUrl: 'https://shop.example.com/products/123',
+					currency: 'GBP',
+					price: 12,
+				});
+
+			expect(response.status).toBe(400);
+			expect(mockUpdateProducts).not.toHaveBeenCalled();
 		});
 	});
 
@@ -455,10 +556,14 @@ describe('createApp', () => {
 			expect(response.status).toBe(200);
 			expect(ArticlesPageSchema.parse(response.body).drafts).toBeUndefined();
 			expect(listDrafts).not.toHaveBeenCalled();
-			// CODE's articles on frontend's list, as none of CAPI's are flagged.
-			expect(capiRequests().at(-1)?.searchParams.get('ids')).toBe(
-				[...livePricingAllowListIds('CODE')].join(','),
-			);
+			// None of CAPI's articles are flagged, so only their fields are read.
+			expect(ArticlesPageSchema.parse(response.body).articles).toEqual([]);
+			expect(
+				capiRequests().every(
+					(search) =>
+						search.searchParams.get('show-fields') === 'livePricingEnabled',
+				),
+			).toBe(true);
 		});
 
 		it('rejects a livePricing other than true', async () => {
@@ -690,6 +795,19 @@ describe('createApp', () => {
 		},
 	);
 
+	it('rate limits requests', async () => {
+		const limitedApp = app();
+		let response;
+		for (let i = 0; i < 501; i++) {
+			response = await request(limitedApp).get('/api/unknown');
+		}
+
+		expect(response?.status).toBe(429);
+		expect(response?.body).toEqual({
+			error: 'Too many requests, please try again later.',
+		});
+	});
+
 	it.each(['/', '/assets/index-abc123.js'])(
 		'tells logged-in users without access that they lack permission at %s',
 		async (url) => {
@@ -761,7 +879,6 @@ describe('createApp', () => {
 			productMerchantUrl: 'https://shop.example.com/products/123',
 			currency: 'GBP',
 			price: 10,
-			createdAt: 1,
 			region: 'GB',
 			updatedAt: 1,
 			updatedBy: 'shopify',
@@ -800,6 +917,63 @@ describe('createApp', () => {
 		}
 	});
 
+	it("adds a draft's product to the directory with the price set for it", async () => {
+		mockGetProductPrice.mockResolvedValueOnce(undefined);
+		mockUpdateProducts.mockResolvedValueOnce({ skipped: [] });
+
+		const response = await request(app()).post('/api/manualOverride').send({
+			productMerchantUrl: 'https://shop.example.com/products/new',
+			currency: 'USD',
+			price: 30,
+			region: 'US',
+		});
+
+		expect(response.status).toBe(204);
+		expect(mockUpdateProducts).toHaveBeenCalledWith({
+			items: [
+				expect.objectContaining({
+					productMerchantUrl: 'https://shop.example.com/products/new',
+					region: 'US',
+					price: 30,
+					currency: 'USD',
+					updatedBy: 'manualOverride',
+				}),
+			],
+		});
+	});
+
+	it("doesn't add a product without its region", async () => {
+		mockGetProductPrice.mockResolvedValueOnce(undefined);
+
+		const response = await request(app()).post('/api/manualOverride').send({
+			productMerchantUrl: 'https://shop.example.com/products/new',
+			currency: 'GBP',
+			price: 30,
+		});
+
+		expect(response.status).toBe(404);
+		expect(mockUpdateProducts).not.toHaveBeenCalled();
+	});
+
+	it("keeps a stored product's region when a region is sent", async () => {
+		mockGetProductPrice.mockResolvedValueOnce({
+			productMerchantUrl: 'https://shop.example.com/products/123',
+			region: 'GB',
+		});
+		mockUpdateProducts.mockResolvedValueOnce({ skipped: [] });
+
+		await request(app()).post('/api/manualOverride').send({
+			productMerchantUrl: 'https://shop.example.com/products/123',
+			currency: 'GBP',
+			price: 30,
+			region: 'US',
+		});
+
+		expect(mockUpdateProducts).toHaveBeenCalledWith({
+			items: [expect.objectContaining({ region: 'GB', price: 30 })],
+		});
+	});
+
 	it('rejects malformed manual override input', async () => {
 		const response = await request(app()).post('/api/manualOverride').send({
 			productMerchantUrl: 'https://shop.example.com/products/123',
@@ -824,5 +998,175 @@ describe('createApp', () => {
 		expect(response.status).toBe(401);
 		expect(mockGetProductPrice).not.toHaveBeenCalled();
 		expect(mockUpdateProducts).not.toHaveBeenCalled();
+	});
+
+	const previewRequest = {
+		products: [
+			{
+				productMerchantUrl: 'https://amazon.com/dp/123',
+				region: 'GB',
+			},
+		],
+	};
+
+	it('returns preview prices', async () => {
+		const pricedProduct = {
+			productMerchantUrl: 'https://amazon.com/dp/123',
+			region: 'GB' as Region,
+			price: 12.5,
+			currency: 'GBP',
+			updatedBy: 'amazon',
+		};
+		mockAmazonRefreshPrices.mockResolvedValueOnce({
+			updated: [pricedProduct],
+			notUpdated: [],
+		});
+		mockUpdateProducts.mockResolvedValueOnce({ skipped: [] });
+
+		const response = await request(app())
+			.post('/api/preview')
+			.send(previewRequest);
+
+		expect(response.status).toBe(200);
+		expect(response.body).toEqual([pricedProduct]);
+		expect(mockAmazonRefreshPrices).toHaveBeenCalledWith(
+			previewRequest.products,
+		);
+		expect(mockUpdateProducts).toHaveBeenCalledWith({
+			items: [pricedProduct],
+		});
+	});
+
+	it('returns 400 for malformed preview input', async () => {
+		const response = await request(app())
+			.post('/api/preview')
+			.send({
+				products: [
+					{ productMerchantUrl: 'https://amazon.com/dp/123', region: 'XX' },
+				],
+			});
+
+		expect(response.status).toBe(400);
+		expect(mockAmazonRefreshPrices).not.toHaveBeenCalled();
+		expect(mockShopifyRefreshPrices).not.toHaveBeenCalled();
+		expect(mockUpdateProducts).not.toHaveBeenCalled();
+	});
+
+	describe('Composer embed', () => {
+		it('previews and saves products that are not in the directory', async () => {
+			const amazonUrl = 'https://www.amazon.co.uk/dp/B0EXAMPLE15';
+			const previewedAmazon: Product = {
+				productMerchantUrl: amazonUrl,
+				region: 'GB',
+				price: 479,
+				currency: 'GBP',
+				updatedAt: 1760000000000,
+				updatedBy: 'amazon',
+			};
+			mockAmazonRefreshPrices.mockImplementationOnce((products) =>
+				Promise.resolve({
+					updated: [
+						{
+							...products[0]!,
+							price: previewedAmazon.price,
+							currency: previewedAmazon.currency,
+							updatedAt: previewedAmazon.updatedAt,
+							updatedBy: previewedAmazon.updatedBy,
+						},
+					],
+					notUpdated: [],
+				}),
+			);
+
+			const response = await request(app())
+				.post('/api/embed/products')
+				.send(composerContentFixture);
+
+			expect(response.status).toBe(200);
+			expect(mockAmazonRefreshPrices).toHaveBeenCalledWith([
+				{ productMerchantUrl: amazonUrl, region: 'GB' },
+			]);
+			expect(mockUpdateProducts).toHaveBeenCalledWith({
+				items: [previewedAmazon],
+			});
+			const body = EmbedProductsResponseSchema.parse(response.body);
+			const amazonLink = body.products
+				.flatMap((product) => product.links)
+				.find((link) => link.url === amazonUrl);
+			expect(amazonLink).toMatchObject({
+				price: 479,
+			});
+			expect(amazonLink?.notInDirectory).toBeUndefined();
+		});
+
+		it('lists the products Composer sends, with their prices', async () => {
+			const response = await request(
+				app(
+					loggedIn,
+					pricingTable([
+						{
+							productMerchantUrl:
+								'https://www.argos.co.uk/product/example-shark',
+							region: 'GB',
+							price: 179,
+							currency: 'GBP',
+						},
+					]),
+				),
+			)
+				.post('/api/embed/products')
+				.send(composerContentFixture);
+
+			expect(response.status).toBe(200);
+			const body = EmbedProductsResponseSchema.parse(response.body);
+			expect(body.region).toBe('GB');
+			expect(body.products).toHaveLength(2);
+		});
+
+		it('rejects a message it can not read', async () => {
+			const response = await request(app())
+				.post('/api/embed/products')
+				.send({ ...composerContentFixture, version: 2 });
+
+			expect(response.status).toBe(400);
+		});
+
+		it("tells a logged-out embed it isn't logged in", async () => {
+			const response = await request(app(loggedOut))
+				.post('/api/embed/products')
+				.send(composerContentFixture);
+
+			expect(response.status).toBe(401);
+		});
+
+		it('lets only Composer frame the embed', async () => {
+			const response = await request(app()).get('/embed');
+
+			expect(response.status).toBe(200);
+			expect(response.headers['content-security-policy']).toBe(
+				'frame-ancestors https://composer.code.dev-gutools.co.uk https://composer.local.dev-gutools.co.uk',
+			);
+		});
+
+		it("doesn't limit framing anywhere else", async () => {
+			const response = await request(app()).get('/');
+
+			expect(response.headers['content-security-policy']).toBeUndefined();
+		});
+
+		it('links a logged-out editor to login in a new tab, rather than redirecting the frame', async () => {
+			const response = await request(app(loggedOut))
+				.get('/embed')
+				.set('Host', 'affiliate-products.code.dev-gutools.co.uk');
+
+			expect(response.status).toBe(401);
+			expect(response.headers['content-security-policy']).toMatch(
+				/^frame-ancestors /,
+			);
+			expect(response.text).toContain('target="_blank"');
+			expect(response.text).toContain(
+				`https://login.example.com/login?returnUrl=${encodeURIComponent('https://affiliate-products.code.dev-gutools.co.uk/')}`,
+			);
+		});
 	});
 });

@@ -2,11 +2,13 @@ import path from 'path';
 import { articlePath } from '@common/articlePath';
 import { getCapiBaseUrl } from '@common/config';
 import type { DynamoService } from '@common/database-service';
-import { livePricingAllowListIds } from '@common/livePricing';
+import { composerOriginsForStage } from '@common/embed';
 import { ArticleStatusSchema, SectionSchema } from '@common/tool-models';
 import type { ArticlesPage, AuthResponse, User } from '@common/tool-models';
+import { ProductsUpdater } from '@price-update/ProductsUpdater';
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
+import { rateLimit } from 'express-rate-limit';
 import { z } from 'zod';
 import {
 	createCapiArticle,
@@ -14,11 +16,13 @@ import {
 	createCapiArticles,
 	getComposerBaseUrl,
 } from './capi';
+import { embedProducts } from './embedProducts';
 import { linksCsv, shortTitle } from './linkCounts';
 import {
 	handleOverrideDeleteRequest,
 	handleOverrideRequest,
 } from './manual-override/manualOverrideHandlers';
+import { handlePreviewRequest } from './preview/previewRequestHandler';
 import {
 	attachProductPrices,
 	createProductPrices,
@@ -51,7 +55,6 @@ const readStage = ({
 		baseUrl: getCapiBaseUrl(stage),
 		apiKey: capiKey,
 		composerBaseUrl: getComposerBaseUrl(stage),
-		livePricingIds: livePricingAllowListIds(stage),
 		readSkimlinksDomains,
 	};
 	return {
@@ -109,6 +112,26 @@ const readDrafts = async (
 	}
 };
 
+const escapeHtml = (text: string) =>
+	text.replace(
+		/[&<>"]/g,
+		(char) =>
+			({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[char] ?? char,
+	);
+
+/**
+ * What the embed shows to an editor who isn't logged in. Panda's login page can't be
+ * shown in Composer's iframe, so it's opened in a new tab instead.
+ */
+const embedLoginPage = (loginUrl: string) => `<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Log in to the affiliate products tool</title></head>
+<body style="font-family: system-ui, sans-serif; font-size: 14px; margin: 12px;">
+<p><a href="${escapeHtml(loginUrl)}" target="_blank" rel="noreferrer">Log in to the affiliate products tool</a> to see live prices for this article's products.</p>
+<p>Then reload this panel.</p>
+</body>
+</html>`;
+
 /**
  * Serves the affiliate-products-client build and its API from a single origin,
  * so the page and the API sit behind the same auth middleware.
@@ -135,12 +158,37 @@ export function createApp({
 		capiKey: string;
 		listDrafts?: ListDrafts;
 		dynamoService: DynamoService;
+		/** Whether PROD's prices may be set by hand from here, which is switched on and off. */
+		canEditPrices?: () => Promise<boolean>;
 	};
 	/** The Skimlinks merchants' domains, for sorting the links in articles. */
 	readSkimlinksDomains: ReadSkimlinksDomains;
 }) {
+	const productsUpdater = new ProductsUpdater(dynamoService);
+
 	const app = express();
+	// The body must be parsed before any async middleware. In Lambda, serverless-express's
+	// request looks finished after a tick, so express.json would skip it, leaving req.body
+	// as the raw Buffer.
+	// Composer sends the whole body of a draft, which can be bigger than express.json's default.
+	app.use('/api/embed', express.json({ limit: '2mb' }));
 	app.use(express.json());
+	app.use(
+		rateLimit({
+			windowMs: 15 * 60 * 1000,
+			limit: 500,
+			standardHeaders: 'draft-8',
+			legacyHeaders: false,
+			message: { error: 'Too many requests, please try again later.' },
+		}),
+	);
+
+	// Only Composer may show the embed in a frame.
+	const embedFrameAncestors = `frame-ancestors ${composerOriginsForStage(stage).join(' ')}`;
+	app.use('/embed', (_req, res, next) => {
+		res.setHeader('Content-Security-Policy', embedFrameAncestors);
+		next();
+	});
 
 	const stageData = readStage({
 		stage,
@@ -170,6 +218,35 @@ export function createApp({
 		return dataSource;
 	};
 
+	const canEditProdPrices = async () =>
+		(await prod?.canEditPrices?.()) ?? false;
+
+	/**
+	 * The stage's pricing table, or PROD's when asked for with prod=true and its switch is
+	 * on. Undefined, having responded with an error, otherwise.
+	 */
+	const pricingTableToWrite = async (req: Request, res: Response) => {
+		const prodParam = z.literal('true').optional().safeParse(req.query.prod);
+		if (!prodParam.success) {
+			res.status(400).json({ error: 'prod must be true, or left out' });
+			return undefined;
+		}
+		if (!prodParam.data) {
+			return dynamoService;
+		}
+		if (!prod) {
+			res.status(400).json({ error: "PROD's prices can't be set here" });
+			return undefined;
+		}
+		if (!(await canEditProdPrices())) {
+			res
+				.status(403)
+				.json({ error: "Setting PROD's prices from here is switched off" });
+			return undefined;
+		}
+		return prod.dynamoService;
+	};
+
 	app.use(async (req, res, next) => {
 		const isApiRequest = req.path.startsWith('/api/');
 
@@ -178,6 +255,17 @@ export function createApp({
 			// The client can't follow a redirect to the login page from a fetch, so it's told instead.
 			if (isApiRequest) {
 				return res.status(401).json({ error: 'Not authenticated' });
+			}
+			if (req.path === '/embed') {
+				const returnUrl = `https://${req.get('host')}/`;
+				return res
+					.status(401)
+					.type('html')
+					.send(
+						embedLoginPage(
+							`${auth.loginUrl}?returnUrl=${encodeURIComponent(returnUrl)}`,
+						),
+					);
 			}
 			const returnUrl = `https://${req.get('host')}${req.originalUrl}`;
 			return res.redirect(
@@ -193,6 +281,11 @@ export function createApp({
 
 		res.locals.user = user;
 		next();
+	});
+
+	// The switches the client needs, to show what can be done.
+	app.get('/api/switches', async (_req, res) => {
+		res.json({ editProdPrices: await canEditProdPrices() });
 	});
 
 	app.get('/api/auth', async (_req, res) => {
@@ -297,7 +390,11 @@ export function createApp({
 
 	app.post('/api/manualOverride', async (req, res) => {
 		// ToDo: check user has permission to perform this
-		const result = await handleOverrideRequest(req.body, dynamoService);
+		const table = await pricingTableToWrite(req, res);
+		if (!table) {
+			return;
+		}
+		const result = await handleOverrideRequest(req.body, table);
 		if (!result.ok) {
 			return res.status(result.status).json({ error: result.error });
 		}
@@ -306,11 +403,36 @@ export function createApp({
 
 	app.delete('/api/manualOverride', async (req, res) => {
 		// ToDo: check user has permission to perform this
-		const result = await handleOverrideDeleteRequest(req.body, dynamoService);
+		const table = await pricingTableToWrite(req, res);
+		if (!table) {
+			return;
+		}
+		const result = await handleOverrideDeleteRequest(req.body, table);
 		if (!result.ok) {
 			return res.status(result.status).json({ error: result.error });
 		}
 		return res.sendStatus(204);
+	});
+
+	app.post('/api/preview', async (req, res) => {
+		const result = await handlePreviewRequest(req.body, productsUpdater);
+		if (!result.ok) {
+			return res.status(result.status).json({ error: result.error });
+		}
+		return res.status(200).json(result.products);
+	});
+
+	// The products in a draft that Composer has sent to the embed, with their prices.
+	app.post('/api/embed/products', async (req, res) => {
+		const result = await embedProducts(
+			req.body,
+			(urls) => dynamoService.getProductsByUrl(urls),
+			(products) => productsUpdater.getPreviewPrices(products),
+		);
+		if (!result.ok) {
+			return res.status(400).json({ error: result.error });
+		}
+		return res.json(result.body);
 	});
 
 	// Unknown API paths shouldn't fall through to the SPA's index.html.

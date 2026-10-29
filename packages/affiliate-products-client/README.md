@@ -37,9 +37,51 @@ The affiliate share is the Amazon and Skimlinks links as a share of all three. T
 
 ### PROD data
 
-In CODE, the sidebar's Data filter switches the list to PROD's articles and prices, adding `prod=true` to the page's URL and to `/api/articles`. The server then does the same as above, against PROD CAPI (with the PROD `capi-key` SSM parameter, as `PROD_CAPI_KEY`), PROD's Composer, and PROD's pricing table. The tool's role can only `BatchGetItem` from PROD's table, and explicitly denies everything else on it, so it can never write to it. PROD's tool only shows its own data, so the client hides the Data filter on `*.gutools.co.uk`.
+In CODE, the sidebar's Data filter switches the list to PROD's articles and prices, adding `prod=true` to the page's URL and to `/api/articles`. The server then does the same as above, against PROD CAPI (with the PROD `capi-key` SSM parameter, as `PROD_CAPI_KEY`), PROD's Composer, and PROD's pricing table. The tool's role can only `BatchGetItem`, `GetItem` and `PutItem` on PROD's table, and explicitly denies everything else on it.
+
+Setting PROD's prices by hand from CODE is behind a switch: the SSM parameter `/CODE/frontend/affiliate-product-directory/edit-prod-prices`. While it's `true`, the edit buttons show for PROD's data and `/api/manualOverride?prod=true` writes to PROD's table. Otherwise, including when the parameter doesn't exist, they're hidden and the server refuses with a 403. The server reads it at most once a minute, so a change takes effect within a minute, with no deploy, though the page must be reloaded to show or hide the buttons. PROD's tool only shows its own data, so the client hides the Data filter on `*.gutools.co.uk`.
 
 Composer links need CAPI's `internalComposerCode` field, which CAPI only returns to internal-tier keys. With a developer-tier key they show as unavailable.
+
+## Composer embed
+
+`/embed` is a panel of the products in a draft, with their prices in the directory, for Composer to show in an iframe beside the article. The tool can't read drafts itself, so Composer sends the article with `postMessage`:
+
+1. The embed posts `{ source: 'affiliate-products', type: 'ready', version: 1 }` to Composer when it loads.
+2. Composer replies with `{ source: 'composer', type: 'content', version: 1, composerId, section, elements }`, where `elements` are the body's elements as Composer holds them. It sends it again after every `ready`, and about a second after each edit.
+3. The embed posts the message to `/api/embed/products`, which turns the elements into CAPI's shape (`composerElements.ts`), finds the products as the article list does, and adds their prices. Links the directory doesn't have yet are marked `notInDirectory`, as they won't have a live price until the article is published and priced.
+4. The embed posts `{ source: 'affiliate-products', type: 'height', version: 1, height }` whenever its height changes, so Composer can size the iframe.
+
+Editors can set a price by hand in the embed, as in the article list. For a link the directory doesn't have yet, this adds it to the directory, in the article's region, with that price. When the article is published the directory keeps the product as it is, so the price is live straight away, and the price providers leave it alone until it expires.
+
+The messages are defined in [common/src/embed.ts](../common/src/embed.ts). The embed only accepts messages from the stage's Composer, and the server only lets that Composer frame `/embed`, with a `frame-ancestors` policy. An editor who isn't logged in gets a link to log in in a new tab, as Panda's login page can't be shown in a frame.
+
+The shape of Composer's elements is a guess until Composer sends a real one: see `@mocks/ComposerContentFixture`.
+
+To try it locally, run the dev servers as below and go to http://localhost:5173/embed-harness.html, which stands in for Composer. Edit the message there to change what the embed is sent.
+
+To serve it through HTTPS for Composer's local dev build, install dev-nginx on the host:
+
+```
+brew tap guardian/homebrew-devtools
+brew install guardian/devtools/dev-nginx
+```
+
+From the repository root, configure the local proxy once:
+
+```
+dev-nginx setup-app nginx/nginx-mapping.yml
+dev-nginx restart
+```
+
+`setup-app` also creates the local HTTPS certificate for
+`affiliate-products.local.dev-gutools.co.uk`.
+
+With the dev servers running, the embed and harness are then at
+https://affiliate-products.local.dev-gutools.co.uk/embed and
+https://affiliate-products.local.dev-gutools.co.uk/embed-harness.html. The nginx mapping
+also proxies Vite's `/vite-hmr` WebSocket connection for hot reload. The localhost URLs
+continue to work.
 
 ## Running locally
 

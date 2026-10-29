@@ -565,6 +565,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
             "CAPI_KEY": {
               "Ref": "capiKey",
             },
+            "EDIT_PROD_PRICES_PARAMETER": "/TEST/frontend/affiliate-product-directory/edit-prod-prices",
             "PROD_CAPI_KEY": {
               "Ref": "prodCapiKey",
             },
@@ -759,7 +760,11 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
               "Resource": "arn:aws:s3:::gu-skimlinks-store/skimlinks/skimlinks-domains.csv",
             },
             {
-              "Action": "dynamodb:BatchGetItem",
+              "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+              ],
               "Effect": "Allow",
               "Resource": {
                 "Fn::Join": [
@@ -776,7 +781,11 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
             },
             {
               "Effect": "Deny",
-              "NotAction": "dynamodb:BatchGetItem",
+              "NotAction": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+              ],
               "Resource": [
                 {
                   "Fn::Join": [
@@ -803,6 +812,22 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
                   ],
                 },
               ],
+            },
+            {
+              "Action": "ssm:GetParameter",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:ssm:eu-west-1:",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":parameter/TEST/frontend/affiliate-product-directory/edit-prod-prices",
+                  ],
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",

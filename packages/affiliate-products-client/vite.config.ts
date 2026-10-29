@@ -11,6 +11,9 @@ export default defineConfig({
 		tsconfigPaths: true,
 	},
 	server: {
+		host: '0.0.0.0',
+		allowedHosts: ['affiliate-products.local.dev-gutools.co.uk'],
+		ws: { path: '/vite-hmr' },
 		// Run `npm -w affiliate-products-server start` alongside this for the API.
 		proxy: { '/api': 'http://localhost:3040' },
 	},
