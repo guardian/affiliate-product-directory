@@ -14,6 +14,7 @@ import {
 	convertTypographyToEmotionStringStyle,
 	GlobalResetStyles,
 } from '@guardian/stand/utils';
+import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { fetchArticles } from './api/articles';
 import { fetchCanEditProdPrices, fetchUserName } from './api/auth';
@@ -26,9 +27,10 @@ import { useStarred } from './hooks/useStarred';
 import { useStarredArticles } from './hooks/useStarredArticles';
 import { Pagination } from './Pagination';
 import { PriceEditingContext } from './PriceEditing';
-import { isProd, ProdDataContext } from './ProdData';
+import { ProdDataContext, stage } from './ProdData';
 import { Sidebar } from './Sidebar';
 import { StarredContext } from './Starred';
+import { stageBannerTheme } from './style';
 import { TopToolbar } from './TopToolbar';
 import type { ArticlesState, ListParams } from './types';
 
@@ -79,6 +81,56 @@ const mainStyles = css`
 	min-width: 0;
 	padding: 0;
 `;
+
+const StarredFailedNotice = ({
+	count,
+	onRetry,
+}: {
+	count: number;
+	onRetry: () => void;
+}) => (
+	<>
+		{count === 1 ? '1 starred article' : `${count} starred articles`} couldn’t
+		be loaded.{' '}
+		<Button variant="secondary" size="xs" onPress={onRetry}>
+			Try again
+		</Button>
+	</>
+);
+
+// `pinned` is undefined while the starred articles are still loading.
+const starredGroup = (
+	pinned: Article[] | undefined,
+	notice: ReactNode,
+): ArticleGroup => ({
+	title: pinned ? `Starred (${pinned.length})` : 'Starred',
+	kind: 'starred',
+	articles: pinned ?? [],
+	emptyMessage: pinned
+		? 'No starred articles match these filters.'
+		: 'Loading the starred articles…',
+	notice,
+});
+
+const draftsGroup = (drafts: Article[]): ArticleGroup => ({
+	title: `Drafts (${drafts.length})`,
+	kind: 'drafts',
+	articles: drafts,
+	emptyMessage: 'There are no drafts.',
+});
+
+const publishedGroup = (
+	articles: Article[],
+	total: number,
+	livePricing: boolean,
+): ArticleGroup => ({
+	title: `Published (${total})`,
+	kind: 'published',
+	articles,
+	emptyMessage: livePricing
+		? 'There are no published articles with live pricing.'
+		: 'There are no published articles.',
+});
 
 export const App = () => {
 	const [userName, setUserName] = useState<string>();
@@ -239,64 +291,26 @@ export const App = () => {
 				const { drafts, total } = articles.page;
 				// The drafts are only on the first page. The server leaves them out of it when
 				// it can't list them, which it can't yet, as they're only in Preview CAPI.
-				const groups: ArticleGroup[] = [
-					// Pinned above everything else on the first page, and in their place below too.
-					...(page === 1 && starred.length > 0
-						? [
-								{
-									title: pinned ? `Starred (${pinned.length})` : 'Starred',
-									kind: 'starred' as const,
-									articles: pinned ?? [],
-									emptyMessage: pinned
-										? 'No starred articles match these filters.'
-										: 'Loading the starred articles…',
-									notice:
-										starredFailed.length > 0 ? (
-											<>
-												{starredFailed.length === 1
-													? '1 starred article'
-													: `${starredFailed.length} starred articles`}{' '}
-												couldn’t be loaded.{' '}
-												<Button
-													variant="secondary"
-													size="xs"
-													onPress={retryStarred}
-												>
-													Try again
-												</Button>
-											</>
-										) : undefined,
-								},
-							]
-						: []),
-					...(status !== 'live' && page === 1
-						? [
-								{
-									title: drafts ? `Drafts (${drafts.length})` : 'Drafts',
-									kind: 'drafts' as const,
-									articles: drafts ?? [],
-									// Live prices are only shown in published articles.
-									emptyMessage: livePricing
-										? 'Live pricing is only listed for published articles.'
-										: drafts
-											? 'There are no drafts.'
-											: 'Drafts aren’t available yet.',
-								},
-							]
-						: []),
-					...(status !== 'draft'
-						? [
-								{
-									title: `Published (${total})`,
-									kind: 'published' as const,
-									articles: articles.page.articles,
-									emptyMessage: livePricing
-										? 'There are no published articles with live pricing.'
-										: 'There are no published articles.',
-								},
-							]
-						: []),
-				];
+				const isFirstPage = page === 1;
+				const groups: ArticleGroup[] = [];
+				// Pinned above everything else on the first page, and in their place below too.
+				if (isFirstPage && starred.length > 0) {
+					const notice = starredFailed.length > 0 && (
+						<StarredFailedNotice
+							count={starredFailed.length}
+							onRetry={retryStarred}
+						/>
+					);
+					groups.push(starredGroup(pinned, notice));
+				}
+				if (isFirstPage && status !== 'live' && drafts && drafts.length > 0) {
+					groups.push(draftsGroup(drafts));
+				}
+				if (status !== 'draft') {
+					groups.push(
+						publishedGroup(articles.page.articles, total, livePricing),
+					);
+				}
 				return (
 					<>
 						<ArticleList groups={groups} />
@@ -326,10 +340,14 @@ export const App = () => {
 		<>
 			<Global styles={globalStyles} />
 			<Layout>
-				{!isProd && (
+				{stage !== 'PROD' && (
 					<Layout.AlertBanner>
-						<AlertBanner level="warning" showIcon={true}>
-							You are working in the CODE Environment
+						<AlertBanner
+							level="warning"
+							showIcon={true}
+							theme={stageBannerTheme(stage)}
+						>
+							You are working in the {stage} Environment
 						</AlertBanner>
 					</Layout.AlertBanner>
 				)}

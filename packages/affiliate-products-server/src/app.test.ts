@@ -3,7 +3,6 @@ import { tmpdir } from 'os';
 import path from 'path';
 import type * as DatabaseServiceModule from '@common/database-service';
 import { EmbedProductsResponseSchema } from '@common/embed';
-import { livePricingAllowListIds } from '@common/livePricing';
 import type { Region } from '@common/models';
 import type { Product } from '@common/models';
 import { ArticlesPageSchema, AuthResponseSchema } from '@common/tool-models';
@@ -557,10 +556,14 @@ describe('createApp', () => {
 			expect(response.status).toBe(200);
 			expect(ArticlesPageSchema.parse(response.body).drafts).toBeUndefined();
 			expect(listDrafts).not.toHaveBeenCalled();
-			// CODE's articles on frontend's list, as none of CAPI's are flagged.
-			expect(capiRequests().at(-1)?.searchParams.get('ids')).toBe(
-				[...livePricingAllowListIds('CODE')].join(','),
-			);
+			// None of CAPI's articles are flagged, so only their fields are read.
+			expect(ArticlesPageSchema.parse(response.body).articles).toEqual([]);
+			expect(
+				capiRequests().every(
+					(search) =>
+						search.searchParams.get('show-fields') === 'livePricingEnabled',
+				),
+			).toBe(true);
 		});
 
 		it('rejects a livePricing other than true', async () => {

@@ -23,6 +23,7 @@ const rootStyles = css`
 	display: grid;
 	gap: ${semanticSpacing.stackSm};
 	padding: ${semanticSpacing.stackSm};
+	background-color: #f6f6f6;
 `;
 
 const weakText = { color: semanticColors.text.weak };

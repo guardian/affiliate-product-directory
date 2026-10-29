@@ -3,7 +3,6 @@ import { articlePath } from '@common/articlePath';
 import { getCapiBaseUrl } from '@common/config';
 import type { DynamoService } from '@common/database-service';
 import { composerOriginsForStage } from '@common/embed';
-import { livePricingAllowListIds } from '@common/livePricing';
 import { ArticleStatusSchema, SectionSchema } from '@common/tool-models';
 import type { ArticlesPage, AuthResponse, User } from '@common/tool-models';
 import { ProductsUpdater } from '@price-update/ProductsUpdater';
@@ -56,7 +55,6 @@ const readStage = ({
 		baseUrl: getCapiBaseUrl(stage),
 		apiKey: capiKey,
 		composerBaseUrl: getComposerBaseUrl(stage),
-		livePricingIds: livePricingAllowListIds(stage),
 		readSkimlinksDomains,
 	};
 	return {
