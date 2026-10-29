@@ -1,9 +1,11 @@
 import { getCapiKey } from '@common/config';
 import { DynamoService } from '@common/database-service';
 import { createApp } from './app';
+import { createSkimlinksDomains } from './skimlinksDomains';
 import type { Auth } from './types';
 
-const port = 3040;
+// PORT lets a second copy run alongside one already on 3040.
+const port = Number(process.env.PORT ?? 3040);
 
 // The CAPI and Composer stage to use locally.
 const stage = 'CODE';
@@ -26,7 +28,7 @@ const localAuth: Auth = {
 const prodCapiKey = process.env.PROD_CAPI_KEY;
 
 // Run with CAPI_KEY set to a CAPI key for that stage, and AWS credentials for the frontend
-// account to read the tables. The prices are from the same stage as the articles, as each
+// account to read the tables and the Skimlinks domains. The prices are from the same stage as the articles, as each
 // stage's directory is built from its CAPI.
 createApp({
 	clientDir: '../affiliate-products-client/build',
@@ -34,8 +36,12 @@ createApp({
 	stage,
 	capiKey: getCapiKey(),
 	dynamoService: new DynamoService(stage),
+	readSkimlinksDomains: createSkimlinksDomains(),
 	prod: prodCapiKey
-		? { capiKey: prodCapiKey, dynamoService: new DynamoService('PROD') }
+		? {
+				capiKey: prodCapiKey,
+				dynamoService: new DynamoService('PROD'),
+			}
 		: undefined,
 }).listen(port, () => {
 	console.log(`Listening on http://localhost:${port}`);

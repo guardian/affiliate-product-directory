@@ -1,6 +1,12 @@
-import type { ProductLink } from '@common/tool-models';
+import type { Product, ProductLink } from '@common/tool-models';
 import { css } from '@emotion/react';
-import { semanticColors, semanticSpacing } from '@guardian/stand';
+import {
+	semanticColors,
+	semanticRadius,
+	semanticSpacing,
+	semanticTypography,
+} from '@guardian/stand';
+import { IconButton } from '@guardian/stand/IconButton';
 import { Link } from '@guardian/stand/Link';
 import {
 	Table,
@@ -11,15 +17,43 @@ import {
 	TableRow,
 } from '@guardian/stand/Table';
 import { Typography } from '@guardian/stand/Typography';
+import { convertTypographyToEmotionStringStyle } from '@guardian/stand/utils';
+import { useContext, useState } from 'react';
+import { ButtonPreview } from './ButtonPreview';
 import { formatDate } from './formatDate';
 import { formatPrice } from './formatPrice';
+import { PriceEditingContext } from './PriceEditing';
+import { PriceOverrideModal } from './PriceOverrideModal';
 
 // The columns are fixed so that a long URL is cut short rather than stretching its column.
-const columns = { sm: '34% minmax(0, 1fr) 7rem 7rem 7.5rem' };
+const columns = { sm: 'minmax(0, 1fr) 5.5rem 7rem 6.5rem 30%' };
 
 const weakText = { color: semanticColors.text.weak };
 
-const urlStyles = css`
+// Each product is a box with its name on top and a row for each retailer.
+const productStyles = css`
+	margin-bottom: ${semanticSpacing.stackXs};
+	border: 1px solid ${semanticColors.border.weak};
+	border-radius: ${semanticRadius.cornerSm};
+	overflow: hidden;
+`;
+
+const productTopStyles = css`
+	${convertTypographyToEmotionStringStyle(semanticTypography.bodyBoldSm)};
+	display: flex;
+	align-items: center;
+	gap: ${semanticSpacing.stackXs};
+	padding: ${semanticSpacing.stackXxs} ${semanticSpacing.stackXs};
+	background-color: ${semanticColors.bg.raisedLevel1};
+`;
+
+const numberStyles = css`
+	justify-content: flex-end;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+`;
+
+const ellipsisStyles = css`
 	display: block;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -41,115 +75,183 @@ const Missing = ({ children }: { children: string }) => (
 	</Typography>
 );
 
-/**
- * The links grouped by their product name, each group where the name's first link is. A
- * product card's links all have its name, so a card with several retailers is one group.
- * Links without a name are each a group of their own.
- */
-const groupByProductName = (products: ProductLink[]): ProductLink[][] => {
-	const groups: ProductLink[][] = [];
-	const groupsByName = new Map<string, ProductLink[]>();
-	for (const link of products) {
-		const named = link.productName && groupsByName.get(link.productName);
-		if (named) {
-			named.push(link);
-			continue;
-		}
-		const group = [link];
-		groups.push(group);
-		if (link.productName) {
-			groupsByName.set(link.productName, group);
-		}
-	}
-	return groups;
+const currentPriceStyles = css`
+	display: inline-flex;
+	align-items: center;
+	white-space: nowrap;
+	gap: ${semanticSpacing.stackXxs};
+`;
+
+// Stand's outline still shows when the edit button has keyboard focus.
+const plainIconTheme = {
+	tertiary: {
+		shared: {
+			color: semanticColors.text.weak,
+			border: 'none',
+			hover: { border: 'none', backgroundColor: 'transparent' },
+			active: { border: 'none', backgroundColor: 'transparent' },
+			disabled: { border: 'none', backgroundColor: 'transparent' },
+		},
+	},
 };
 
-// The rows of a group sit closer together, with a border only after the last. The
-// attribute selector outweighs the cells' own padding.
-const groupedRowStyles = ({
-	first,
-	last,
-}: {
-	first: boolean;
-	last: boolean;
-}) => css`
-	${last ? '' : 'border-bottom: none;'}
-
-	& > [role] {
-		${first ? '' : `padding-top: ${semanticSpacing.stackXxs};`}
-		${last ? '' : `padding-bottom: ${semanticSpacing.stackXxs};`}
+const plainIconStyles = css`
+	&[data-hovered],
+	&[data-pressed] {
+		color: ${semanticColors.text.strong};
 	}
 `;
 
-/** A link's row. Only the first of a group's rows shows the product's name. */
-const renderProductRow = (
-	{
-		url,
-		label,
-		productName,
-		basePrice,
-		currency,
-		price,
-		updatedAt,
-		updatedBy,
-	}: ProductLink,
-	position: { first: boolean; last: boolean },
-) => (
-	<TableRow key={url} id={url} cssOverrides={groupedRowStyles(position)}>
-		<TableCell>
-			{position.first && productName && (
-				<Typography element="div" variant="bodyBoldSm">
-					{productName}
-				</Typography>
+/** A link's price in the directory, with a button to set it by hand where that's allowed. */
+const CurrentPrice = ({
+	link,
+	productName,
+}: {
+	link: ProductLink;
+	productName?: string;
+}) => {
+	const { canEdit } = useContext(PriceEditingContext);
+	const [editing, setEditing] = useState(false);
+	const { currency, price, updatedBy } = link;
+	const shown =
+		currency !== undefined && price !== undefined ? (
+			formatCurrentPrice(currency, price)
+		) : (
+			<Missing>—</Missing>
+		);
+
+	if (!canEdit) {
+		return shown;
+	}
+
+	return (
+		<span css={currentPriceStyles}>
+			{shown}
+			<IconButton
+				symbol="edit"
+				variant="tertiary"
+				size="xs"
+				theme={plainIconTheme}
+				cssOverrides={plainIconStyles}
+				ariaLabel={`${updatedBy === 'manualOverride' ? 'Change' : 'Set'} the price at ${link.retailer ?? link.url} by hand`}
+				onPress={() => setEditing(true)}
+			/>
+			{editing && (
+				<PriceOverrideModal
+					link={link}
+					productName={productName}
+					isOpen={editing}
+					onOpenChange={setEditing}
+				/>
 			)}
-			{label}
-		</TableCell>
-		<TableCell>
-			<Link
-				href={url}
-				target="_blank"
-				rel="noreferrer"
-				cssOverrides={urlStyles}
-			>
-				{shortenUrl(url)}
-			</Link>
-		</TableCell>
-		<TableCell>
-			{basePrice ? (
-				`${basePrice.currencySymbol}${formatPrice(basePrice.amount)}`
-			) : (
-				<Missing>No price found</Missing>
-			)}
-		</TableCell>
-		<TableCell>
-			{currency !== undefined && price !== undefined ? (
-				formatCurrentPrice(currency, price)
-			) : (
-				<Missing>No price</Missing>
-			)}
-		</TableCell>
-		<TableCell>
-			{updatedAt !== undefined ? (
-				<>
-					{formatDate(updatedAt)}
-					{updatedBy && (
-						<Typography element="div" variant="bodySm" theme={weakText}>
-							by {updatedBy}
+		</span>
+	);
+};
+
+const renderLinkRow = (link: ProductLink, productName?: string) => {
+	const { url, label, retailer, basePrice, updatedAt, updatedBy } = link;
+	return (
+		<TableRow key={url} id={url}>
+			<TableCell>
+				<div>
+					<ButtonPreview link={link}>
+						<Link
+							href={url}
+							target="_blank"
+							rel="noreferrer"
+							typography="bodySm"
+						>
+							{retailer ?? label}
+						</Link>
+					</ButtonPreview>
+					{/* The label is only worth showing when it says more than the retailer. */}
+					{retailer && !label.trim().endsWith(retailer) && (
+						<Typography element="div" variant="bodyXs" theme={weakText}>
+							{label}
 						</Typography>
 					)}
-				</>
-			) : (
-				<Missing>Never</Missing>
+				</div>
+			</TableCell>
+			<TableCell cssOverrides={numberStyles}>
+				{basePrice ? (
+					`${basePrice.currencySymbol}${formatPrice(basePrice.amount)}`
+				) : (
+					<Missing>—</Missing>
+				)}
+			</TableCell>
+			<TableCell cssOverrides={numberStyles}>
+				<CurrentPrice link={link} productName={productName} />
+			</TableCell>
+			<TableCell>
+				{updatedAt !== undefined ? (
+					<div>
+						{formatDate(updatedAt)}
+						{updatedBy === 'manualOverride' ? (
+							<Typography element="div" variant="bodyXs" theme={weakText}>
+								set manually
+								{link.expiresAt !== undefined &&
+									`, until ${formatDate(link.expiresAt)}`}
+							</Typography>
+						) : (
+							updatedBy && (
+								<Typography element="div" variant="bodyXs" theme={weakText}>
+									by {updatedBy}
+								</Typography>
+							)
+						)}
+					</div>
+				) : (
+					<Missing>N/A</Missing>
+				)}
+			</TableCell>
+			<TableCell>
+				<Link
+					href={url}
+					target="_blank"
+					rel="noreferrer"
+					typography="bodySm"
+					cssOverrides={ellipsisStyles}
+				>
+					{shortenUrl(url)}
+				</Link>
+			</TableCell>
+		</TableRow>
+	);
+};
+
+const ProductBox = ({ product: { name, links } }: { product: Product }) => (
+	<div css={productStyles}>
+		<div css={productTopStyles}>
+			{name ?? (
+				<Typography variant="bodyItalicSm" theme={weakText}>
+					Unnamed product
+				</Typography>
 			)}
-		</TableCell>
-	</TableRow>
+		</div>
+		<Table
+			aria-label={name ? `Retailers for ${name}` : 'Retailers'}
+			columns={columns}
+			headerVisibleFrom="sm"
+		>
+			<TableHeader>
+				<TableColumnHeader isRowHeader>Retailer</TableColumnHeader>
+				<TableColumnHeader cssOverrides={numberStyles}>Base</TableColumnHeader>
+				<TableColumnHeader cssOverrides={numberStyles}>
+					Current
+				</TableColumnHeader>
+				<TableColumnHeader>Updated</TableColumnHeader>
+				<TableColumnHeader>Link</TableColumnHeader>
+			</TableHeader>
+			<TableBody>{links.map((link) => renderLinkRow(link, name))}</TableBody>
+		</Table>
+	</div>
 );
 
 /**
- * The product links found in an article, with the price each had when it was written and
- * its latest price in the directory. Links to the same product are listed together.
+ * The products found in an article, each with its links to the retailers that sell it,
+ * the price each link had when it was written and its latest price in the directory.
  */
-export const ProductList = ({ products }: { products: ProductLink[] }) => {
+export const ProductList = ({ products }: { products: Product[] }) => {
 	if (products.length === 0) {
 		return (
 			<Typography element="p" variant="bodySm" theme={weakText}>
@@ -159,24 +261,11 @@ export const ProductList = ({ products }: { products: ProductLink[] }) => {
 	}
 
 	return (
-		<Table aria-label="Product links" columns={columns} headerVisibleFrom="sm">
-			<TableHeader>
-				<TableColumnHeader isRowHeader>Product</TableColumnHeader>
-				<TableColumnHeader>Link</TableColumnHeader>
-				<TableColumnHeader>Base price</TableColumnHeader>
-				<TableColumnHeader>Current price</TableColumnHeader>
-				<TableColumnHeader>Updated</TableColumnHeader>
-			</TableHeader>
-			<TableBody>
-				{groupByProductName(products).flatMap((group) =>
-					group.map((link, index) =>
-						renderProductRow(link, {
-							first: index === 0,
-							last: index === group.length - 1,
-						}),
-					),
-				)}
-			</TableBody>
-		</Table>
+		<>
+			{products.map((product) => (
+				// A URL is only in one product, so the first identifies it.
+				<ProductBox key={product.links[0]?.url} product={product} />
+			))}
+		</>
 	);
 };
