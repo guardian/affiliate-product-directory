@@ -3,6 +3,7 @@
  * Anyone else who logs in is told they don't have permission.
  */
 const allowedEmails = new Set([
+	// The Ftiler team
 	'solomon.owen-williams@guardian.co.uk',
 	'andrew.howe-ely@guardian.co.uk',
 	'peran.osborn@guardian.co.uk',
@@ -11,10 +12,18 @@ const allowedEmails = new Set([
 	'rob.phillips@guardian.co.uk',
 	'paul.brown@guardian.co.uk',
 	'tom.allin@guardian.co.uk',
+	// UK Editorial team
 	'ella.jinadu@guardian.co.uk',
+	'monica.horridge@guardian.co.uk',
+	'millie.fender@guardian.co.uk',
+	'emily.goddard@guardian.co.uk',
+	'lily.smith@guardian.co.uk',
+	'fiona.mckellar@guardian.co.uk',
+	'robert.hull@guardian.co.uk',
+	'hannah.booth@guardian.co.uk',
+	// US Editorial team
 	'jessie.willms@guardian.co.uk',
 	'nick.mokey@guardian.co.uk',
-	'monica.horridge@guardian.co.uk',
 ]);
 
 /** Whether a user may use the tool. Case is ignored, as it is in email addresses. */
