@@ -6,6 +6,7 @@ import {
 	semanticSpacing,
 	semanticTypography,
 } from '@guardian/stand';
+import { AlertBanner } from '@guardian/stand/AlertBanner';
 import { Link } from '@guardian/stand/Link';
 import { LinkButton } from '@guardian/stand/LinkButton';
 import { Typography } from '@guardian/stand/Typography';
@@ -21,7 +22,7 @@ import { ProductList } from './ProductList';
 import { retailersUsed } from './productStats';
 import { describeSection } from './sections';
 import { skimlinksUrl } from './skimlinksUrl';
-import { accent } from './style';
+import { accent, wrappingBannerTheme } from './style';
 
 const weakText = { color: semanticColors.text.weak };
 
@@ -50,6 +51,12 @@ const columnStyles = css`
 			border-right: none;
 		}
 	}
+`;
+
+// The banners about the article's prices, spaced apart.
+const bannersStyles = css`
+	display: grid;
+	gap: ${semanticSpacing.stackXs};
 `;
 
 const skimlinksMarkStyles = css`
@@ -241,6 +248,45 @@ export const ArticleDetail = ({
 		<div id={id}>
 			<div css={columnsStyles}>
 				<section css={columnStyles}>
+					{(article.livePricing || article.products.length > 0) && (
+						<div css={bannersStyles}>
+							{article.livePricing && (
+								<AlertBanner
+									level="success"
+									showIcon={true}
+									icon="update"
+									theme={wrappingBannerTheme}
+								>
+									Live pricing is enabled.
+								</AlertBanner>
+							)}
+							{!article.livePricing && article.products.length > 0 && (
+								<AlertBanner
+									level="warning"
+									showIcon={true}
+									icon="update_disabled"
+									theme={wrappingBannerTheme}
+								>
+									<span>
+										Live pricing is disabled. You can enable live pricing within{' '}
+										{article.composerUrl ? (
+											<Link
+												href={article.composerUrl}
+												target="_blank"
+												rel="noreferrer"
+												typography="bodySm"
+											>
+												Composer
+											</Link>
+										) : (
+											'Composer'
+										)}
+										.
+									</span>
+								</AlertBanner>
+							)}
+						</div>
+					)}
 					<h4 css={headingStyles}>Links</h4>
 					{webUrl ? (
 						<LinkCountStats counts={article.linkCounts} />

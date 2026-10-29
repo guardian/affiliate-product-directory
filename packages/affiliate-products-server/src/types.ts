@@ -20,10 +20,11 @@ export interface Auth {
 	loginUrl: string;
 }
 
-/** Lists one section's articles, or both sections' if none is given. */
+/** Lists one section's articles, or both sections' if none is given, or just those with live pricing. */
 export type ListArticles = (
 	page: number,
 	section?: Section,
+	onlyLivePricing?: boolean,
 ) => Promise<ArticlesPage>;
 
 /**
@@ -130,6 +131,8 @@ const SearchResultSchema = z.object({
 			// 'true' or 'false'. Only Preview CAPI has articles that aren't live.
 			isLive: z.string().optional(),
 			lastModified: z.string().optional(),
+			// 'true' or 'false', like CAPI's other flags. Missing unless Composer has set it.
+			livePricingEnabled: z.union([z.string(), z.boolean()]).optional(),
 		})
 		.optional(),
 	blocks: z.object({ body: z.array(BlockSchema).optional() }).optional(),

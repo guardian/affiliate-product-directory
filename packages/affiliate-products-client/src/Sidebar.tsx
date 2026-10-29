@@ -199,6 +199,9 @@ const statusOptions: Array<{ value: ArticleStatus; name: string }> = [
 	{ value: 'live', name: 'Published' },
 ];
 
+// Only the articles with live pricing can be picked out, as CAPI can't search for those without.
+const livePricingOptions = [{ value: 'on', name: 'Enabled' }];
+
 // PROD's tool only ever shows PROD's data. The same build is served to every stage, so
 // PROD is told apart by its domain: CODE's is code.dev-gutools.co.uk.
 const isProd = window.location.hostname.endsWith('.gutools.co.uk');
@@ -255,6 +258,8 @@ export const Sidebar = ({
 	onSectionChange,
 	status,
 	onStatusChange,
+	livePricing,
+	onLivePricingChange,
 	prod,
 	onProdChange,
 }: {
@@ -262,6 +267,8 @@ export const Sidebar = ({
 	onSectionChange: (section?: Section) => void;
 	status?: ArticleStatus;
 	onStatusChange: (status?: ArticleStatus) => void;
+	livePricing: boolean;
+	onLivePricingChange: (livePricing: boolean) => void;
 	prod: boolean;
 	onProdChange: (prod: boolean) => void;
 }) => (
@@ -282,6 +289,12 @@ export const Sidebar = ({
 			options={statusOptions}
 			selected={status}
 			onChange={onStatusChange}
+		/>
+		<OptionFilter
+			name="Live pricing"
+			options={livePricingOptions}
+			selected={livePricing ? 'on' : undefined}
+			onChange={(value) => onLivePricingChange(value === 'on')}
 		/>
 		{!isProd && <DataFilter prod={prod} onChange={onProdChange} />}
 	</Layout.Sidebar>

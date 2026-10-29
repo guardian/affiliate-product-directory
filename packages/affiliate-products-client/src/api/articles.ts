@@ -6,7 +6,7 @@ import type { ArticlesState, ListParams } from '../types';
  * asked. The first page has the drafts too, unless just live articles are asked for.
  */
 export const fetchArticles = async (
-	{ page, section, status, prod, path }: ListParams,
+	{ page, section, status, livePricing, prod, path }: ListParams,
 	signal: AbortSignal,
 ): Promise<ArticlesState> => {
 	const params = new URLSearchParams({ page: String(page) });
@@ -15,6 +15,9 @@ export const fetchArticles = async (
 	}
 	if (status) {
 		params.set('status', status);
+	}
+	if (livePricing) {
+		params.set('livePricing', 'true');
 	}
 	if (prod) {
 		params.set('prod', 'true');

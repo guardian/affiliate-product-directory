@@ -75,6 +75,7 @@ describe('createCapiArticles', () => {
 		baseUrl: 'https://capi.example.com',
 		apiKey: 'test-key',
 		composerBaseUrl: 'https://composer.example.com',
+		livePricingIds: new Set<string>(),
 		readSkimlinksDomains,
 	});
 
@@ -102,7 +103,8 @@ describe('createCapiArticles', () => {
 			'order-by': 'newest',
 			'page-size': '25',
 			page: '2',
-			'show-fields': 'internalComposerCode,byline,isLive,lastModified',
+			'show-fields':
+				'internalComposerCode,byline,isLive,lastModified,livePricingEnabled',
 			'show-blocks': 'body',
 			'api-key': 'test-key',
 		});
@@ -121,6 +123,7 @@ describe('createCapiArticles', () => {
 					webTitle: result.webTitle,
 					webUrl: result.webUrl,
 					byline: 'Jane Doe',
+					livePricing: false,
 					composerUrl:
 						'https://composer.example.com/content/6707d2a08f08a1b2c3d4e5f6',
 					ophanUrl:
@@ -153,6 +156,7 @@ describe('createCapiArticles', () => {
 			baseUrl: 'https://capi.example.com',
 			apiKey: 'test-key',
 			composerBaseUrl: 'https://composer.example.com',
+			livePricingIds: new Set<string>(),
 			readSkimlinksDomains: () => Promise.resolve(undefined),
 		});
 
@@ -266,6 +270,7 @@ describe('createCapiArticle', () => {
 		baseUrl: 'https://capi.example.com',
 		apiKey: 'test-key',
 		composerBaseUrl: 'https://composer.example.com',
+		livePricingIds: new Set<string>(),
 		readSkimlinksDomains,
 	});
 
@@ -279,7 +284,8 @@ describe('createCapiArticle', () => {
 			`https://capi.example.com/${result.id}`,
 		);
 		expect(Object.fromEntries(url.searchParams)).toEqual({
-			'show-fields': 'internalComposerCode,byline,isLive,lastModified',
+			'show-fields':
+				'internalComposerCode,byline,isLive,lastModified,livePricingEnabled',
 			'show-blocks': 'body',
 			'api-key': 'test-key',
 		});
@@ -339,5 +345,177 @@ describe('createCapiArticleLinks', () => {
 		expect(
 			await getArticleLinks('thefilter/2026/oct/16/missing'),
 		).toBeUndefined();
+	});
+});
+
+describe('live pricing', () => {
+	afterEach(() => {
+		jest.restoreAllMocks();
+	});
+
+	const listedId = 'thefilter/2025/feb/20/best-dj-headphones';
+	const flaggedId = 'thefilter-us/2026/oct/12/protein-powder-faq-dietitians';
+
+	const createListArticles = () =>
+		createCapiArticles({
+			baseUrl: 'https://capi.example.com',
+			apiKey: 'test-key',
+			composerBaseUrl: 'https://composer.example.com',
+			livePricingIds: new Set([listedId]),
+			readSkimlinksDomains,
+		});
+
+	// One page of every article's livePricingEnabled field, as the scan asks for it.
+	const scanResponse = (results: object[], pages = 1) =>
+		Response.json({
+			response: { ...searchResponse.response, currentPage: 1, pages, results },
+		});
+
+	const searchUrls = (fetch: jest.Spied<typeof globalThis.fetch>) =>
+		fetch.mock.calls.map(([url]) => new URL(url as string));
+
+	it.each([
+		['the field is true', { livePricingEnabled: 'true' }, result.id, true],
+		['the field is false', { livePricingEnabled: 'false' }, result.id, false],
+		['the field is missing', {}, result.id, false],
+		["it's on frontend's list", {}, listedId, true],
+	])(
+		'marks an article as having live pricing when %s',
+		async (_description, fields, id, livePricing) => {
+			jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+				Response.json({
+					response: {
+						...searchResponse.response,
+						results: [{ ...result, id, fields }],
+					},
+				}),
+			);
+
+			const { articles } = await createListArticles()(1);
+
+			expect(articles[0]?.livePricing).toBe(livePricing);
+		},
+	);
+
+	it("lists just the flagged and listed articles by their IDs, after reading every article's field", async () => {
+		const fetch = jest
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(
+				scanResponse(
+					[
+						{
+							...result,
+							id: flaggedId,
+							fields: { livePricingEnabled: 'true' },
+						},
+						{ ...result, id: 'thefilter/not-flagged', fields: {} },
+					],
+					2,
+				),
+			)
+			.mockResolvedValueOnce(scanResponse([]))
+			.mockResolvedValueOnce(Response.json(searchResponse));
+
+		await createListArticles()(2, undefined, true);
+
+		const [scan1, scan2, page] = searchUrls(fetch);
+		expect(scan1?.searchParams.get('show-fields')).toBe('livePricingEnabled');
+		expect(scan1?.searchParams.get('page-size')).toBe('200');
+		expect(scan1?.searchParams.has('show-blocks')).toBe(false);
+		expect(scan2?.searchParams.get('page')).toBe('2');
+		expect(page?.searchParams.get('ids')).toBe(`${flaggedId},${listedId}`);
+		expect(page?.searchParams.has('section')).toBe(false);
+		expect(page?.searchParams.get('page')).toBe('2');
+	});
+
+	it('leaves out the listed articles from another section', async () => {
+		const fetch = jest
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(
+				scanResponse([
+					{ ...result, id: flaggedId, fields: { livePricingEnabled: 'true' } },
+				]),
+			)
+			.mockResolvedValueOnce(Response.json(searchResponse));
+
+		await createListArticles()(1, 'thefilter-us', true);
+
+		const [scan, page] = searchUrls(fetch);
+		expect(scan?.searchParams.get('section')).toBe('thefilter-us');
+		expect(page?.searchParams.get('ids')).toBe(flaggedId);
+	});
+
+	it('returns no articles without searching for them when none have live pricing', async () => {
+		const fetch = jest
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(scanResponse([]));
+
+		const page = await createListArticles()(1, 'thefilter-us', true);
+
+		expect(page).toEqual({ articles: [], currentPage: 1, pages: 0, total: 0 });
+		expect(fetch).toHaveBeenCalledTimes(1);
+	});
+
+	it('shares one reading of the fields between requests made at the same time', async () => {
+		const fetch = jest
+			.spyOn(globalThis, 'fetch')
+			.mockImplementation(() =>
+				Promise.resolve(
+					scanResponse([{ ...result, fields: { livePricingEnabled: 'true' } }]),
+				),
+			);
+		const listArticles = createListArticles();
+
+		await Promise.all([
+			listArticles(1, 'thefilter', true),
+			listArticles(2, 'thefilter', true),
+		]);
+
+		// One scan, then a page of the articles for each request.
+		expect(fetch).toHaveBeenCalledTimes(3);
+	});
+
+	it('reads the fields again after a reading fails', async () => {
+		const fetch = jest
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(new Response('', { status: 500 }))
+			.mockImplementation(() =>
+				Promise.resolve(
+					scanResponse([{ ...result, fields: { livePricingEnabled: 'true' } }]),
+				),
+			);
+		const listArticles = createListArticles();
+
+		await expect(listArticles(1, 'thefilter', true)).rejects.toThrow();
+		await listArticles(1, 'thefilter', true);
+
+		expect(fetch).toHaveBeenCalledTimes(3);
+	});
+
+	it('reads the fields again only once the found articles are a few minutes old', async () => {
+		jest.useFakeTimers({ now: 0, doNotFake: ['queueMicrotask', 'nextTick'] });
+		try {
+			const fetch = jest
+				.spyOn(globalThis, 'fetch')
+				.mockImplementation(() =>
+					Promise.resolve(
+						scanResponse([
+							{ ...result, fields: { livePricingEnabled: 'true' } },
+						]),
+					),
+				);
+			const listArticles = createListArticles();
+
+			await listArticles(1, 'thefilter', true);
+			await listArticles(2, 'thefilter', true);
+			// The scan, then a page of the articles each time.
+			expect(fetch).toHaveBeenCalledTimes(3);
+
+			jest.setSystemTime(5 * 60 * 1000 + 1);
+			await listArticles(1, 'thefilter', true);
+			expect(fetch).toHaveBeenCalledTimes(5);
+		} finally {
+			jest.useRealTimers();
+		}
 	});
 });
