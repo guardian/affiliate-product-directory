@@ -6,10 +6,6 @@ modules:
   - node
   - github-copilot
 
-forwardPorts:
-  - 3040
-  - 5173
-
 plugins:
   vscode:
     - GitHub.copilot-chat

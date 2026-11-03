@@ -32,8 +32,6 @@ interface CapiOptions {
 	baseUrl: string;
 	apiKey: string;
 	composerBaseUrl: string;
-	/** The CAPI IDs of the articles that frontend's own list gives live pricing to in this stage. */
-	livePricingIds: Set<string>;
 	readSkimlinksDomains: ReadSkimlinksDomains;
 }
 
@@ -41,17 +39,13 @@ interface CapiOptions {
 const isLivePricingEnabled = ({ fields }: CapiResult) =>
 	String(fields?.livePricingEnabled) === 'true';
 
-/** Whether CAPI's result is set to show live prices, by its field or frontend's list. */
-const hasLivePricing = (result: CapiResult, livePricingIds: Set<string>) =>
-	isLivePricingEnabled(result) || livePricingIds.has(result.id);
-
 /**
  * An article as the tool shows it, from CAPI's result for it, with the links in its body
  * counted if the Skimlinks domains could be read.
  */
 const toArticle = (
 	result: CapiResult,
-	{ composerBaseUrl, livePricingIds }: CapiOptions,
+	{ composerBaseUrl }: CapiOptions,
 	skimlinksDomains: Set<string> | undefined,
 ): Article => {
 	const {
@@ -77,7 +71,7 @@ const toArticle = (
 		webUrl: status === 'live' ? webUrl : undefined,
 		// CAPI can send an empty byline.
 		byline: fields?.byline?.trim() ? fields.byline : undefined,
-		livePricing: hasLivePricing(result, livePricingIds),
+		livePricing: isLivePricingEnabled(result),
 		composerUrl: composerId
 			? `${composerBaseUrl}/content/${composerId}`
 			: undefined,
@@ -173,13 +167,12 @@ const livePricingCacheMs = 5 * 60 * 1000;
 /**
  * Lists the CAPI IDs of the articles in one or both Filter sections with live pricing.
  * CAPI can't search by the livePricingEnabled field, so every article's field is read,
- * without its body, and the ones frontend's list names are added.
+ * without its body.
  */
 const createLivePricingIds = ({
 	baseUrl,
 	apiKey,
-	livePricingIds,
-}: CapiOptions) => {
+}: Pick<CapiOptions, 'baseUrl' | 'apiKey'>) => {
 	const cache = new Map<string, { ids: string[]; expiresAt: number }>();
 	// The scans still running, so that requests for the same section share one rather than
 	// each reading every article.
@@ -203,14 +196,10 @@ const createLivePricingIds = ({
 		const rest = await Promise.all(
 			Array.from({ length: first.pages - 1 }, (_, i) => scanPage(i + 2)),
 		);
-		const flagged = [first, ...rest]
+		return [first, ...rest]
 			.flatMap(({ results }) => results)
 			.filter(isLivePricingEnabled)
 			.map(({ id }) => id);
-		const listed = [...livePricingIds].filter(
-			(id) => !section || id.startsWith(`${section}/`),
-		);
-		return [...new Set([...flagged, ...listed])];
 	};
 
 	return async (section?: Section): Promise<string[]> => {

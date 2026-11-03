@@ -4,15 +4,6 @@ import type { Region } from '@common/models';
 import { getParametersFromParameterStore } from '@common/parameterStore';
 import { z } from 'zod';
 
-const config = getConfig();
-const commonPath = `/${config.stage}/${config.stack}/${appName}/amazon`;
-const ukClientIdKey = `${commonPath}/products/clientId/UK`;
-const usClientIdKey = `${commonPath}/products/clientId/US`;
-const ukClientSecretKey = `${commonPath}/products/clientSecret/UK`;
-const usClientSecretKey = `${commonPath}/products/clientSecret/US`;
-const ukPartnerTagKey = `${commonPath}/products/partnerTag/UK`;
-const usPartnerTagKey = `${commonPath}/products/partnerTag/US`;
-
 export interface AmazonCredentials {
 	clientId: Record<Region, string>;
 	clientSecret: Record<Region, string>;
@@ -32,6 +23,17 @@ export async function getAmazonCredentials(): Promise<AmazonCredentials> {
 	if (cachedCredentials) {
 		return cachedCredentials;
 	}
+
+	// Read here rather than on import, so that importing the price providers, as the tool's
+	// server does, doesn't need the stack's environment.
+	const config = getConfig();
+	const commonPath = `/${config.stage}/${config.stack}/${appName}/amazon`;
+	const ukClientIdKey = `${commonPath}/products/clientId/UK`;
+	const usClientIdKey = `${commonPath}/products/clientId/US`;
+	const ukClientSecretKey = `${commonPath}/products/clientSecret/UK`;
+	const usClientSecretKey = `${commonPath}/products/clientSecret/US`;
+	const ukPartnerTagKey = `${commonPath}/products/partnerTag/UK`;
+	const usPartnerTagKey = `${commonPath}/products/partnerTag/US`;
 
 	const parameters = await getParametersFromParameterStore([
 		ukClientIdKey,

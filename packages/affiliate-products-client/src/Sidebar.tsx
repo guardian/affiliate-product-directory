@@ -10,6 +10,7 @@ import {
 	until,
 } from '@guardian/stand/utils';
 import { useId, useState } from 'react';
+import { isProd } from './ProdData';
 import { sections } from './sections';
 
 // Below md the sidebar sits above the list, rather than beside it.
@@ -201,10 +202,6 @@ const statusOptions: Array<{ value: ArticleStatus; name: string }> = [
 
 // Only the articles with live pricing can be picked out, as CAPI can't search for those without.
 const livePricingOptions = [{ value: 'on', name: 'Enabled' }];
-
-// PROD's tool only ever shows PROD's data. The same build is served to every stage, so
-// PROD is told apart by its domain: CODE's is code.dev-gutools.co.uk.
-const isProd = window.location.hostname.endsWith('.gutools.co.uk');
 
 // The stage's own data, which is always CODE where PROD's can be shown too.
 const dataOptions = [

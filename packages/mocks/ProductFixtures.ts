@@ -6,7 +6,6 @@ export function buildProduct(
 ): PricedProduct {
 	return {
 		productMerchantUrl: `https://example.com/product-${randomUUID()}`,
-		createdAt: Date.now(),
 		region: 'GB',
 		updatedAt: Date.now(),
 		updatedBy: 'test',

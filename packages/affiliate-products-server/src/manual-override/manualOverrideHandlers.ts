@@ -17,7 +17,7 @@ export async function handleOverrideRequest(
 	if (!parsedRequest.success) {
 		return { ok: false, status: 400, error: parsedRequest.error.message };
 	}
-	const { currency, price, expiryDate, productMerchantUrl } =
+	const { currency, price, expiryDate, productMerchantUrl, region } =
 		parsedRequest.data;
 
 	// A price kept until a moment already past would be replaced by the next price update.
@@ -25,10 +25,13 @@ export async function handleOverrideRequest(
 		return { ok: false, status: 400, error: 'The expiry date has passed' };
 	}
 
+	const storedProduct = await dynamoService.getProductPrice(productMerchantUrl);
+	// A draft's product is added to the directory with its price. When the article is
+	// published, the directory keeps the product as it is, so the price stays.
 	const productDatabaseEntry =
-		await dynamoService.getProductPrice(productMerchantUrl);
+		storedProduct ?? (region && { productMerchantUrl, region });
 
-	if (productDatabaseEntry === undefined) {
+	if (!productDatabaseEntry) {
 		return { ok: false, status: 404, error: 'Product not found' };
 	}
 

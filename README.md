@@ -45,7 +45,17 @@ This section should provide clear steps for an engineer to begin utilising or co
 This should include setup and running instructions, as well as advice for contributing to or releasing updates to the project.
 -->
 
-<!-- Fill this in once we know how to run locally -->
+To run the tool locally at https://affiliate-products.local.dev-gutools.co.uk, set up nginx and a local certificate once (macOS, needs Homebrew and your password):
+
+```
+./scripts/setup.sh
+```
+
+Then start the server and client:
+
+```
+npm run affiliate-products-dev
+```
 
 Run the tests with
 

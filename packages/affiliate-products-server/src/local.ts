@@ -10,6 +10,11 @@ const port = Number(process.env.PORT ?? 3040);
 // The CAPI and Composer stage to use locally.
 const stage = 'CODE';
 
+// The price providers read their credentials from this stack's parameters, as the Lambda does.
+process.env.STACK ??= 'frontend';
+process.env.STAGE ??= stage;
+process.env.APP ??= 'affiliate-products-tool';
+
 // The Panda cookie is only sent to *.dev-gutools.co.uk, never to localhost, so every
 // request is treated as coming from this user. The Lambda entry point (index.ts) never uses this.
 const localAuth: Auth = {
