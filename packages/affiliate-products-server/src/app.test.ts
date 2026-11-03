@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import type * as DatabaseServiceModule from '@common/database-service';
+import { livePricingAllowListIds } from '@common/livePricing';
 import type { Product } from '@common/models';
 import { ArticlesPageSchema, AuthResponseSchema } from '@common/tool-models';
 import type { User } from '@common/tool-models';
@@ -109,6 +110,7 @@ describe('createApp', () => {
 		webTitle: 'An article',
 		webUrl: 'https://www.theguardian.com/thefilter/2026/oct/06/an-article',
 		composerUrl: 'https://composer.code.dev-gutools.co.uk/content/abc123',
+		livePricing: false,
 		ophanUrl:
 			'https://dashboard.ophan.co.uk/info?capi-id=thefilter%2F2026%2Foct%2F06%2Fan-article',
 		products: [
@@ -441,6 +443,30 @@ describe('createApp', () => {
 			expect(ArticlesPageSchema.parse(response.body).drafts).toBeUndefined();
 			expect(ArticlesPageSchema.parse(response.body).articles).toHaveLength(1);
 			expect(listDrafts).not.toHaveBeenCalled();
+		});
+
+		it("lists only the stage's articles with live pricing given livePricing=true", async () => {
+			const listDrafts = stubDrafts();
+
+			const response = await request(appWithDrafts(listDrafts)).get(
+				'/api/articles?livePricing=true',
+			);
+
+			expect(response.status).toBe(200);
+			expect(ArticlesPageSchema.parse(response.body).drafts).toBeUndefined();
+			expect(listDrafts).not.toHaveBeenCalled();
+			// CODE's articles on frontend's list, as none of CAPI's are flagged.
+			expect(capiRequests().at(-1)?.searchParams.get('ids')).toBe(
+				[...livePricingAllowListIds('CODE')].join(','),
+			);
+		});
+
+		it('rejects a livePricing other than true', async () => {
+			const response = await request(appWithDrafts()).get(
+				'/api/articles?livePricing=false',
+			);
+
+			expect(response.status).toBe(400);
 		});
 
 		it("still lists the live articles when the drafts can't be read", async () => {

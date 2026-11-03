@@ -71,6 +71,9 @@ export const ArticleSchema = z.object({
 	webUrl: z.string().optional(),
 	// Missing if CAPI has no byline for the article.
 	byline: z.string().optional(),
+	// Whether the article is set to show live prices, though the site only does when
+	// frontend's affiliate-product-live-pricing switch is on too.
+	livePricing: z.boolean(),
 	// Missing if CAPI has no Composer ID for the article.
 	composerUrl: z.string().optional(),
 	ophanUrl: z.string(),

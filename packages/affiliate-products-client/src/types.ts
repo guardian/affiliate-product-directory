@@ -16,6 +16,8 @@ export interface ListParams {
 	section: Section | undefined;
 	/** Just drafts or just live articles. Undefined when both are shown, drafts first. */
 	status: ArticleStatus | undefined;
+	/** Whether just the articles with live pricing are shown. */
+	livePricing: boolean;
 	/** Whether PROD's articles and prices are shown, rather than the stage's own. */
 	prod: boolean;
 	/** An article's URL or path, to show just that article. Undefined to show the list. */
