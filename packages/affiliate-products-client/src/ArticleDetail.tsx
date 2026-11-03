@@ -15,6 +15,7 @@ import {
 } from '@guardian/stand/utils';
 import { useContext } from 'react';
 import { formatDate } from './formatDate';
+import { SkimlinksIcon } from './icons';
 import { ProdDataContext } from './ProdData';
 import { ProductList } from './ProductList';
 import { retailersUsed } from './productStats';
@@ -49,6 +50,26 @@ const columnStyles = css`
 			border-right: none;
 		}
 	}
+`;
+
+const skimlinksMarkStyles = css`
+	display: inline-flex;
+	width: 12px;
+	height: 12px;
+	margin-left: ${semanticSpacing.stackXxs};
+	vertical-align: -1px;
+	color: ${semanticColors.text.weak};
+
+	svg {
+		width: 100%;
+		height: 100%;
+		fill: currentColor;
+	}
+`;
+
+const retailersStyles = css`
+	margin: 0;
+	padding-left: ${semanticSpacing.stackMd};
 `;
 
 // Each heading after the first in a column starts a new part of it.
@@ -261,12 +282,34 @@ export const ArticleDetail = ({
 						</dd>
 						{article.lastModified && (
 							<>
-								<dt>Last edited</dt>
+								<dt>Last modified</dt>
 								<dd>{formatDate(article.lastModified)}</dd>
 							</>
 						)}
 						<dt>Retailers used</dt>
-						<dd>{retailers.join(', ') || '—'}</dd>
+						<dd>
+							{retailers.length > 0 ? (
+								<ul css={retailersStyles}>
+									{retailers.map(({ retailer, links, skimlinks }) => (
+										<li key={retailer}>
+											{retailer} ({links})
+											{skimlinks && (
+												<span
+													css={skimlinksMarkStyles}
+													title="Links go through Skimlinks"
+													aria-label="Links go through Skimlinks"
+													role="img"
+												>
+													<SkimlinksIcon />
+												</span>
+											)}
+										</li>
+									))}
+								</ul>
+							) : (
+								'—'
+							)}
+						</dd>
 					</dl>
 				</section>
 

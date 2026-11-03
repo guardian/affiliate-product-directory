@@ -1,6 +1,6 @@
 import { articlesPageSize, SectionSchema } from '@common/tool-models';
 import type { Article } from '@common/tool-models';
-import { bodyLinks, countLinks } from './linkCounts';
+import { bodyLinks, countLinks, linkKind } from './linkCounts';
 import { extractProducts } from './products';
 import {
 	type CapiResult,
@@ -69,7 +69,13 @@ const toArticle = (
 			? `${composerBaseUrl}/content/${composerId}`
 			: undefined,
 		ophanUrl: `https://dashboard.ophan.co.uk/info?capi-id=${encodeURIComponent(id)}`,
-		products: extractProducts(blocks?.body ?? []),
+		products: extractProducts(blocks?.body ?? []).map((product) => ({
+			...product,
+			links: product.links.map((link) => ({
+				...link,
+				kind: skimlinksDomains && linkKind(link.url, skimlinksDomains),
+			})),
+		})),
 		linkCounts:
 			skimlinksDomains &&
 			countLinks(bodyLinks(blocks?.body ?? []), skimlinksDomains),

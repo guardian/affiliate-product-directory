@@ -133,6 +133,7 @@ describe('createCapiArticles', () => {
 									label: '$20 for 10 servings at Amazon',
 									retailer: 'Amazon',
 									basePrice: { currencySymbol: '$', amount: 20 },
+									kind: 'amazon',
 								},
 							],
 						},
@@ -146,7 +147,7 @@ describe('createCapiArticles', () => {
 		});
 	});
 
-	it("leaves out the link counts when the Skimlinks domains can't be read", async () => {
+	it("leaves out the link counts and kinds when the Skimlinks domains can't be read", async () => {
 		stubFetch(Response.json(searchResponse));
 		const withoutDomains = createCapiArticles({
 			baseUrl: 'https://capi.example.com',
@@ -158,6 +159,7 @@ describe('createCapiArticles', () => {
 		const { articles } = await withoutDomains(2);
 
 		expect(articles[0]?.linkCounts).toBeUndefined();
+		expect(articles[0]?.products[0]?.links[0]?.kind).toBeUndefined();
 	});
 
 	it('returns no products for an article CAPI sends without body blocks', async () => {

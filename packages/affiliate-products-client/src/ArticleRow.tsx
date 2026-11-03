@@ -46,8 +46,8 @@ export const articleListContainer = css`
 export const articleColumnsStyles = css`
 	display: grid;
 	grid-template-columns:
-		${toggleColumnWidth} minmax(0, 1fr) 10rem 5.5rem 6.5rem 4.5rem 5.5rem
-		7rem;
+		${toggleColumnWidth} minmax(0, 1fr)
+		10rem 5.5rem 7rem 7rem;
 	align-items: center;
 	column-gap: ${semanticSpacing.stackSm};
 	padding: 0 ${semanticSpacing.stackXs};
@@ -59,10 +59,9 @@ export const articleColumnsStyles = css`
 	@container ${listContainer} (max-width: 64rem) {
 		grid-template-columns:
 			${toggleColumnWidth} minmax(0, 1fr)
-			5.5rem 6.5rem 4.5rem 7rem;
+			5.5rem 7rem 7rem;
 
-		& > [data-column='byline'],
-		& > [data-column='retailer-links'] {
+		& > [data-column='byline'] {
 			display: none;
 		}
 
@@ -72,7 +71,7 @@ export const articleColumnsStyles = css`
 	}
 
 	@container ${listContainer} (max-width: 44rem) {
-		grid-template-columns: ${toggleColumnWidth} minmax(0, 1fr) 6.5rem 4.5rem;
+		grid-template-columns: ${toggleColumnWidth} minmax(0, 1fr) 7rem;
 
 		& > [data-column='open-in'],
 		& > [data-column='published'] {
@@ -88,9 +87,8 @@ export const articleColumnsStyles = css`
 /** How far the headline column is from the row's left edge, for lining other things up with it. */
 export const headlineInset = `calc(${semanticSpacing.stackXs} + ${toggleColumnWidth} + ${semanticSpacing.stackSm})`;
 
-/** For the columns of counts, which line up on the right. */
-export const numberColumnStyles = css`
-	justify-self: end;
+/** The products column: how many products, and under it how many links to their retailers. */
+const countsStyles = css`
 	font-variant-numeric: tabular-nums;
 `;
 
@@ -235,9 +233,16 @@ const ArticleLinks = ({ article }: { article: Article }) => (
 	</div>
 );
 
+// In front of the article's path, as the list has no column for the section. Smaller than
+// Stand's smallest badge, with even padding (its own is 1px above and 3px below), and on
+// the path's baseline.
 const sectionStyles = (colour: string) => css`
-	justify-self: start;
-	white-space: nowrap;
+	margin-right: ${semanticSpacing.stackXxs};
+	padding: 2px 4px;
+	font-size: 0.625rem;
+	line-height: 1;
+	letter-spacing: 0.02em;
+	vertical-align: baseline;
 	border-radius: 2px;
 	background-color: ${colour};
 	color: ${semanticColors.text.strongerInverse};
@@ -249,7 +254,7 @@ const weakTextStyles = css`
 	color: ${semanticColors.text.weak};
 `;
 
-/** When the article was published, or for a draft, when it was last edited. */
+/** When the article was published, or for a draft, when it was last modified. */
 const ArticleDate = ({ article }: { article: Article }) =>
 	article.webPublicationDate ? (
 		<time dateTime={article.webPublicationDate}>
@@ -259,7 +264,7 @@ const ArticleDate = ({ article }: { article: Article }) =>
 		<span css={weakTextStyles}>
 			{article.lastModified ? (
 				<>
-					Edited{' '}
+					Modified{' '}
 					<time dateTime={article.lastModified}>
 						{formatDate(article.lastModified)}
 					</time>
@@ -318,6 +323,9 @@ export const ArticleRow = ({
 						theme={weakText}
 						cssOverrides={ellipsisStyles}
 					>
+						<Badge size="xs" cssOverrides={sectionStyles(section.colour)}>
+							{section.name}
+						</Badge>
 						/{article.id}
 					</Typography>
 					{/* The byline and date, here when their columns are left out of a narrow list. */}
@@ -339,13 +347,13 @@ export const ArticleRow = ({
 					)}
 				</div>
 				<ArticleLinks article={article} />
-				<Badge size="xs" cssOverrides={sectionStyles(section.colour)}>
-					{section.name}
-				</Badge>
-				<span css={numberColumnStyles}>{article.products.length}</span>
-				<span data-column="retailer-links" css={numberColumnStyles}>
-					{retailerLinkCount(article)}
-				</span>
+				<div css={countsStyles}>
+					{article.products.length}
+					<Typography element="div" variant="bodyXs" theme={weakText}>
+						{retailerLinkCount(article)}{' '}
+						{retailerLinkCount(article) === 1 ? 'link' : 'links'}
+					</Typography>
+				</div>
 				<span data-column="published">
 					<ArticleDate article={article} />
 				</span>

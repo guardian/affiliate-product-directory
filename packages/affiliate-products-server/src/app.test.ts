@@ -119,6 +119,7 @@ describe('createApp', () => {
 						label: '£27 at Shop',
 						retailer: 'Shop',
 						basePrice: { currencySymbol: '£', amount: 27 },
+						kind: 'skimlinks' as const,
 					},
 				],
 			},

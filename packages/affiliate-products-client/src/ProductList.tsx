@@ -2,7 +2,6 @@ import type { Product, ProductLink } from '@common/tool-models';
 import { css } from '@emotion/react';
 import {
 	semanticColors,
-	semanticRadius,
 	semanticSpacing,
 	semanticTypography,
 } from '@guardian/stand';
@@ -30,21 +29,15 @@ const columns = { sm: 'minmax(0, 1fr) 5.5rem 7rem 6.5rem 30%' };
 
 const weakText = { color: semanticColors.text.weak };
 
-// Each product is a box with its name on top and a row for each retailer.
+// Each product is its name as a heading, over Stand's table with a row for each retailer.
+// The space between them is what tells one product from the next.
 const productStyles = css`
-	margin-bottom: ${semanticSpacing.stackXs};
-	border: 1px solid ${semanticColors.border.weak};
-	border-radius: ${semanticRadius.cornerSm};
-	overflow: hidden;
+	margin-bottom: ${semanticSpacing.stackMd};
 `;
 
-const productTopStyles = css`
+const productNameStyles = css`
 	${convertTypographyToEmotionStringStyle(semanticTypography.bodyBoldSm)};
-	display: flex;
-	align-items: center;
-	gap: ${semanticSpacing.stackXs};
-	padding: ${semanticSpacing.stackXxs} ${semanticSpacing.stackXs};
-	background-color: ${semanticColors.bg.raisedLevel1};
+	margin: 0 0 ${semanticSpacing.stackXxs};
 `;
 
 const numberStyles = css`
@@ -219,15 +212,16 @@ const renderLinkRow = (link: ProductLink, productName?: string) => {
 	);
 };
 
-const ProductBox = ({ product: { name, links } }: { product: Product }) => (
+// Under the panel's PRODUCTS heading, which is an h4.
+const ProductTable = ({ product: { name, links } }: { product: Product }) => (
 	<div css={productStyles}>
-		<div css={productTopStyles}>
+		<h5 css={productNameStyles}>
 			{name ?? (
 				<Typography variant="bodyItalicSm" theme={weakText}>
 					Unnamed product
 				</Typography>
 			)}
-		</div>
+		</h5>
 		<Table
 			aria-label={name ? `Retailers for ${name}` : 'Retailers'}
 			columns={columns}
@@ -264,7 +258,7 @@ export const ProductList = ({ products }: { products: Product[] }) => {
 		<>
 			{products.map((product) => (
 				// A URL is only in one product, so the first identifies it.
-				<ProductBox key={product.links[0]?.url} product={product} />
+				<ProductTable key={product.links[0]?.url} product={product} />
 			))}
 		</>
 	);

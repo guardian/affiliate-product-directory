@@ -32,6 +32,9 @@ export const ProductLinkSchema = z.object({
 	updatedBy: z.string().optional(),
 	// When a manual override of the price ends. Missing if it doesn't, or the price isn't one.
 	expiresAt: z.number().optional(),
+	// Whether the link goes to Amazon, through Skimlinks, or elsewhere, as the article's link
+	// counts sort it. Missing if the Skimlinks domains couldn't be read.
+	kind: z.enum(['amazon', 'skimlinks', 'other']).optional(),
 });
 
 /**
