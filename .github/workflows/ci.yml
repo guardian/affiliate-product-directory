@@ -41,6 +41,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Typecheck
+        run: npm run type-check
+
       - name: Lint
         run: npm run lint
 
@@ -66,5 +69,9 @@ jobs:
               - packages/cdk/cdk.out
             product-price-update-lambda:
               - packages/product-price-update-lambda/dist/product-price-update-lambda.zip
+            product-prices-csv-lambda:
+              - packages/product-prices-csv-lambda/dist/product-prices-csv-lambda.zip
             product-directory-update-lambda:
               - packages/product-directory-update-lambda/dist/product-directory-update-lambda.zip
+            affiliate-products-tool:
+              - packages/affiliate-products-server/dist/affiliate-products-tool.zip

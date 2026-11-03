@@ -1,5 +1,6 @@
 import { getConfig } from '@common/config';
 import { appName } from '@common/constants';
+import { REGION_CURRENCY } from '@common/currency';
 import type { Product } from '@common/models';
 import { getParametersFromParameterStore } from '@common/parameterStore';
 
@@ -50,8 +51,26 @@ export abstract class PriceProvider {
 		}
 	}
 
-	/** Applies field changes to a product and records who refreshed it and when. */
-	protected applyUpdate(product: Product, changes: ProductUpdate): Product {
+	/**
+	 * Applies field changes to a product and records who refreshed it and when.
+	 * A price in any currency but the product's region's is not applied: the product is left
+	 * as it was and undefined is returned, so that it counts as not updated.
+	 */
+	protected applyUpdate(
+		product: Product,
+		changes: ProductUpdate,
+	): Product | undefined {
+		const expectedCurrency = REGION_CURRENCY[product.region];
+		if (
+			changes.currency !== undefined &&
+			changes.currency !== expectedCurrency
+		) {
+			console.log(
+				`${this.name} priced ${product.region} product ${product.productMerchantUrl} in ${changes.currency}, not ${expectedCurrency}`,
+			);
+			return undefined;
+		}
+
 		Object.assign(product, changes);
 		product.updatedAt = Date.now();
 		product.updatedBy = this.name;

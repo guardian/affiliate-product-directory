@@ -1,0 +1,21 @@
+# Devenv project configuration
+name: "affiliate-product-directory"
+
+modules:
+  - mise
+  - node
+  - github-copilot
+
+forwardPorts:
+  - 3040
+  - 5173
+
+plugins:
+  vscode:
+    - GitHub.copilot-chat
+    - GitHub.cli
+  intellij: []
+
+postCreateCommand:
+  - cmd: "mise exec -- npm ci --include=optional"
+    workingDirectory: "."

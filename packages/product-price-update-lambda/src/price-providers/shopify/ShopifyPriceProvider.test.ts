@@ -60,8 +60,9 @@ describe('refreshPrices', () => {
 		const staleUpdatedAt = Date.now() - 60_000;
 		const product = buildProduct({
 			productMerchantUrl: 'https://shop.example.com/products/thing',
+			region: 'US',
 			price: 10,
-			currency: 'GBP',
+			currency: 'USD',
 			updatedAt: staleUpdatedAt,
 		});
 		mockFetch.mockResolvedValue(
@@ -83,6 +84,22 @@ describe('refreshPrices', () => {
 			'ShopifyProductsFetched',
 			1,
 		);
+	});
+
+	it("does not update a product priced in another region's currency", async () => {
+		const product = buildProduct({
+			productMerchantUrl: 'https://shop.example.com/products/thing',
+			region: 'GB',
+			price: 10,
+			currency: 'GBP',
+		});
+		const before = { ...product };
+		mockFetch.mockResolvedValue(jsonResponse(shopifyProduct(['24.50'], 'USD')));
+
+		const result = await provider().refreshPrices([product]);
+
+		expect(result).toEqual({ updated: [], notUpdated: [before] });
+		expect(result.notUpdated[0]).toBe(product);
 	});
 
 	it('skips links that 404 without retrying', async () => {

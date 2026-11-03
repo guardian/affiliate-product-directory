@@ -1,0 +1,71 @@
+import type { Product } from '@common/models';
+import type { Article, ArticlesPage } from '@common/tool-models';
+import type { GetProductPrices, ProductPrices } from './types';
+
+/**
+ * Looks up the directory's prices in the pricing table on every call, so the tool always
+ * shows the table as it is. Products that have been removed from the directory, or that
+ * haven't been priced yet, are left out.
+ */
+export const createProductPrices =
+	(
+		getProductsByUrl: (urls: string[]) => Promise<Product[]>,
+	): GetProductPrices =>
+	async (urls) => {
+		const products = await getProductsByUrl(urls);
+		return new Map(
+			products
+				.filter(
+					(product) =>
+						product.removed !== 'true' &&
+						product.price !== undefined &&
+						product.currency !== undefined,
+				)
+				.map(
+					({
+						productMerchantUrl,
+						currency,
+						price,
+						updatedAt,
+						updatedBy,
+						expiresAt,
+					}) => [
+						productMerchantUrl,
+						{ currency, price, updatedAt, updatedBy, expiresAt },
+					],
+				),
+		);
+	};
+
+/** The URL of every product link on the page, its drafts' included, each once. */
+export const productUrls = (page: ArticlesPage): string[] => [
+	...new Set(
+		[...(page.drafts ?? []), ...page.articles].flatMap((article) =>
+			article.products.flatMap((product) =>
+				product.links.map((link) => link.url),
+			),
+		),
+	),
+];
+
+/** Adds the directory's price to each of the articles' product links that it has one for. */
+export const attachProductPrices = (
+	page: ArticlesPage,
+	prices: ProductPrices,
+): ArticlesPage => {
+	const withPrices = (article: Article): Article => ({
+		...article,
+		products: article.products.map((product) => ({
+			...product,
+			links: product.links.map((link) => ({
+				...link,
+				...prices.get(link.url),
+			})),
+		})),
+	});
+	return {
+		...page,
+		...(page.drafts && { drafts: page.drafts.map(withPrices) }),
+		articles: page.articles.map(withPrices),
+	};
+};

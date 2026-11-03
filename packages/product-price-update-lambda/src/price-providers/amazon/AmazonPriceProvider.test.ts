@@ -143,6 +143,31 @@ describe('refreshPrices', () => {
 		expect(mockRegisterMetric).toHaveBeenCalledWith('AmazonProductsFetched', 1);
 	});
 
+	it("does not update a product priced in another region's currency", async () => {
+		jest.useFakeTimers();
+		const product = buildProduct({
+			productMerchantUrl: 'https://www.amazon.co.uk/dp/B0C3HCD34R',
+			region: 'GB',
+			price: 10,
+			currency: 'GBP',
+		});
+		const before = { ...product };
+		mockFetch.mockResolvedValue(
+			jsonResponse({
+				itemsResult: {
+					items: [item('B0C3HCD34R', { price: 31.99, currency: 'USD' })],
+				},
+			}),
+		);
+
+		const pending = provider().refreshPrices([product]);
+		await flushThrottle();
+		const result = await pending;
+
+		expect(result).toEqual({ updated: [], notUpdated: [before] });
+		expect(result.notUpdated[0]).toBe(product);
+	});
+
 	it('skips products whose URL has no extractable ASIN', async () => {
 		const noAsin = buildProduct({
 			productMerchantUrl: 'https://www.amazon.co.uk/some-product-page',

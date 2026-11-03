@@ -4,6 +4,7 @@
 	"type": "module",
 	"scripts": {
 		"test": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" npx jest --detectOpenHandles --config ../../jest.config.js --selectProjects common",
+		"type-check": "tsc --noEmit -p tsconfig.json",
 		"start": "tsx --env-file=.env src/run-locally.ts"
 	},
 	"devDependencies": {
@@ -11,6 +12,7 @@
 		"@aws-sdk/client-dynamodb": "^3.1141.0",
 		"@aws-sdk/client-ssm": "^3.1141.0",
 		"@aws-sdk/lib-dynamodb": "^3.1141.0",
-		"esbuild": "0.27.3"
+		"esbuild": "0.27.3",
+		"zod": "^4.5.4"
 	}
 }

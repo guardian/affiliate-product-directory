@@ -96,12 +96,13 @@ export class ShopifyPriceProvider extends PriceProvider {
 				return;
 			}
 
-			updated.push(
-				this.applyUpdate(product, {
-					price,
-					currency: variant.price_currency,
-				}),
-			);
+			const refreshed = this.applyUpdate(product, {
+				price,
+				currency: variant.price_currency,
+			});
+			if (refreshed) {
+				updated.push(refreshed);
+			}
 		});
 
 		return updated;

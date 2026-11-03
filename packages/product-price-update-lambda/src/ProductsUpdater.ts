@@ -4,10 +4,10 @@ import { AmazonPriceProvider } from '@price-update/price-providers/amazon/Amazon
 import type { PriceProvider } from '@price-update/price-providers/PriceProvider';
 import { ShopifyPriceProvider } from '@price-update/price-providers/shopify/ShopifyPriceProvider';
 import { SkimlinksPriceProvider } from '@price-update/price-providers/skimlinks/SkimlinksPriceProvider';
-import { S3FileWriter } from '@price-update/S3FileWriter';
 
 type Partner = 'amazon' | 'other';
 type CategorisedProducts = Record<Partner, Product[]>;
+const IN_FLIGHT_WRITE_MARGIN_MS = 30_000;
 
 export class ProductsUpdater {
 	/** Providers for each category, in priority order. Products a provider can't price fall through to the next. */
@@ -15,15 +15,16 @@ export class ProductsUpdater {
 		amazon: [new AmazonPriceProvider()],
 		other: [new ShopifyPriceProvider(), new SkimlinksPriceProvider()],
 	};
-	private s3FileWriter = new S3FileWriter();
 
 	constructor(private readonly dynamoService: DynamoService) {}
 
 	/**
 	 * This is the main entry point for updating the prices, it will get all products in the DB
-	 *  and check affiliate partners for the latest prices, and lastly updated the DB
+	 *  and check affiliate partners for the latest prices, and lastly updated the DB.
+	 *  Writing to the DB is what updates the prices CSV: see product-prices-csv-lambda.
 	 */
 	public async refreshPrices() {
+		const updatedAtCutoff = Date.now() - IN_FLIGHT_WRITE_MARGIN_MS;
 		const categorised = this.categoriseProducts(await this.getProductsFromDB());
 
 		const [amazonUpdated, otherUpdated] = await Promise.all([
@@ -32,10 +33,15 @@ export class ProductsUpdater {
 		]);
 
 		const allProducts = [...amazonUpdated, ...otherUpdated];
-		await this.dynamoService.updateProducts({
+		const { skipped } = await this.dynamoService.updateProducts({
 			items: allProducts,
+			updatedAtCutoff,
 		});
-		await this.s3FileWriter.writeProductsToS3File(allProducts);
+		if (skipped.length > 0) {
+			console.log(
+				`Left ${skipped.length} product(s) as they were, as they were changed or removed during this run: ${skipped.join(', ')}`,
+			);
+		}
 	}
 
 	public async getProductsFromDB(): Promise<Product[]> {
@@ -66,8 +72,18 @@ export class ProductsUpdater {
 		return updated;
 	}
 
+	private shouldSkipManualPrice(product: Product): boolean {
+		return (
+			product.updatedBy === 'manualOverride' &&
+			(product.expiresAt === undefined || product.expiresAt > Date.now())
+		);
+	}
+
 	private categoriseProducts(products: Product[]): CategorisedProducts {
-		const categorised: CategorisedProducts = { amazon: [], other: [] };
+		const categorised: CategorisedProducts = {
+			amazon: [],
+			other: [],
+		};
 		const amazonHosts = new Set([
 			'amazon.com',
 			'www.amazon.com',
@@ -77,11 +93,20 @@ export class ProductsUpdater {
 
 		products.forEach((product) => {
 			try {
-				const hostname = new URL(
-					product.productMerchantUrl,
-				).hostname.toLowerCase();
-				const partner: Partner = amazonHosts.has(hostname) ? 'amazon' : 'other';
-				categorised[partner].push(product);
+				if (this.shouldSkipManualPrice(product)) {
+					console.log(
+						`Skipping ${product.productMerchantUrl} as it has manual override ${product.expiresAt ? `until ${product.expiresAt}` : ''}`,
+					);
+				} else {
+					const hostname = new URL(
+						product.productMerchantUrl,
+					).hostname.toLowerCase();
+					const partner: Partner = amazonHosts.has(hostname)
+						? 'amazon'
+						: 'other';
+
+					categorised[partner].push(product);
+				}
 			} catch {
 				console.log(
 					`Received invalid URL ${product.productMerchantUrl} - could not determine best affiliate partner`,

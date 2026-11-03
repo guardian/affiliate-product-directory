@@ -176,12 +176,13 @@ export class AmazonPriceProvider extends PriceProvider {
 				continue;
 			}
 
-			updated.push(
-				this.applyUpdate(product, {
-					price: money.amount,
-					currency: money.currency,
-				}),
-			);
+			const refreshed = this.applyUpdate(product, {
+				price: money.amount,
+				currency: money.currency,
+			});
+			if (refreshed) {
+				updated.push(refreshed);
+			}
 		}
 
 		return updated;
