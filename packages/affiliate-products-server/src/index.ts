@@ -5,6 +5,7 @@ import { getConfig } from '@common/config';
 import { DynamoService } from '@common/database-service';
 import { createApp } from './app';
 import { createPandaAuth } from './auth';
+import { createSkimlinksDomains } from './skimlinksDomains';
 
 const { stage } = getConfig();
 
@@ -22,9 +23,13 @@ export const handler = serverlessExpress({
 		stage,
 		capiKey: getCapiKey(),
 		dynamoService: new DynamoService(stage),
+		readSkimlinksDomains: createSkimlinksDomains(),
 		prod:
 			stage !== 'PROD' && prodCapiKey
-				? { capiKey: prodCapiKey, dynamoService: new DynamoService('PROD') }
+				? {
+						capiKey: prodCapiKey,
+						dynamoService: new DynamoService('PROD'),
+					}
 				: undefined,
 	}),
 });

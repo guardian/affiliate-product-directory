@@ -1,42 +1,130 @@
 import type { Article } from '@common/tool-models';
 import { css } from '@emotion/react';
-import { semanticColors, semanticSpacing } from '@guardian/stand';
+import {
+	semanticColors,
+	semanticSpacing,
+	semanticTypography,
+} from '@guardian/stand';
 import { Badge } from '@guardian/stand/Badge';
 import { IconButton } from '@guardian/stand/IconButton';
-import { IconLinkButton } from '@guardian/stand/IconLinkButton';
-import { Link } from '@guardian/stand/Link';
 import { Typography } from '@guardian/stand/Typography';
-import { type ReactNode, useId, useState } from 'react';
+import { convertTypographyToEmotionStringStyle } from '@guardian/stand/utils';
+import { type MouseEvent, type ReactNode, useId, useState } from 'react';
+import { ArticleDetail } from './ArticleDetail';
 import { formatDate } from './formatDate';
-import { ComposerIcon, LiveSiteIcon, OphanIcon } from './icons';
-import { ProductList } from './ProductList';
+import { ComposerIcon, LiveSiteIcon, OphanIcon, SkimlinksIcon } from './icons';
+import { retailerLinkCount } from './productStats';
 import { describeSection } from './sections';
+import { skimlinksUrl } from './skimlinksUrl';
+import { accent, draftAccent } from './style';
 
 // The width of the column with the row's toggle, which is a small IconButton.
 const toggleColumnWidth = '2rem';
 
-const rowStyles = css`
-	border-bottom: 1px solid ${semanticColors.border.weak};
+const rowStyles = (expanded: boolean) => css`
+	border-bottom: ${expanded
+		? `2px solid ${accent.strong}`
+		: `1px solid ${semanticColors.border.weak}`};
+`;
+
+/** The name of the container the list's rows size their columns by: see articleListContainer. */
+const listContainer = 'article-list';
+
+/** Makes an element the container that the rows inside it size their columns by. */
+export const articleListContainer = css`
+	container: ${listContainer} / inline-size;
 `;
 
 /**
  * The columns of each row, shared with the list's header row. Each row is its own grid,
  * so the columns have fixed widths for the rows and header to line up.
+ *
+ * In a narrower list, the less needed columns are left out, by their data-column, so the
+ * headline keeps room to be read. What they showed moves under the headline instead, in
+ * the elements whose data-when names that width.
  */
 export const articleColumnsStyles = css`
 	display: grid;
-	grid-template-columns: ${toggleColumnWidth} minmax(0, 1fr) 5rem 7.5rem 7.5rem;
+	grid-template-columns:
+		${toggleColumnWidth} minmax(0, 1fr) 10rem 5.5rem 6.5rem 4.5rem 5.5rem
+		7rem;
 	align-items: center;
 	column-gap: ${semanticSpacing.stackSm};
+	padding: 0 ${semanticSpacing.stackXs};
+
+	& [data-when] {
+		display: none;
+	}
+
+	@container ${listContainer} (max-width: 64rem) {
+		grid-template-columns:
+			${toggleColumnWidth} minmax(0, 1fr)
+			5.5rem 6.5rem 4.5rem 7rem;
+
+		& > [data-column='byline'],
+		& > [data-column='retailer-links'] {
+			display: none;
+		}
+
+		& [data-when~='medium'] {
+			display: inline;
+		}
+	}
+
+	@container ${listContainer} (max-width: 44rem) {
+		grid-template-columns: ${toggleColumnWidth} minmax(0, 1fr) 6.5rem 4.5rem;
+
+		& > [data-column='open-in'],
+		& > [data-column='published'] {
+			display: none;
+		}
+
+		& [data-when~='narrow'] {
+			display: inline;
+		}
+	}
 `;
 
-const summaryStyles = css`
+/** How far the headline column is from the row's left edge, for lining other things up with it. */
+export const headlineInset = `calc(${semanticSpacing.stackXs} + ${toggleColumnWidth} + ${semanticSpacing.stackSm})`;
+
+/** For the columns of counts, which line up on the right. */
+export const numberColumnStyles = css`
+	justify-self: end;
+	font-variant-numeric: tabular-nums;
+`;
+
+// The whole row opens the article, and an open row is marked with a bar
+// down its left edge. A draft's row is tinted, with a stripe of its own until it's opened.
+const summaryStyles = (expanded: boolean, draft: boolean) => css`
 	${articleColumnsStyles};
-	padding: ${semanticSpacing.stackXs} 0;
+	${convertTypographyToEmotionStringStyle(semanticTypography.bodySm)};
+	padding-top: ${semanticSpacing.stackXs};
+	padding-bottom: ${semanticSpacing.stackXs};
+	cursor: pointer;
+	background-color: ${expanded
+		? semanticColors.bg.raisedLevel2
+		: draft
+			? draftAccent.tint
+			: 'transparent'};
+	box-shadow: ${expanded
+		? `inset 4px 0 0 ${accent.strong}`
+		: draft
+			? `inset 4px 0 0 ${draftAccent.stripe}`
+			: 'none'};
 
 	&:hover {
-		background-color: ${semanticColors.bg.raisedLevel1};
+		background-color: ${expanded
+			? semanticColors.bg.raisedLevel2
+			: draft
+				? draftAccent.tintHover
+				: semanticColors.bg.raisedLevel1};
 	}
+`;
+
+const draftBadgeStyles = css`
+	margin-right: ${semanticSpacing.stackXs};
+	vertical-align: text-bottom;
 `;
 
 const toggleStyles = (expanded: boolean) => css`
@@ -47,27 +135,47 @@ const toggleStyles = (expanded: boolean) => css`
 `;
 
 const titleStyles = css`
-	text-decoration: none;
-
-	&[data-hovered] {
-		text-decoration: underline;
-	}
+	${convertTypographyToEmotionStringStyle(semanticTypography.bodyBoldSm)};
+	color: ${semanticColors.text.link};
 `;
 
-const pathStyles = css`
-	display: block;
+const ellipsisStyles = css`
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 `;
 
+// The icons' padding spaces them out, so their hover areas meet. The margin lines the first
+// icon up with the column's heading.
+const iconPadding = '6px';
+
 const linksStyles = css`
 	display: flex;
 	align-items: center;
-	gap: ${semanticSpacing.stackXxs};
+	margin: 0 -${iconPadding};
 `;
 
-/** An unavailable link is shown disabled rather than left out, to keep the columns aligned. */
+// Plain icons, rather than Stand's IconLinkButtons, so the four fit the column.
+const iconLinkStyles = (available: boolean) => css`
+	display: flex;
+	width: 14px;
+	height: 14px;
+	box-sizing: content-box;
+	padding: ${iconPadding};
+	color: ${available ? semanticColors.text.weak : semanticColors.text.disabled};
+
+	svg {
+		width: 100%;
+		height: 100%;
+		fill: currentColor;
+	}
+
+	&:hover {
+		color: ${available ? accent.strong : semanticColors.text.disabled};
+	}
+`;
+
+/** An unavailable link is shown greyed out rather than left out, to keep the columns aligned. */
 const ArticleLink = ({
 	href,
 	name,
@@ -76,22 +184,31 @@ const ArticleLink = ({
 	href?: string;
 	name: string;
 	icon: ReactNode;
-}) => (
-	<IconLinkButton
-		href={href}
-		isDisabled={!href}
-		target="_blank"
-		rel="noreferrer"
-		variant="tertiary"
-		size="xs"
-		ariaLabel={href ? `${name} (opens in new window)` : `${name} (unavailable)`}
-	>
-		{icon}
-	</IconLinkButton>
-);
+}) =>
+	href ? (
+		<a
+			css={iconLinkStyles(true)}
+			href={href}
+			target="_blank"
+			rel="noreferrer"
+			title={`${name} (opens in new window)`}
+			aria-label={`${name} (opens in new window)`}
+		>
+			{icon}
+		</a>
+	) : (
+		<span
+			css={iconLinkStyles(false)}
+			title={`${name} (unavailable)`}
+			aria-label={`${name} (unavailable)`}
+			role="img"
+		>
+			{icon}
+		</span>
+	);
 
 const ArticleLinks = ({ article }: { article: Article }) => (
-	<div css={linksStyles}>
+	<div data-column="open-in" css={linksStyles}>
 		<ArticleLink
 			href={article.composerUrl}
 			name="View in Composer"
@@ -107,6 +224,14 @@ const ArticleLinks = ({ article }: { article: Article }) => (
 			name="View in Ophan"
 			icon={<OphanIcon />}
 		/>
+		<ArticleLink
+			href={
+				article.webUrl &&
+				skimlinksUrl(article.webUrl, article.webPublicationDate)
+			}
+			name="View in Skimlinks"
+			icon={<SkimlinksIcon />}
+		/>
 	</div>
 );
 
@@ -118,19 +243,56 @@ const sectionStyles = (colour: string) => css`
 	color: ${semanticColors.text.strongerInverse};
 `;
 
-// The products table takes the row's full width.
-const panelStyles = css`
-	padding: ${semanticSpacing.stackXs} 0 ${semanticSpacing.stackMd};
+const weakText = { color: semanticColors.text.weak };
+
+const weakTextStyles = css`
+	color: ${semanticColors.text.weak};
 `;
 
-export const ArticleRow = ({ article }: { article: Article }) => {
-	const [expanded, setExpanded] = useState(false);
+/** When the article was published, or for a draft, when it was last edited. */
+const ArticleDate = ({ article }: { article: Article }) =>
+	article.webPublicationDate ? (
+		<time dateTime={article.webPublicationDate}>
+			{formatDate(article.webPublicationDate)}
+		</time>
+	) : (
+		<span css={weakTextStyles}>
+			{article.lastModified ? (
+				<>
+					Edited{' '}
+					<time dateTime={article.lastModified}>
+						{formatDate(article.lastModified)}
+					</time>
+				</>
+			) : (
+				'Unpublished'
+			)}
+		</span>
+	);
+
+export const ArticleRow = ({
+	article,
+	initiallyOpen = false,
+}: {
+	article: Article;
+	initiallyOpen?: boolean;
+}) => {
+	const [expanded, setExpanded] = useState(initiallyOpen);
 	const panelId = useId();
 	const section = describeSection(article.sectionId);
+	const draft = article.status === 'draft';
+
+	// Clicks on the row's links and toggle do what they do without the row's click too.
+	const onRowClick = (event: MouseEvent) => {
+		if (!(event.target as Element).closest('a, button')) {
+			setExpanded(!expanded);
+		}
+	};
 
 	return (
-		<li css={rowStyles}>
-			<div css={summaryStyles}>
+		<li css={rowStyles(expanded)}>
+			{/* The toggle makes the row's click usable from the keyboard. */}
+			<div css={summaryStyles(expanded, draft)} onClick={onRowClick}>
 				<IconButton
 					variant="tertiary"
 					size="sm"
@@ -142,39 +304,53 @@ export const ArticleRow = ({ article }: { article: Article }) => {
 					cssOverrides={toggleStyles(expanded)}
 				/>
 				<div>
-					<Link
-						href={article.webUrl}
-						target="_blank"
-						rel="noreferrer"
-						typography="bodyBoldMd"
-						cssOverrides={titleStyles}
-					>
+					<div css={titleStyles}>
+						{draft && (
+							<Badge size="xs" color="yellow" cssOverrides={draftBadgeStyles}>
+								Draft
+							</Badge>
+						)}
 						{article.webTitle}
-					</Link>
+					</div>
 					<Typography
 						element="div"
 						variant="bodyXs"
-						theme={{ color: semanticColors.text.weak }}
-						cssOverrides={pathStyles}
+						theme={weakText}
+						cssOverrides={ellipsisStyles}
 					>
 						/{article.id}
 					</Typography>
+					{/* The byline and date, here when their columns are left out of a narrow list. */}
+					<Typography element="div" variant="bodyXs" theme={weakText}>
+						{article.byline && (
+							<span data-when="medium narrow">{article.byline}</span>
+						)}
+						<span data-when="narrow">
+							{article.byline && ' · '}
+							<ArticleDate article={article} />
+						</span>
+					</Typography>
+				</div>
+				<div data-column="byline" css={ellipsisStyles} title={article.byline}>
+					{article.byline ?? (
+						<Typography variant="bodySm" theme={weakText}>
+							—
+						</Typography>
+					)}
 				</div>
 				<ArticleLinks article={article} />
 				<Badge size="xs" cssOverrides={sectionStyles(section.colour)}>
 					{section.name}
 				</Badge>
-				<Typography variant="bodySm">
-					<time dateTime={article.webPublicationDate}>
-						{formatDate(article.webPublicationDate)}
-					</time>
-				</Typography>
+				<span css={numberColumnStyles}>{article.products.length}</span>
+				<span data-column="retailer-links" css={numberColumnStyles}>
+					{retailerLinkCount(article)}
+				</span>
+				<span data-column="published">
+					<ArticleDate article={article} />
+				</span>
 			</div>
-			{expanded && (
-				<div id={panelId} css={panelStyles}>
-					<ProductList products={article.products} />
-				</div>
-			)}
+			{expanded && <ArticleDetail id={panelId} article={article} />}
 		</li>
 	);
 };

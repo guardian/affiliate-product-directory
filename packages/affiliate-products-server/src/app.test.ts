@@ -12,7 +12,7 @@ import {
 } from '@mocks/DatabaseServiceMock';
 import request from 'supertest';
 import { createApp } from './app';
-import type { Auth } from './types';
+import type { Auth, ListDrafts } from './types';
 
 let DynamoService: typeof DatabaseServiceModule.DynamoService;
 
@@ -61,6 +61,9 @@ describe('createApp', () => {
 		hasAccess: () => false,
 	};
 
+	// The Skimlinks merchants' domains, which include the shop the article links to.
+	const readSkimlinksDomains = () => Promise.resolve(new Set(['shop.example']));
+
 	// CAPI's answer to a search, with one article that has one product button.
 	const searchResponse = (page: number) => ({
 		response: {
@@ -101,6 +104,7 @@ describe('createApp', () => {
 	const article = {
 		id: 'thefilter/2026/oct/06/an-article',
 		sectionId: 'thefilter',
+		status: 'live',
 		webPublicationDate: '2026-10-06T09:00:00Z',
 		webTitle: 'An article',
 		webUrl: 'https://www.theguardian.com/thefilter/2026/oct/06/an-article',
@@ -109,12 +113,25 @@ describe('createApp', () => {
 			'https://dashboard.ophan.co.uk/info?capi-id=thefilter%2F2026%2Foct%2F06%2Fan-article',
 		products: [
 			{
-				url: 'https://shop.example/a-product',
-				label: '£27 at Shop',
-				basePrice: { currencySymbol: '£', amount: 27 },
+				links: [
+					{
+						url: 'https://shop.example/a-product',
+						label: '£27 at Shop',
+						retailer: 'Shop',
+						basePrice: { currencySymbol: '£', amount: 27 },
+					},
+				],
 			},
 		],
+		linkCounts: { amazon: 0, skimlinks: 1, other: 0 },
 	};
+
+	// The article's one product link, with the directory's price for it.
+	const withPrice = (product: Product) => [
+		{
+			links: [{ ...article.products[0]?.links[0], ...directoryPrice(product) }],
+		},
+	];
 
 	const pricedProduct: Product = {
 		productMerchantUrl: 'https://shop.example/a-product',
@@ -143,12 +160,21 @@ describe('createApp', () => {
 			>(() => Promise.resolve(products)),
 		});
 
-	// CAPI, answering every search with searchResponse for the page asked for.
+	// CAPI, answering every search with searchResponse for the page asked for, and a
+	// lookup of the article in it with that article. It has no other content.
 	let capi: ReturnType<typeof stubCapi>;
 	const stubCapi = () =>
 		jest.spyOn(globalThis, 'fetch').mockImplementation((input) => {
-			const page = new URL(input as string).searchParams.get('page');
-			return Promise.resolve(Response.json(searchResponse(Number(page))));
+			const url = new URL(input as string);
+			if (url.pathname === '/search') {
+				const page = url.searchParams.get('page');
+				return Promise.resolve(Response.json(searchResponse(Number(page))));
+			}
+			if (url.pathname === `/${article.id}`) {
+				const [content] = searchResponse(1).response.results;
+				return Promise.resolve(Response.json({ response: { content } }));
+			}
+			return Promise.resolve(new Response('', { status: 404 }));
 		});
 	const capiRequests = () =>
 		capi.mock.calls.map(([input]) => new URL(input as string));
@@ -171,6 +197,7 @@ describe('createApp', () => {
 			stage: 'CODE',
 			capiKey: 'code-key',
 			dynamoService,
+			readSkimlinksDomains,
 		});
 
 	it.each([
@@ -197,6 +224,56 @@ describe('createApp', () => {
 		expect(search?.searchParams.get('page')).toBe('2');
 	});
 
+	describe('finding an article by its URL', () => {
+		it.each([
+			article.id,
+			`/${article.id}`,
+			article.webUrl,
+			`${article.webUrl}?CMP=share_btn_url`,
+		])('returns just the article at %s', async (path) => {
+			const response = await request(app()).get(
+				`/api/articles?${new URLSearchParams({ path }).toString()}`,
+			);
+
+			expect(response.status).toBe(200);
+			expect(response.body).toEqual({
+				articles: [article],
+				currentPage: 1,
+				pages: 1,
+				total: 1,
+			});
+			const [lookup] = capiRequests();
+			expect(lookup?.pathname).toBe(`/${article.id}`);
+			expect(lookup?.searchParams.get('api-key')).toBe('code-key');
+		});
+
+		it("returns no articles when CAPI doesn't have one at the path", async () => {
+			const response = await request(app()).get(
+				'/api/articles?path=thefilter/2026/oct/06/not-an-article',
+			);
+
+			expect(response.status).toBe(200);
+			expect(response.body).toEqual({
+				articles: [],
+				currentPage: 1,
+				pages: 1,
+				total: 0,
+			});
+		});
+
+		it.each(['', 'thefilter', 'https://www.example.com/thefilter/a/b'])(
+			"rejects %p, which isn't an article's URL or path",
+			async (path) => {
+				const response = await request(app()).get(
+					`/api/articles?${new URLSearchParams({ path }).toString()}`,
+				);
+
+				expect(response.status).toBe(400);
+				expect(capiRequests()).toEqual([]);
+			},
+		);
+	});
+
 	it("adds the directory's price to the articles' products", async () => {
 		const dynamoService = pricingTable([pricedProduct]);
 
@@ -211,7 +288,7 @@ describe('createApp', () => {
 		]);
 		expect(
 			ArticlesPageSchema.parse(response.body).articles[0]?.products,
-		).toEqual([{ ...article.products[0], ...directoryPrice(pricedProduct) }]);
+		).toEqual(withPrice(pricedProduct));
 	});
 
 	it('fails, hiding the details, when the product prices cannot be read', async () => {
@@ -238,6 +315,7 @@ describe('createApp', () => {
 				capiKey: 'code-key',
 				dynamoService: stageTable,
 				prod: { capiKey: 'prod-key', dynamoService: prodTable },
+				readSkimlinksDomains,
 			});
 			return { withProd, stageTable, prodTable };
 		};
@@ -261,9 +339,7 @@ describe('createApp', () => {
 			expect(prodArticle?.composerUrl).toBe(
 				'https://composer.gutools.co.uk/content/abc123',
 			);
-			expect(prodArticle?.products).toEqual([
-				{ ...article.products[0], ...directoryPrice(prodProduct) },
-			]);
+			expect(prodArticle?.products).toEqual(withPrice(prodProduct));
 			expect(prodTable.getProductsByUrl).toHaveBeenCalled();
 			expect(stageTable.getProductsByUrl).not.toHaveBeenCalled();
 		});
@@ -279,10 +355,121 @@ describe('createApp', () => {
 			]);
 			expect(
 				ArticlesPageSchema.parse(response.body).articles[0]?.products,
-			).toEqual([{ ...article.products[0], ...directoryPrice(pricedProduct) }]);
+			).toEqual(withPrice(pricedProduct));
 			expect(stageTable.getProductsByUrl).toHaveBeenCalled();
 			expect(prodTable.getProductsByUrl).not.toHaveBeenCalled();
 		});
+	});
+
+	describe('with drafts', () => {
+		const draft = {
+			...article,
+			id: 'thefilter/2026/oct/16/a-draft',
+			status: 'draft' as const,
+			webPublicationDate: undefined,
+			webUrl: undefined,
+		};
+		const stubDrafts = () =>
+			jest.fn<ListDrafts>(() => Promise.resolve([draft]));
+
+		const appWithDrafts = (listDrafts: ListDrafts = stubDrafts()) =>
+			createApp({
+				clientDir,
+				auth: loggedIn,
+				stage: 'CODE',
+				capiKey: 'code-key',
+				listDrafts,
+				dynamoService: pricingTable([pricedProduct]),
+				readSkimlinksDomains,
+			});
+
+		it('lists the drafts before the first page of live articles', async () => {
+			const listDrafts = stubDrafts();
+
+			const response = await request(appWithDrafts(listDrafts)).get(
+				'/api/articles?section=thefilter',
+			);
+
+			expect(response.status).toBe(200);
+			const page = ArticlesPageSchema.parse(response.body);
+			expect(page.drafts?.map(({ id }) => id)).toEqual([draft.id]);
+			expect(page.articles).toEqual([
+				{ ...article, products: withPrice(pricedProduct) },
+			]);
+			expect(listDrafts).toHaveBeenCalledWith('thefilter');
+		});
+
+		it("adds the directory's prices to the drafts' products", async () => {
+			const response = await request(appWithDrafts()).get('/api/articles');
+
+			expect(
+				ArticlesPageSchema.parse(response.body).drafts?.[0]?.products,
+			).toEqual(withPrice(pricedProduct));
+		});
+
+		it('leaves the drafts off later pages', async () => {
+			const listDrafts = stubDrafts();
+
+			const response = await request(appWithDrafts(listDrafts)).get(
+				'/api/articles?page=2',
+			);
+
+			expect(ArticlesPageSchema.parse(response.body).drafts).toBeUndefined();
+			expect(ArticlesPageSchema.parse(response.body).articles).toHaveLength(1);
+			expect(listDrafts).not.toHaveBeenCalled();
+		});
+
+		it('lists only the drafts given status=draft', async () => {
+			const response = await request(appWithDrafts()).get(
+				'/api/articles?status=draft',
+			);
+
+			const page = ArticlesPageSchema.parse(response.body);
+			expect(page.drafts).toHaveLength(1);
+			expect(page.articles).toEqual([]);
+			expect(capi).not.toHaveBeenCalled();
+		});
+
+		it('lists only the live articles given status=live', async () => {
+			const listDrafts = stubDrafts();
+
+			const response = await request(appWithDrafts(listDrafts)).get(
+				'/api/articles?status=live',
+			);
+
+			expect(ArticlesPageSchema.parse(response.body).drafts).toBeUndefined();
+			expect(ArticlesPageSchema.parse(response.body).articles).toHaveLength(1);
+			expect(listDrafts).not.toHaveBeenCalled();
+		});
+
+		it("still lists the live articles when the drafts can't be read", async () => {
+			jest.spyOn(console, 'error').mockImplementation(() => {});
+			const failing = jest.fn<ListDrafts>(() =>
+				Promise.reject(new Error('status 403')),
+			);
+
+			const response = await request(appWithDrafts(failing)).get(
+				'/api/articles',
+			);
+
+			expect(response.status).toBe(200);
+			expect(ArticlesPageSchema.parse(response.body).drafts).toBeUndefined();
+			expect(ArticlesPageSchema.parse(response.body).articles).toHaveLength(1);
+		});
+
+		it('rejects an unknown status', async () => {
+			const response = await request(appWithDrafts()).get(
+				'/api/articles?status=published',
+			);
+
+			expect(response.status).toBe(400);
+		});
+	});
+
+	it("leaves the drafts out when it can't list them", async () => {
+		const response = await request(app()).get('/api/articles');
+
+		expect(ArticlesPageSchema.parse(response.body).drafts).toBeUndefined();
 	});
 
 	it("rejects prod=true when PROD's articles can't be listed", async () => {
@@ -326,6 +513,76 @@ describe('createApp', () => {
 			expect(response.status).toBe(400);
 		},
 	);
+
+	describe('links CSV', () => {
+		const csv = (query: Partial<Record<string, string>>) =>
+			request(app()).get('/api/links.csv').query(query);
+
+		it.each([article.id, article.webUrl])(
+			"downloads a CSV of the links in the body of the article at %s, from the stage's CAPI",
+			async (path) => {
+				const response = await csv({ path });
+
+				expect(response.status).toBe(200);
+				expect(response.headers['content-type']).toBe(
+					'text/csv; charset=utf-8',
+				);
+				expect(response.headers['content-disposition']).toBe(
+					'attachment; filename="an-article-links.csv"',
+				);
+				expect(response.text.split('\n')).toEqual([
+					expect.stringContaining('"External Link"'),
+					expect.stringContaining('"https://shop.example/a-product","Yes"'),
+				]);
+				const [lookup] = capiRequests();
+				expect(lookup?.origin).toBe(
+					'https://content.code.dev-guardianapis.com',
+				);
+			},
+		);
+
+		it("doesn't fetch the article's page from the site", async () => {
+			await csv({ path: article.id });
+
+			expect(
+				capiRequests().every(
+					(url) => url.origin === 'https://content.code.dev-guardianapis.com',
+				),
+			).toBe(true);
+		});
+
+		it.each([{}, { path: 'not a path' }, { path: article.id, prod: 'yes' }])(
+			'refuses %j',
+			async (query) => {
+				const response = await csv(query);
+
+				expect(response.status).toBe(400);
+			},
+		);
+
+		it("says when there's no article at the path", async () => {
+			const response = await csv({ path: 'thefilter/2026/oct/06/missing' });
+
+			expect(response.status).toBe(404);
+		});
+
+		it("fails when the Skimlinks domains can't be read", async () => {
+			const response = await request(
+				createApp({
+					clientDir,
+					auth: loggedIn,
+					stage: 'CODE',
+					capiKey: 'code-key',
+					dynamoService: pricingTable(),
+					readSkimlinksDomains: () => Promise.resolve(undefined),
+				}),
+			)
+				.get('/api/links.csv')
+				.query({ path: article.id });
+
+			expect(response.status).toBe(503);
+		});
+	});
 
 	it('returns the logged-in user and their permissions', async () => {
 		const response = await request(app()).get('/api/auth');
@@ -406,6 +663,18 @@ describe('createApp', () => {
 		},
 	);
 
+	it.each(['/', '/assets/index-abc123.js'])(
+		'tells logged-in users without access that they lack permission at %s',
+		async (url) => {
+			const response = await request(app(loggedInWithoutAccess)).get(url);
+
+			expect(response.status).toBe(403);
+			expect(response.text).toBe(
+				"You don't have permission to access the affiliate products tool.",
+			);
+		},
+	);
+
 	it('hides error details from users', async () => {
 		const failing: Auth = {
 			...loggedIn,
@@ -444,6 +713,7 @@ describe('createApp', () => {
 				stage: 'CODE',
 				capiKey: 'code-key',
 				dynamoService: pricingTable(),
+				readSkimlinksDomains,
 			}),
 		).get('/some/deep/link');
 
