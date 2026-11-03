@@ -21,10 +21,13 @@ import type { ArticleGroup } from './ArticleList';
 import { headlineInset } from './ArticleRow';
 import { ArticleSearch } from './ArticleSearch';
 import { useListParams } from './hooks/useListParams';
+import { useStarred } from './hooks/useStarred';
+import { useStarredArticles } from './hooks/useStarredArticles';
 import { Pagination } from './Pagination';
 import { PriceEditingContext } from './PriceEditing';
 import { ProdDataContext } from './ProdData';
 import { Sidebar } from './Sidebar';
+import { StarredContext } from './Starred';
 import { TopToolbar } from './TopToolbar';
 import type { ArticlesState, ListParams } from './types';
 
@@ -96,6 +99,30 @@ export const App = () => {
 		() => ({ canEdit: !prod, onPriceEdit: () => setReloads((n) => n + 1) }),
 		[prod],
 	);
+
+	const { starred, toggleStar } = useStarred(prod);
+	const starredContext = {
+		isStarred: (id: string) => starred.includes(id),
+		toggleStar,
+	};
+	const {
+		articles: starredArticles,
+		failed: starredFailed,
+		retry: retryStarred,
+	} = useStarredArticles(starred, prod, reloads);
+
+	// The starred articles the sidebar's filters would show, in the order they were starred.
+	const pinned =
+		starredArticles &&
+		starred.flatMap((id) => {
+			const article = starredArticles.get(id);
+			return article &&
+				(!section || article.sectionId === section) &&
+				(!status || article.status === status) &&
+				(!livePricing || article.livePricing)
+				? [article]
+				: [];
+		});
 
 	useEffect(() => {
 		// The name is only shown in the toolbar, so there's nothing to show if this fails.
@@ -195,6 +222,35 @@ export const App = () => {
 				// The drafts are only on the first page. The server leaves them out of it when
 				// it can't list them, which it can't yet, as they're only in Preview CAPI.
 				const groups: ArticleGroup[] = [
+					// Pinned above everything else on the first page, and in their place below too.
+					...(page === 1 && starred.length > 0
+						? [
+								{
+									title: pinned ? `Starred (${pinned.length})` : 'Starred',
+									kind: 'starred' as const,
+									articles: pinned ?? [],
+									emptyMessage: pinned
+										? 'No starred articles match these filters.'
+										: 'Loading the starred articles…',
+									notice:
+										starredFailed.length > 0 ? (
+											<>
+												{starredFailed.length === 1
+													? '1 starred article'
+													: `${starredFailed.length} starred articles`}{' '}
+												couldn’t be loaded.{' '}
+												<Button
+													variant="secondary"
+													size="xs"
+													onPress={retryStarred}
+												>
+													Try again
+												</Button>
+											</>
+										) : undefined,
+								},
+							]
+						: []),
 					...(status !== 'live' && page === 1
 						? [
 								{
@@ -260,7 +316,9 @@ export const App = () => {
 				<Layout.Main paddingTop={false} cssOverrides={mainStyles}>
 					<ProdDataContext.Provider value={prod}>
 						<PriceEditingContext.Provider value={priceEditing}>
-							{renderArticles()}
+							<StarredContext.Provider value={starredContext}>
+								{renderArticles()}
+							</StarredContext.Provider>
 						</PriceEditingContext.Provider>
 					</ProdDataContext.Provider>
 				</Layout.Main>

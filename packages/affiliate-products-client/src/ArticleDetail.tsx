@@ -15,11 +15,16 @@ import {
 	from,
 } from '@guardian/stand/utils';
 import { useContext } from 'react';
+import { sectionCurrency } from './currency';
 import { formatDate } from './formatDate';
 import { SkimlinksIcon } from './icons';
 import { ProdDataContext } from './ProdData';
 import { ProductList } from './ProductList';
-import { retailersUsed } from './productStats';
+import {
+	priceGapCount,
+	priceGapThreshold,
+	retailersUsed,
+} from './productStats';
 import { describeSection } from './sections';
 import { skimlinksUrl } from './skimlinksUrl';
 import { accent, wrappingBannerTheme } from './style';
@@ -234,6 +239,7 @@ export const ArticleDetail = ({
 	article: Article;
 }) => {
 	const retailers = retailersUsed(article);
+	const gaps = priceGapCount(article);
 	const prod = useContext(ProdDataContext);
 	const { webUrl } = article;
 	// A draft isn't in CAPI yet, so its links can only be counted once it's published.
@@ -282,6 +288,20 @@ export const ArticleDetail = ({
 											'Composer'
 										)}
 										.
+									</span>
+								</AlertBanner>
+							)}
+							{gaps > 0 && (
+								<AlertBanner
+									level="warning"
+									showIcon={true}
+									icon="warning"
+									theme={wrappingBannerTheme}
+								>
+									<span>
+										{gaps === 1 ? '1 link has' : `${gaps} links have`} a Current
+										price {Math.round(priceGapThreshold * 100)}% or more away
+										from the article’s.
 									</span>
 								</AlertBanner>
 							)}
@@ -361,7 +381,10 @@ export const ArticleDetail = ({
 
 				<section css={columnStyles}>
 					<h4 css={headingStyles}>Products ({article.products.length})</h4>
-					<ProductList products={article.products} />
+					<ProductList
+						products={article.products}
+						articleCurrency={sectionCurrency(article.sectionId)}
+					/>
 				</section>
 			</div>
 
