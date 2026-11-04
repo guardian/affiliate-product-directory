@@ -1,8 +1,8 @@
-import type {
+import type { UpdateItemCommand } from '@aws-sdk/client-dynamodb';
+import {
+	ConditionalCheckFailedException,
 	DynamoDBClient,
-	UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
-import { ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
 import type {
 	BatchGetCommand,
 	DynamoDBDocumentClient,
@@ -383,6 +383,52 @@ describe('DynamoService', () => {
 					Item: item,
 				})),
 			);
+		});
+
+		it('leaves attributes set to undefined out of the item it writes', async () => {
+			const client = new DynamoDBClient({
+				region: 'eu-west-1',
+				credentials: { accessKeyId: 'test', secretAccessKey: 'test' },
+			});
+			const sentItems: unknown[] = [];
+			// Stops the command just after it has been marshalled, before any request is made.
+			client.middlewareStack.add(
+				() => (args) => {
+					sentItems.push((args.input as { Item: unknown }).Item);
+					return Promise.resolve({ output: { $metadata: {} }, response: {} });
+				},
+				{ step: 'build' },
+			);
+			const service = new DynamoService(
+				'TEST',
+				'affiliate-product-directory-pricing-TEST',
+				'affiliate-product-directory-product-article-TEST',
+				client,
+			);
+
+			await service.updateProducts({
+				items: [
+					{
+						productMerchantUrl: 'https://example.com/1',
+						createdAt: 1,
+						region: 'GB',
+						updatedAt: 2,
+						updatedBy: undefined,
+						price: undefined,
+						currency: undefined,
+						expiresAt: undefined,
+					},
+				],
+			});
+
+			expect(sentItems).toEqual([
+				{
+					productMerchantUrl: { S: 'https://example.com/1' },
+					createdAt: { N: '1' },
+					region: { S: 'GB' },
+					updatedAt: { N: '2' },
+				},
+			]);
 		});
 
 		it('only writes items updated before the cutoff and not removed, given a cutoff', async () => {
