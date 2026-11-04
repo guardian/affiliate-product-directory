@@ -7,12 +7,6 @@ import {
 	Bucket,
 	BucketEncryption,
 } from 'aws-cdk-lib/aws-s3';
-import {
-	Effect,
-	PolicyStatement,
-	Role,
-	ServicePrincipal,
-} from 'aws-cdk-lib/aws-iam';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
@@ -37,7 +31,7 @@ export function createChangeCapturePipeline(
 		encryption: BucketEncryption.S3_MANAGED,
 		blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
 		enforceSSL: true,
-		versioning: false,
+		versioned: false,
 		removalPolicy: RemovalPolicy.RETAIN,
 	});
 
