@@ -28,9 +28,7 @@ function productPricingTable(
 			type: AttributeType.STRING,
 		},
 		tableName: `${appName}-pricing-${stage}`,
-		// Tells the prices CSV lambda that the table has changed. It rereads the whole
-		// table, so the stream only needs each changed item's key.
-		stream: StreamViewType.KEYS_ONLY,
+		stream: StreamViewType.NEW_AND_OLD_IMAGES,
 	});
 }
 
@@ -53,6 +51,7 @@ function productArticleTable(
 				type: AttributeType.STRING,
 			},
 			tableName: `${appName}-product-article-${stage}`,
+			stream: StreamViewType.NEW_AND_OLD_IMAGES,
 		},
 	);
 
