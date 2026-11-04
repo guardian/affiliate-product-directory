@@ -55,13 +55,13 @@ const groupHeadingStyles = (kind: ArticleGroup['kind']) => css`
 	display: flex;
 	align-items: center;
 	gap: ${semanticSpacing.stackXxs};
-	border-top: ${kind === 'published'
-		? `3px solid ${semanticColors.border.strong}`
-		: 'none'};
+	border-top: ${
+		kind === 'published' ? `3px solid ${semanticColors.border.strong}` : 'none'
+	};
 	border-bottom: 1px solid ${semanticColors.border.weak};
-	background-color: ${kind === 'drafts'
-		? draftAccent.tint
-		: semanticColors.bg.raisedLevel1};
+	background-color: ${
+		kind === 'drafts' ? draftAccent.tint : semanticColors.bg.raisedLevel1
+	};
 	color: ${semanticColors.text.weak};
 	text-transform: uppercase;
 `;

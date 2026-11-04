@@ -5,8 +5,7 @@ import {
 } from './requestSchemas';
 
 type HandlerResult =
-	| { ok: true }
-	| { ok: false; status: 400 | 404 | 409; error: string };
+	{ ok: true } | { ok: false; status: 400 | 404 | 409; error: string };
 
 export async function handleOverrideRequest(
 	request: unknown,
