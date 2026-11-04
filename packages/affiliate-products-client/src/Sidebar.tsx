@@ -66,16 +66,20 @@ const filterStyles = (selected: boolean) => css`
 	${convertTypographyToEmotionStringStyle(semanticTypography.bodySm)};
 	display: block;
 	width: 100%;
-	background-color: ${selected
-		? semanticColors.fill.selectedWeaker
-		: semanticColors.bg.raisedLevel1};
+	background-color: ${
+		selected
+			? semanticColors.fill.selectedWeaker
+			: semanticColors.bg.raisedLevel1
+	};
 	border-left: 3px solid
 		${selected ? semanticColors.border.selected : 'transparent'};
 
 	&:hover {
-		background-color: ${selected
-			? semanticColors.fill.selectedHoverWeaker
-			: semanticColors.bg.raisedLevel2};
+		background-color: ${
+			selected
+				? semanticColors.fill.selectedHoverWeaker
+				: semanticColors.bg.raisedLevel2
+		};
 	}
 `;
 
@@ -85,12 +89,12 @@ const defaultFilterStyles = (selected: boolean) => css`
 	width: auto;
 	padding: 6px 12px;
 	border-left: 1px solid ${semanticColors.bg.base};
-	background-color: ${selected
-		? semanticColors.fill.selectedWeaker
-		: 'transparent'};
-	box-shadow: ${selected
-		? `inset 3px 0 ${semanticColors.border.selected}`
-		: 'none'};
+	background-color: ${
+		selected ? semanticColors.fill.selectedWeaker : 'transparent'
+	};
+	box-shadow: ${
+		selected ? `inset 3px 0 ${semanticColors.border.selected}` : 'none'
+	};
 `;
 
 const listStyles = css`

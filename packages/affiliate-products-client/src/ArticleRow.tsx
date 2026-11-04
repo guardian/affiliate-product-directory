@@ -37,9 +37,11 @@ import {
 const toggleColumnWidth = '2rem';
 
 const rowStyles = (expanded: boolean) => css`
-	border-bottom: ${expanded
-		? `2px solid ${accent.strong}`
-		: `1px solid ${semanticColors.border.weak}`};
+	border-bottom: ${
+		expanded
+			? `2px solid ${accent.strong}`
+			: `1px solid ${semanticColors.border.weak}`
+	};
 `;
 
 /** The name of the container the list's rows size their columns by: see articleListContainer. */
@@ -132,27 +134,33 @@ const summaryStyles = (
 	padding-top: ${semanticSpacing.stackXs};
 	padding-bottom: ${semanticSpacing.stackXs};
 	cursor: pointer;
-	background-color: ${expanded
-		? semanticColors.bg.raisedLevel2
-		: draft
-			? draftAccent.tint
-			: livePricing
-				? livePricingAccent.tint
-				: 'transparent'};
-	box-shadow: ${expanded
-		? `inset 4px 0 0 ${accent.strong}`
-		: draft
-			? `inset 4px 0 0 ${draftAccent.stripe}`
-			: 'none'};
-
-	&:hover {
-		background-color: ${expanded
+	background-color: ${
+		expanded
 			? semanticColors.bg.raisedLevel2
 			: draft
-				? draftAccent.tintHover
+				? draftAccent.tint
 				: livePricing
-					? livePricingAccent.tintHover
-					: semanticColors.bg.raisedLevel1};
+					? livePricingAccent.tint
+					: 'transparent'
+	};
+	box-shadow: ${
+		expanded
+			? `inset 4px 0 0 ${accent.strong}`
+			: draft
+				? `inset 4px 0 0 ${draftAccent.stripe}`
+				: 'none'
+	};
+
+	&:hover {
+		background-color: ${
+			expanded
+				? semanticColors.bg.raisedLevel2
+				: draft
+					? draftAccent.tintHover
+					: livePricing
+						? livePricingAccent.tintHover
+						: semanticColors.bg.raisedLevel1
+		};
 	}
 `;
 
