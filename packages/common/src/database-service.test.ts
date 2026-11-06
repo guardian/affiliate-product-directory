@@ -410,7 +410,6 @@ describe('DynamoService', () => {
 				items: [
 					{
 						productMerchantUrl: 'https://example.com/1',
-						createdAt: 1,
 						region: 'GB',
 						updatedAt: 2,
 						updatedBy: undefined,
@@ -424,7 +423,6 @@ describe('DynamoService', () => {
 			expect(sentItems).toEqual([
 				{
 					productMerchantUrl: { S: 'https://example.com/1' },
-					createdAt: { N: '1' },
 					region: { S: 'GB' },
 					updatedAt: { N: '2' },
 				},

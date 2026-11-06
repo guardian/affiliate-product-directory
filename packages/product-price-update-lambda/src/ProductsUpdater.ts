@@ -83,12 +83,12 @@ export class ProductsUpdater {
 		);
 
 		const categorised = this.categoriseProducts(maybeStoredProducts);
-		const [amazonUpdated, otherUpdated] = await Promise.all([
+		const [amazon, other] = await Promise.all([
 			this.refreshWithFallback(categorised.amazon, this.providers.amazon),
 			this.refreshWithFallback(categorised.other, this.providers.other),
 		]);
 
-		const allProducts = [...amazonUpdated, ...otherUpdated];
+		const allProducts = [...amazon.updated, ...other.updated];
 		await this.dynamoService.updateProducts({
 			items: allProducts,
 		});
