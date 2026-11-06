@@ -6,7 +6,7 @@ export interface Product {
 	createdAt: number;
 	region: Region;
 	updatedAt: number;
-	updatedBy: string;
+	updatedBy?: string;
 	removed?: string;
 	removedAt?: number;
 	// Both are missing until a price provider has priced the product.

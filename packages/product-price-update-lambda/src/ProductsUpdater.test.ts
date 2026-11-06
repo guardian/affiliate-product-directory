@@ -266,6 +266,67 @@ describe('refreshPrices', () => {
 		});
 	});
 
+	it('clears an expired manual price that no provider could price', async () => {
+		const expiredManualOverride = buildProduct({
+			productMerchantUrl: 'https://shop.example.com/products/expired-override',
+			updatedBy: 'manualOverride',
+			price: 10,
+			currency: 'GBP',
+			expiresAt: Date.now() - 60_000,
+		});
+		const unpricedProduct = buildProduct({
+			productMerchantUrl: 'https://shop.example.com/products/unpriced',
+			updatedBy: 'skimlinks',
+		});
+		mockGetAllProducts.mockResolvedValue([
+			expiredManualOverride,
+			unpricedProduct,
+		]);
+
+		await updater().refreshPrices();
+
+		expect(mockUpdateProducts).toHaveBeenCalledWith({
+			items: [
+				{
+					...expiredManualOverride,
+					price: undefined,
+					currency: undefined,
+					expiresAt: undefined,
+					updatedBy: undefined,
+					updatedAt: NOW,
+				},
+			],
+			updatedAtCutoff: CUTOFF,
+		});
+	});
+
+	it('writes an expired manual override a provider priced as it was priced', async () => {
+		const expiredManualOverride = buildProduct({
+			productMerchantUrl: 'https://shop.example.com/products/expired-override',
+			updatedBy: 'manualOverride',
+			expiresAt: Date.now() - 60_000,
+		});
+		const priced = {
+			...expiredManualOverride,
+			price: 12,
+			currency: 'GBP',
+			expiresAt: undefined,
+			updatedBy: 'skimlinks',
+		};
+		mockGetAllProducts.mockResolvedValue([expiredManualOverride]);
+		mockSkimlinksRefreshPrices.mockResolvedValue({
+			updated: [priced],
+			notUpdated: [],
+		});
+
+		await updater().refreshPrices();
+
+		expect(mockUpdateProducts).toHaveBeenCalledWith({
+			items: [priced],
+			updatedAtCutoff: CUTOFF,
+		});
+	});
+
 	it('keeps an active manual override with an invalid URL out of providers', async () => {
 		const product = buildProduct({
 			productMerchantUrl: 'not a valid URL',
