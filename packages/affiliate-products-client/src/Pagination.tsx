@@ -3,9 +3,12 @@ import type { ArticlesPage } from '@common/tool-models';
 import { css } from '@emotion/react';
 import { semanticSpacing } from '@guardian/stand';
 import { Pagination as StandPagination } from '@guardian/stand/Pagination';
+import { headlineInset } from './ArticleRow';
 
+// Lined up with the headlines above, and clear of the last row.
 const paginationStyles = css`
-	margin: ${semanticSpacing.stackMd} 0;
+	padding: ${semanticSpacing.stackLg} ${semanticSpacing.stackMd};
+	padding-left: ${headlineInset};
 `;
 
 export const Pagination = ({

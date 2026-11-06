@@ -14,9 +14,26 @@ Every request, for the page or the API, must carry a valid Panda cookie, as for 
 
 The page keeps the same two values in its own URL, so the address bar always links to what's on screen and can be shared, for example `/?page=2&section=thefilter-us`. Defaults are left out: `/` is the first page of both sections.
 
-Each article comes with its product links: its product buttons and the links on its product cards, read from CAPI's body blocks, as the directory does. Each has its URL, its label and, when the label has a £ or $ price, that price as the base price. Prices are read the same way dotcom-rendering reads them for live prices. Expanding a row lists them.
+Each article comes with its products, read from CAPI's body blocks, each with its links to the retailers that sell it, as the POC lists them:
+
+- A product card is one product, with its links and the product buttons inside it.
+- Product buttons outside a card are grouped by run: buttons in a row, with nothing but empty text between them, are one product at several retailers. The run is named by the text just before it, if that ends with a bold paragraph, a heading or an "at a glance" list item, without a label such as "Best for travel:".
+- Links back to the Filter, its fronts or its articles, such as an "Explore the Filter" button, aren't products, so they're left out.
+- Products that share a URL are one product, listed where it first appears, as an article often lists a product in an "at a glance" list, then in full with more retailers. A product card's name is preferred.
+
+Each link has its URL, its label, its retailer (from a product card, or the end of a button's label, as in "£27 at Cult Beauty") and, when the label has a £ or $ price, that price as the base price. Prices are read the same way dotcom-rendering reads them for live prices. Expanding a row shows the article's details, its products with their links, and the retailers it links to.
 
 Each product link also carries the directory's latest price for its URL: `currency`, `price`, `updatedAt` and `updatedBy` (the price provider that set it). They are missing if the directory doesn't have the URL as an active product, or has it but hasn't priced it yet. On every request the server looks up the page's product URLs in the stage's pricing table, with strongly consistent reads, so the tool always shows the table as it is, including a change made just before. Nothing is cached between requests. If the table can't be read, `/api/articles` fails.
+
+## Link counts
+
+Expanding a row also shows how many links the article has, counted as the Affiliate Link Counter bookmarklet (December 2024) counts them, so the numbers can be compared with ones it gave. `/api/link-counts?url=<the article's web URL>` fetches the article as it's rendered on the site, as Skimlinks only wraps links then, and counts every link on the page, repeats included:
+
+- `amazon`: links to amazon.co.uk or amazon.com, including through Skimlinks.
+- `skimlinks`: other links through skimresources.
+- `other`: links to web pages on any other host than the page's. Like the bookmarklet, this includes the Guardian's own links on other hosts, such as jobs.theguardian.com in the footer.
+
+The affiliate share is the Amazon and Skimlinks links as a share of all three. The panel's Download CSV button gets `/api/link-counts.csv?url=…`, the bookmarklet's CSV of the page's external links: each once, Amazon links first, then Skimlinks links, then the rest, leaving out the hosts the bookmarklet leaves out of its CSV, with the same columns. The server only fetches pages on www.theguardian.com and CODE's site, which serves its articles from m.code.dev-theguardian.com. On CODE, links to www.theguardian.com count as the page's own, as they would on PROD.
 
 ### PROD data
 
@@ -35,7 +52,7 @@ CAPI_KEY=<a CODE CAPI key> npm run affiliate-products-dev
 
 The home page lists articles from CODE CAPI, so the server needs a CODE CAPI key. Deployed, it uses the stage's key from the existing `capi-key` SSM parameter. To try the Data filter, also set `PROD_CAPI_KEY` to a PROD CAPI key.
 
-This starts the server on port 3040 and the client's Vite dev server on port 5173; Ctrl+C stops both. Go to http://localhost:5173 for hot reloading. Vite proxies `/api` to the server.
+This starts the server on port 3040 (set `PORT` to change it) and the client's Vite dev server on port 5173; Ctrl+C stops both. The server restarts itself when its code changes. Go to http://localhost:5173 for hot reloading. Vite proxies `/api` to the server.
 
 Locally, every request is treated as coming from a fake user with a fake permission, because the Panda cookie is only sent to `*.dev-gutools.co.uk` and never to localhost.
 

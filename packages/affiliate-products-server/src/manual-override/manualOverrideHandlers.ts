@@ -5,8 +5,7 @@ import {
 } from './requestSchemas';
 
 type HandlerResult =
-	| { ok: true }
-	| { ok: false; status: 400 | 404 | 409; error: string };
+	{ ok: true } | { ok: false; status: 400 | 404 | 409; error: string };
 
 export async function handleOverrideRequest(
 	request: unknown,
@@ -19,6 +18,11 @@ export async function handleOverrideRequest(
 	}
 	const { currency, price, expiryDate, productMerchantUrl } =
 		parsedRequest.data;
+
+	// A price kept until a moment already past would be replaced by the next price update.
+	if (expiryDate && expiryDate.getTime() <= Date.now()) {
+		return { ok: false, status: 400, error: 'The expiry date has passed' };
+	}
 
 	const productDatabaseEntry =
 		await dynamoService.getProductPrice(productMerchantUrl);

@@ -6,6 +6,10 @@ modules:
   - node
   - github-copilot
 
+forwardPorts:
+  - 3040
+  - 5173
+
 plugins:
   vscode:
     - GitHub.copilot-chat
@@ -13,5 +17,5 @@ plugins:
   intellij: []
 
 postCreateCommand:
-  - cmd: "mise exec -- npm ci"
+  - cmd: "mise exec -- npm ci --include=optional"
     workingDirectory: "."

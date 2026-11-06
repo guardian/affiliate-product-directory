@@ -72,6 +72,8 @@ export abstract class PriceProvider {
 		}
 
 		Object.assign(product, changes);
+		// A provider price replaces an expired manual one, so its expiry no longer applies.
+		product.expiresAt = undefined;
 		product.updatedAt = Date.now();
 		product.updatedBy = this.name;
 		return product;

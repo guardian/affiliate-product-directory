@@ -1,5 +1,5 @@
 import type { Product } from '@common/models';
-import type { ArticlesPage } from '@common/tool-models';
+import type { Article, ArticlesPage } from '@common/tool-models';
 import type { GetProductPrices, ProductPrices } from './types';
 
 /**
@@ -22,34 +22,50 @@ export const createProductPrices =
 						product.currency !== undefined,
 				)
 				.map(
-					({ productMerchantUrl, currency, price, updatedAt, updatedBy }) => [
+					({
 						productMerchantUrl,
-						{ currency, price, updatedAt, updatedBy },
+						currency,
+						price,
+						updatedAt,
+						updatedBy,
+						expiresAt,
+					}) => [
+						productMerchantUrl,
+						{ currency, price, updatedAt, updatedBy, expiresAt },
 					],
 				),
 		);
 	};
 
-/** The URL of every product on the page, each once. */
+/** The URL of every product link on the page, its drafts' included, each once. */
 export const productUrls = (page: ArticlesPage): string[] => [
 	...new Set(
-		page.articles.flatMap((article) =>
-			article.products.map((product) => product.url),
+		[...(page.drafts ?? []), ...page.articles].flatMap((article) =>
+			article.products.flatMap((product) =>
+				product.links.map((link) => link.url),
+			),
 		),
 	),
 ];
 
-/** Adds the directory's price to each of the articles' products that it has one for. */
+/** Adds the directory's price to each of the articles' product links that it has one for. */
 export const attachProductPrices = (
 	page: ArticlesPage,
 	prices: ProductPrices,
-): ArticlesPage => ({
-	...page,
-	articles: page.articles.map((article) => ({
+): ArticlesPage => {
+	const withPrices = (article: Article): Article => ({
 		...article,
 		products: article.products.map((product) => ({
 			...product,
-			...prices.get(product.url),
+			links: product.links.map((link) => ({
+				...link,
+				...prices.get(link.url),
+			})),
 		})),
-	})),
-});
+	});
+	return {
+		...page,
+		...(page.drafts && { drafts: page.drafts.map(withPrices) }),
+		articles: page.articles.map(withPrices),
+	};
+};

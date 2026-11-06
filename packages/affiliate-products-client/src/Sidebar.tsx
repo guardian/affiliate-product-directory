@@ -1,5 +1,5 @@
 import { SectionSchema } from '@common/tool-models';
-import type { Section } from '@common/tool-models';
+import type { ArticleStatus, Section } from '@common/tool-models';
 import { css } from '@emotion/react';
 import { semanticColors, semanticTypography } from '@guardian/stand';
 import { Icon } from '@guardian/stand/Icon';
@@ -66,16 +66,20 @@ const filterStyles = (selected: boolean) => css`
 	${convertTypographyToEmotionStringStyle(semanticTypography.bodySm)};
 	display: block;
 	width: 100%;
-	background-color: ${selected
-		? semanticColors.fill.selectedWeaker
-		: semanticColors.bg.raisedLevel1};
+	background-color: ${
+		selected
+			? semanticColors.fill.selectedWeaker
+			: semanticColors.bg.raisedLevel1
+	};
 	border-left: 3px solid
 		${selected ? semanticColors.border.selected : 'transparent'};
 
 	&:hover {
-		background-color: ${selected
-			? semanticColors.fill.selectedHoverWeaker
-			: semanticColors.bg.raisedLevel2};
+		background-color: ${
+			selected
+				? semanticColors.fill.selectedHoverWeaker
+				: semanticColors.bg.raisedLevel2
+		};
 	}
 `;
 
@@ -85,12 +89,12 @@ const defaultFilterStyles = (selected: boolean) => css`
 	width: auto;
 	padding: 6px 12px;
 	border-left: 1px solid ${semanticColors.bg.base};
-	background-color: ${selected
-		? semanticColors.fill.selectedWeaker
-		: 'transparent'};
-	box-shadow: ${selected
-		? `inset 3px 0 ${semanticColors.border.selected}`
-		: 'none'};
+	background-color: ${
+		selected ? semanticColors.fill.selectedWeaker : 'transparent'
+	};
+	box-shadow: ${
+		selected ? `inset 3px 0 ${semanticColors.border.selected}` : 'none'
+	};
 `;
 
 const listStyles = css`
@@ -135,12 +139,18 @@ const FilterHeading = ({
 	</button>
 );
 
-const SectionFilter = ({
-	section,
+/** A filter with an "All" option in its header, and an option for each of the values. */
+const OptionFilter = <Value extends string>({
+	name,
+	options,
+	selected,
 	onChange,
 }: {
-	section?: Section;
-	onChange: (section?: Section) => void;
+	name: string;
+	options: Array<{ value: Value; name: string }>;
+	/** Undefined when "All" is selected. */
+	selected?: Value;
+	onChange: (value?: Value) => void;
 }) => {
 	const [open, setOpen] = useState(true);
 	const listId = useId();
@@ -149,15 +159,15 @@ const SectionFilter = ({
 		<section>
 			<div css={headerStyles}>
 				<FilterHeading
-					name="Section"
+					name={name}
 					open={open}
 					listId={listId}
 					onToggle={() => setOpen(!open)}
 				/>
 				<button
 					type="button"
-					css={defaultFilterStyles(section === undefined)}
-					aria-pressed={section === undefined}
+					css={defaultFilterStyles(selected === undefined)}
+					aria-pressed={selected === undefined}
 					onClick={() => onChange(undefined)}
 				>
 					All
@@ -165,15 +175,15 @@ const SectionFilter = ({
 			</div>
 			{open && (
 				<ul id={listId} css={listStyles}>
-					{SectionSchema.options.map((option) => (
-						<li key={option} css={listItemStyles}>
+					{options.map((option) => (
+						<li key={option.value} css={listItemStyles}>
 							<button
 								type="button"
-								css={optionStyles(section === option)}
-								aria-pressed={section === option}
-								onClick={() => onChange(option)}
+								css={optionStyles(selected === option.value)}
+								aria-pressed={selected === option.value}
+								onClick={() => onChange(option.value)}
 							>
-								{sections[option].name}
+								{option.name}
 							</button>
 						</li>
 					))}
@@ -182,6 +192,19 @@ const SectionFilter = ({
 		</section>
 	);
 };
+
+const sectionOptions = SectionSchema.options.map((value) => ({
+	value,
+	name: sections[value].name,
+}));
+
+const statusOptions: Array<{ value: ArticleStatus; name: string }> = [
+	{ value: 'draft', name: 'Drafts' },
+	{ value: 'live', name: 'Published' },
+];
+
+// Only the articles with live pricing can be picked out, as CAPI can't search for those without.
+const livePricingOptions = [{ value: 'on', name: 'Enabled' }];
 
 // PROD's tool only ever shows PROD's data. The same build is served to every stage, so
 // PROD is told apart by its domain: CODE's is code.dev-gutools.co.uk.
@@ -237,11 +260,19 @@ const DataFilter = ({
 export const Sidebar = ({
 	section,
 	onSectionChange,
+	status,
+	onStatusChange,
+	livePricing,
+	onLivePricingChange,
 	prod,
 	onProdChange,
 }: {
 	section?: Section;
 	onSectionChange: (section?: Section) => void;
+	status?: ArticleStatus;
+	onStatusChange: (status?: ArticleStatus) => void;
+	livePricing: boolean;
+	onLivePricingChange: (livePricing: boolean) => void;
 	prod: boolean;
 	onProdChange: (prod: boolean) => void;
 }) => (
@@ -251,7 +282,24 @@ export const Sidebar = ({
 		layoutSmBreakpoint="above-grid"
 		cssOverrides={sidebarStyles}
 	>
-		<SectionFilter section={section} onChange={onSectionChange} />
+		<OptionFilter
+			name="Section"
+			options={sectionOptions}
+			selected={section}
+			onChange={onSectionChange}
+		/>
+		<OptionFilter
+			name="Status"
+			options={statusOptions}
+			selected={status}
+			onChange={onStatusChange}
+		/>
+		<OptionFilter
+			name="Live pricing"
+			options={livePricingOptions}
+			selected={livePricing ? 'on' : undefined}
+			onChange={(value) => onLivePricingChange(value === 'on')}
+		/>
 		{!isProd && <DataFilter prod={prod} onChange={onProdChange} />}
 	</Layout.Sidebar>
 );
