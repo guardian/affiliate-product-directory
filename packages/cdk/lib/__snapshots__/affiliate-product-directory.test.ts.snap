@@ -1684,6 +1684,9 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
           {
             "Ref": "ProductPriceUpdateLambdaServiceRole34386223",
           },
+          {
+            "Ref": "AffiliateProductsToolServiceRole931B917D",
+          },
         ],
       },
       "Type": "AWS::IAM::Policy",
@@ -3127,6 +3130,9 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
           },
           {
             "Ref": "ProductDirectoryUpdateLambdaServiceRoleB5BDC4A1",
+          },
+          {
+            "Ref": "AffiliateProductsToolServiceRole931B917D",
           },
         ],
       },
