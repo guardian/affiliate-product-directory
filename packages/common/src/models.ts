@@ -3,9 +3,8 @@ import type { AttributeValue } from '@aws-sdk/client-dynamodb';
 export type Region = 'GB' | 'US';
 export interface Product {
 	productMerchantUrl: string;
-	createdAt: number;
 	region: Region;
-	updatedAt: number;
+	updatedAt?: number;
 	updatedBy?: string;
 	removed?: string;
 	removedAt?: number;
@@ -15,13 +14,7 @@ export interface Product {
 	expiresAt?: number;
 }
 
-export type DirectoryPricingTableEntry = {
-	productMerchantUrl: string;
-	region: string;
-	removed?: boolean;
-};
-
-export type DirectoryArticleProductTableEntry = {
+export type ArticleProduct = {
 	productMerchantUrl: string;
 	articleUrl: string;
 	composerArticleId?: string;
@@ -29,13 +22,13 @@ export type DirectoryArticleProductTableEntry = {
 };
 
 export type ExtractedDirectoryProduct = {
-	pricing: DirectoryPricingTableEntry;
-	article: DirectoryArticleProductTableEntry;
+	pricing: Product;
+	article: ArticleProduct;
 };
 
 export function getArticleProductFromDynamoRecord(
 	raw: Record<string, AttributeValue>,
-): DirectoryArticleProductTableEntry {
+): ArticleProduct {
 	return {
 		productMerchantUrl: raw['productMerchantUrl']?.S ?? '',
 		articleUrl: raw['articleUrl']?.S ?? '',

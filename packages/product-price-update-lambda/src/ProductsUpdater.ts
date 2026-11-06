@@ -60,6 +60,42 @@ export class ProductsUpdater {
 		);
 	}
 
+	/**
+	 *
+	 * This function returns the latest price (if available) for a list of products
+	 * that need to be previewed - i.e. displayed and saved before publication
+	 */
+	public async getPreviewPrices(
+		requestProducts: Product[],
+	): Promise<Product[]> {
+		// Fetch from the DB in case there is a manual override for this product
+		const maybeStoredProducts = await Promise.all(
+			requestProducts.map(
+				async (requestProduct) =>
+					(await this.dynamoService.getProductPrice(
+						requestProduct.productMerchantUrl,
+					)) ?? requestProduct,
+			),
+		);
+
+		const manualOverrides = maybeStoredProducts.filter((product) =>
+			this.shouldSkipManualPrice(product),
+		);
+
+		const categorised = this.categoriseProducts(maybeStoredProducts);
+		const [amazon, other] = await Promise.all([
+			this.refreshWithFallback(categorised.amazon, this.providers.amazon),
+			this.refreshWithFallback(categorised.other, this.providers.other),
+		]);
+
+		const allProducts = [...amazon.updated, ...other.updated];
+		await this.dynamoService.updateProducts({
+			items: allProducts,
+		});
+
+		return [...manualOverrides, ...allProducts];
+	}
+
 	/** Tries each provider in turn, passing on only the products the previous ones couldn't price. */
 	private async refreshWithFallback(
 		products: Product[],
@@ -111,17 +147,22 @@ export class ProductsUpdater {
 		);
 	}
 
-	private categoriseProducts(products: Product[]): CategorisedProducts {
-		const categorised: CategorisedProducts = {
-			amazon: [],
-			other: [],
-		};
+	private getPartner(product: Product): Partner {
 		const amazonHosts = new Set([
 			'amazon.com',
 			'www.amazon.com',
 			'amazon.co.uk',
 			'www.amazon.co.uk',
 		]);
+		const hostname = new URL(product.productMerchantUrl).hostname.toLowerCase();
+		return amazonHosts.has(hostname) ? 'amazon' : 'other';
+	}
+
+	private categoriseProducts(products: Product[]): CategorisedProducts {
+		const categorised: CategorisedProducts = {
+			amazon: [],
+			other: [],
+		};
 
 		products.forEach((product) => {
 			try {
@@ -130,13 +171,7 @@ export class ProductsUpdater {
 						`Skipping ${product.productMerchantUrl} as it has manual override ${product.expiresAt ? `until ${product.expiresAt}` : ''}`,
 					);
 				} else {
-					const hostname = new URL(
-						product.productMerchantUrl,
-					).hostname.toLowerCase();
-					const partner: Partner = amazonHosts.has(hostname)
-						? 'amazon'
-						: 'other';
-
+					const partner = this.getPartner(product);
 					categorised[partner].push(product);
 				}
 			} catch {

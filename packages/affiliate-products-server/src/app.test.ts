@@ -3,24 +3,38 @@ import { tmpdir } from 'os';
 import path from 'path';
 import type * as DatabaseServiceModule from '@common/database-service';
 import { livePricingAllowListIds } from '@common/livePricing';
+import type { Region } from '@common/models';
 import type { Product } from '@common/models';
 import { ArticlesPageSchema, AuthResponseSchema } from '@common/tool-models';
 import type { User } from '@common/tool-models';
 import { jest } from '@jest/globals';
+import { mockAmazonRefreshPrices } from '@mocks/AmazonPriceProviderMock';
 import {
 	mockGetProductPrice,
 	mockUpdateProducts,
 } from '@mocks/DatabaseServiceMock';
+import { mockShopifyRefreshPrices } from '@mocks/ShopifyPriceProviderMock';
+import { mockSkimlinksRefreshPrices } from '@mocks/SkimlinksPriceProviderMock';
 import request from 'supertest';
-import { createApp } from './app';
+import type * as AppModule from './app';
 import type { Auth, ListDrafts } from './types';
 
 let DynamoService: typeof DatabaseServiceModule.DynamoService;
+let createApp: typeof AppModule.createApp;
 
 describe('createApp', () => {
 	let clientDir: string;
 	beforeEach(() => {
 		jest.clearAllMocks();
+		[
+			mockAmazonRefreshPrices,
+			mockShopifyRefreshPrices,
+			mockSkimlinksRefreshPrices,
+		].forEach((mock) =>
+			mock.mockImplementation((products) =>
+				Promise.resolve({ updated: [], notUpdated: products }),
+			),
+		);
 	});
 
 	beforeAll(async () => {
@@ -32,6 +46,7 @@ describe('createApp', () => {
 			'console.log("app");',
 		);
 		({ DynamoService } = await import('@common/database-service'));
+		({ createApp } = await import('./app'));
 	});
 
 	afterAll(() => {
@@ -139,7 +154,6 @@ describe('createApp', () => {
 	const pricedProduct: Product = {
 		productMerchantUrl: 'https://shop.example/a-product',
 		region: 'GB',
-		createdAt: 1750000000000,
 		currency: 'GBP',
 		price: 24.5,
 		updatedAt: 1760000000000,
@@ -761,7 +775,6 @@ describe('createApp', () => {
 			productMerchantUrl: 'https://shop.example.com/products/123',
 			currency: 'GBP',
 			price: 10,
-			createdAt: 1,
 			region: 'GB',
 			updatedAt: 1,
 			updatedBy: 'shopify',
@@ -823,6 +836,58 @@ describe('createApp', () => {
 
 		expect(response.status).toBe(401);
 		expect(mockGetProductPrice).not.toHaveBeenCalled();
+		expect(mockUpdateProducts).not.toHaveBeenCalled();
+	});
+
+	const previewRequest = {
+		products: [
+			{
+				productMerchantUrl: 'https://amazon.com/dp/123',
+				region: 'GB',
+			},
+		],
+	};
+
+	it('returns preview prices', async () => {
+		const pricedProduct = {
+			productMerchantUrl: 'https://amazon.com/dp/123',
+			region: 'GB' as Region,
+			price: 12.5,
+			currency: 'GBP',
+			updatedBy: 'amazon',
+		};
+		mockAmazonRefreshPrices.mockResolvedValueOnce({
+			updated: [pricedProduct],
+			notUpdated: [],
+		});
+		mockUpdateProducts.mockResolvedValueOnce({ skipped: [] });
+
+		const response = await request(app())
+			.post('/api/preview')
+			.send(previewRequest);
+
+		expect(response.status).toBe(200);
+		expect(response.body).toEqual([pricedProduct]);
+		expect(mockAmazonRefreshPrices).toHaveBeenCalledWith(
+			previewRequest.products,
+		);
+		expect(mockUpdateProducts).toHaveBeenCalledWith({
+			items: [pricedProduct],
+		});
+	});
+
+	it('returns 400 for malformed preview input', async () => {
+		const response = await request(app())
+			.post('/api/preview')
+			.send({
+				products: [
+					{ productMerchantUrl: 'https://amazon.com/dp/123', region: 'XX' },
+				],
+			});
+
+		expect(response.status).toBe(400);
+		expect(mockAmazonRefreshPrices).not.toHaveBeenCalled();
+		expect(mockShopifyRefreshPrices).not.toHaveBeenCalled();
 		expect(mockUpdateProducts).not.toHaveBeenCalled();
 	});
 });
