@@ -1709,6 +1709,9 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
           {
             "Ref": "ProductPriceUpdateLambdaServiceRole34386223",
           },
+          {
+            "Ref": "AffiliateProductsToolServiceRole931B917D",
+          },
         ],
       },
       "Type": "AWS::IAM::Policy",
@@ -1731,7 +1734,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
           },
         ],
         "StreamSpecification": {
-          "StreamViewType": "KEYS_ONLY",
+          "StreamViewType": "NEW_AND_OLD_IMAGES",
         },
         "TableName": "affiliate-product-directory-pricing-TEST",
         "Tags": [
@@ -1803,6 +1806,9 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
             "KeyType": "RANGE",
           },
         ],
+        "StreamSpecification": {
+          "StreamViewType": "NEW_AND_OLD_IMAGES",
+        },
         "TableName": "affiliate-product-directory-product-article-TEST",
         "Tags": [
           {
@@ -3152,6 +3158,9 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
           },
           {
             "Ref": "ProductDirectoryUpdateLambdaServiceRoleB5BDC4A1",
+          },
+          {
+            "Ref": "AffiliateProductsToolServiceRole931B917D",
           },
         ],
       },

@@ -139,8 +139,15 @@ export class AffiliateProductDirectory extends GuStack {
 			createTool(this, {
 				domainName: props.toolDomainName,
 				capiKeyParam,
-				productPricingReadPolicy: productPricingDynamoDBReadPolicy,
-				productPricingWritePolicy: productPricingDynamoDBWritePolicy,
+				// The products' prices, read from the pricing table on every request, and written
+				// to it. Previews also fetch live prices from the price providers, which read their
+				// switches and credentials from Parameter Store and record metrics.
+				policies: [
+					productPricingDynamoDBReadPolicy,
+					productPricingDynamoDBWritePolicy,
+					parameterStoreReadPolicy,
+					metricPutPolicy,
+				],
 				// PROD's tool always shows PROD's data. Elsewhere it can also show PROD's, and set
 				// its prices by hand while a switch is on.
 				prodData:
