@@ -21,6 +21,7 @@ const allowedEmails = new Set([
 	'fiona.mckellar@guardian.co.uk',
 	'robert.hull@guardian.co.uk',
 	'hannah.booth@guardian.co.uk',
+	'sarah.matthews.casual@guardian.co.uk',
 	// US Editorial team
 	'jessie.willms@guardian.co.uk',
 	'nick.mokey@guardian.co.uk',
