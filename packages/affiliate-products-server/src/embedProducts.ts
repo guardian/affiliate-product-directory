@@ -6,8 +6,7 @@ import { createProductPrices } from './productPrices';
 import { extractProducts } from './products';
 
 type Result =
-	| { ok: true; body: EmbedProductsResponse }
-	| { ok: false; error: string };
+	{ ok: true; body: EmbedProductsResponse } | { ok: false; error: string };
 
 /**
  * The products in the draft Composer has sent, with their prices in the directory. Links
