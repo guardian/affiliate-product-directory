@@ -25,10 +25,12 @@ export async function handleOverrideRequest(
 	}
 
 	const storedProduct = await dynamoService.getProductPrice(productMerchantUrl);
+	const activeProduct =
+		storedProduct?.removed === 'true' ? undefined : storedProduct;
 	// A draft's product is added to the directory with its price. When the article is
 	// published, the directory keeps the product as it is, so the price stays.
 	const productDatabaseEntry =
-		storedProduct ?? (region && { productMerchantUrl, region });
+		activeProduct ?? (region && { productMerchantUrl, region });
 
 	if (!productDatabaseEntry) {
 		return { ok: false, status: 404, error: 'Product not found' };

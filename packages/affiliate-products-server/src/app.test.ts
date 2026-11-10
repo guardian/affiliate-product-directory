@@ -974,6 +974,46 @@ describe('createApp', () => {
 		});
 	});
 
+	it('adds a removed product back when a draft sets its price', async () => {
+		mockGetProductPrice.mockResolvedValueOnce({
+			productMerchantUrl: 'https://shop.example.com/products/123',
+			region: 'GB',
+			removed: 'true',
+			removedAt: 1,
+		});
+		mockUpdateProducts.mockResolvedValueOnce({ skipped: [] });
+
+		const response = await request(app()).post('/api/manualOverride').send({
+			productMerchantUrl: 'https://shop.example.com/products/123',
+			currency: 'USD',
+			price: 30,
+			region: 'US',
+		});
+
+		expect(response.status).toBe(204);
+		const saved = mockUpdateProducts.mock.calls[0]?.[0].items[0];
+		expect(saved).toMatchObject({ region: 'US', price: 30 });
+		expect(saved).not.toHaveProperty('removed');
+		expect(saved).not.toHaveProperty('removedAt');
+	});
+
+	it("doesn't set a price on a removed product without its region", async () => {
+		mockGetProductPrice.mockResolvedValueOnce({
+			productMerchantUrl: 'https://shop.example.com/products/123',
+			region: 'GB',
+			removed: 'true',
+		});
+
+		const response = await request(app()).post('/api/manualOverride').send({
+			productMerchantUrl: 'https://shop.example.com/products/123',
+			currency: 'GBP',
+			price: 30,
+		});
+
+		expect(response.status).toBe(404);
+		expect(mockUpdateProducts).not.toHaveBeenCalled();
+	});
+
 	it('rejects malformed manual override input', async () => {
 		const response = await request(app()).post('/api/manualOverride').send({
 			productMerchantUrl: 'https://shop.example.com/products/123',
