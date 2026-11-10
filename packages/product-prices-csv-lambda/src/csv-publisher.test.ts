@@ -44,7 +44,6 @@ describe('publishPricesCsv', () => {
 		const neverPriced: Product = {
 			productMerchantUrl: 'https://www.argos.co.uk/product/4',
 			region: 'GB',
-			createdAt: 1,
 			updatedAt: 1,
 			updatedBy: 'test',
 		};

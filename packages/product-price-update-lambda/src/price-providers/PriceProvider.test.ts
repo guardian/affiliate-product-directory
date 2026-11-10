@@ -130,3 +130,20 @@ describe('enabled parameter', () => {
 		expect(mockGetParametersFromParameterStore).toHaveBeenCalledTimes(2);
 	});
 });
+
+describe('applyUpdate', () => {
+	it('drops the expiry of an expired manual price it replaces', () => {
+		const product = buildProduct({
+			updatedBy: 'manualOverride',
+			expiresAt: Date.now() - 60_000,
+		});
+
+		const updated = new TestPriceProvider()['applyUpdate'](product, {
+			price: 12,
+			currency: 'GBP',
+		});
+
+		expect(updated).toMatchObject({ price: 12, updatedBy: 'test' });
+		expect(updated?.expiresAt).toBeUndefined();
+	});
+});

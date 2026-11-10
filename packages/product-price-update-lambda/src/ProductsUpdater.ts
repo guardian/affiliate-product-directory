@@ -1,7 +1,10 @@
 import type { DynamoService } from '@common/database-service';
 import type { Product } from '@common/models';
 import { AmazonPriceProvider } from '@price-update/price-providers/amazon/AmazonPriceProvider';
-import type { PriceProvider } from '@price-update/price-providers/PriceProvider';
+import type {
+	PriceProvider,
+	PriceRefreshResult,
+} from '@price-update/price-providers/PriceProvider';
 import { ShopifyPriceProvider } from '@price-update/price-providers/shopify/ShopifyPriceProvider';
 import { SkimlinksPriceProvider } from '@price-update/price-providers/skimlinks/SkimlinksPriceProvider';
 
@@ -25,14 +28,20 @@ export class ProductsUpdater {
 	 */
 	public async refreshPrices() {
 		const updatedAtCutoff = Date.now() - IN_FLIGHT_WRITE_MARGIN_MS;
+		// Leaves out manual prices that haven't expired, so the providers never see them.
 		const categorised = this.categoriseProducts(await this.getProductsFromDB());
 
-		const [amazonUpdated, otherUpdated] = await Promise.all([
+		const [amazon, other] = await Promise.all([
 			this.refreshWithFallback(categorised.amazon, this.providers.amazon),
 			this.refreshWithFallback(categorised.other, this.providers.other),
 		]);
 
-		const allProducts = [...amazonUpdated, ...otherUpdated];
+		// Any manual price left unpriced here has expired, as unexpired ones were left out above.
+		const cleared = this.clearExpiredManualPrices([
+			...amazon.notUpdated,
+			...other.notUpdated,
+		]);
+		const allProducts = [...amazon.updated, ...other.updated, ...cleared];
 		const { skipped } = await this.dynamoService.updateProducts({
 			items: allProducts,
 			updatedAtCutoff,
@@ -51,11 +60,47 @@ export class ProductsUpdater {
 		);
 	}
 
+	/**
+	 *
+	 * This function returns the latest price (if available) for a list of products
+	 * that need to be previewed - i.e. displayed and saved before publication
+	 */
+	public async getPreviewPrices(
+		requestProducts: Product[],
+	): Promise<Product[]> {
+		// Fetch from the DB in case there is a manual override for this product
+		const maybeStoredProducts = await Promise.all(
+			requestProducts.map(
+				async (requestProduct) =>
+					(await this.dynamoService.getProductPrice(
+						requestProduct.productMerchantUrl,
+					)) ?? requestProduct,
+			),
+		);
+
+		const manualOverrides = maybeStoredProducts.filter((product) =>
+			this.shouldSkipManualPrice(product),
+		);
+
+		const categorised = this.categoriseProducts(maybeStoredProducts);
+		const [amazon, other] = await Promise.all([
+			this.refreshWithFallback(categorised.amazon, this.providers.amazon),
+			this.refreshWithFallback(categorised.other, this.providers.other),
+		]);
+
+		const allProducts = [...amazon.updated, ...other.updated];
+		await this.dynamoService.updateProducts({
+			items: allProducts,
+		});
+
+		return [...manualOverrides, ...allProducts];
+	}
+
 	/** Tries each provider in turn, passing on only the products the previous ones couldn't price. */
 	private async refreshWithFallback(
 		products: Product[],
 		providers: PriceProvider[],
-	): Promise<Product[]> {
+	): Promise<PriceRefreshResult> {
 		const updated: Product[] = [];
 		let remaining = products;
 
@@ -69,7 +114,30 @@ export class ProductsUpdater {
 			remaining = result.notUpdated;
 		}
 
-		return updated;
+		return { updated, notUpdated: remaining };
+	}
+
+	/**
+	 * Clears the price from expired manual overrides that no provider could price, so an
+	 * out-of-date manual price isn't kept. Active overrides never reach the providers.
+	 */
+	private clearExpiredManualPrices(notUpdated: Product[]): Product[] {
+		const cleared = notUpdated
+			.filter((product) => product.updatedBy === 'manualOverride')
+			.map((product) => ({
+				...product,
+				price: undefined,
+				currency: undefined,
+				expiresAt: undefined,
+				updatedBy: undefined,
+				updatedAt: Date.now(),
+			}));
+		if (cleared.length > 0) {
+			console.log(
+				`Cleared ${cleared.length} expired manual price(s) that no provider could price: ${cleared.map((p) => p.productMerchantUrl).join(', ')}`,
+			);
+		}
+		return cleared;
 	}
 
 	private shouldSkipManualPrice(product: Product): boolean {
@@ -79,17 +147,22 @@ export class ProductsUpdater {
 		);
 	}
 
-	private categoriseProducts(products: Product[]): CategorisedProducts {
-		const categorised: CategorisedProducts = {
-			amazon: [],
-			other: [],
-		};
+	private getPartner(product: Product): Partner {
 		const amazonHosts = new Set([
 			'amazon.com',
 			'www.amazon.com',
 			'amazon.co.uk',
 			'www.amazon.co.uk',
 		]);
+		const hostname = new URL(product.productMerchantUrl).hostname.toLowerCase();
+		return amazonHosts.has(hostname) ? 'amazon' : 'other';
+	}
+
+	private categoriseProducts(products: Product[]): CategorisedProducts {
+		const categorised: CategorisedProducts = {
+			amazon: [],
+			other: [],
+		};
 
 		products.forEach((product) => {
 			try {
@@ -98,13 +171,7 @@ export class ProductsUpdater {
 						`Skipping ${product.productMerchantUrl} as it has manual override ${product.expiresAt ? `until ${product.expiresAt}` : ''}`,
 					);
 				} else {
-					const hostname = new URL(
-						product.productMerchantUrl,
-					).hostname.toLowerCase();
-					const partner: Partner = amazonHosts.has(hostname)
-						? 'amazon'
-						: 'other';
-
+					const partner = this.getPartner(product);
 					categorised[partner].push(product);
 				}
 			} catch {

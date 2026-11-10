@@ -19,14 +19,13 @@ export function createTool(
 	{
 		domainName,
 		capiKeyParam,
-		productPricingReadPolicy,
-		productPricingWritePolicy,
+		policies,
 		prodData,
 	}: {
 		domainName: string;
 		capiKeyParam: CfnParameter;
-		productPricingReadPolicy: Policy;
-		productPricingWritePolicy: Policy;
+		/** Policies attached to the tool Lambda's role. */
+		policies: Policy[];
 		/** PROD's CAPI key and pricing table, for a stage other than PROD to also list PROD's articles and prices. */
 		prodData?: { capiKeyParam: CfnParameter; pricingTableName: string };
 	},
@@ -91,11 +90,7 @@ export function createTool(
 		}),
 	);
 
-	// The products' prices, read from the pricing table on every request, and written to it.
-	attachPoliciesToLambda(toolLambda, [
-		productPricingReadPolicy,
-		productPricingWritePolicy,
-	]);
+	attachPoliciesToLambda(toolLambda, policies);
 
 	if (prodData) {
 		const prodPricingTableArn = `arn:aws:dynamodb:${scope.region}:${scope.account}:table/${prodData.pricingTableName}`;
