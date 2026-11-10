@@ -32,6 +32,9 @@ export const ProductLinkSchema = z.object({
 	updatedBy: z.string().optional(),
 	// When a manual override of the price ends. Missing if it doesn't, or the price isn't one.
 	expiresAt: z.number().optional(),
+	// Whether the product is in stock, as reported by the price provider that last priced
+	// it. Missing if that provider doesn't report stock.
+	availability: z.enum(['in-stock', 'out-of-stock', 'pre-order']).optional(),
 	// Whether the link goes to Amazon, through Skimlinks, or elsewhere, as the article's link
 	// counts sort it. Missing if the Skimlinks domains couldn't be read.
 	kind: z.enum(['amazon', 'skimlinks', 'other']).optional(),

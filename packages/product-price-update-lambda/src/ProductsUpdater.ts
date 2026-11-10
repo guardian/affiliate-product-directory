@@ -128,6 +128,8 @@ export class ProductsUpdater {
 				...product,
 				price: undefined,
 				currency: undefined,
+				// No provider priced it, so any stock it has is as out of date as the price.
+				availability: undefined,
 				expiresAt: undefined,
 				updatedBy: undefined,
 				updatedAt: Date.now(),

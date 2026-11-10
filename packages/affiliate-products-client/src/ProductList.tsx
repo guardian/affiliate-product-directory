@@ -80,6 +80,35 @@ const gapTheme = { color: priceGapAccent.text };
 const describeDifference = (difference: number) =>
 	`${Math.round(Math.abs(difference) * 100)}% ${difference > 0 ? 'higher' : 'lower'}`;
 
+// Out of stock stands out, as it's the one an editor may need to act on.
+const availabilityText: Record<
+	NonNullable<ProductLink['availability']>,
+	{ label: string; theme: { color: string } }
+> = {
+	'in-stock': { label: 'In stock', theme: weakText },
+	'out-of-stock': {
+		label: 'Out of stock',
+		theme: { color: semanticColors.text.error },
+	},
+	'pre-order': { label: 'Pre-order', theme: weakText },
+};
+
+/** Whether the price provider that last priced a link reported it in stock. Nothing if it didn't say. */
+const Availability = ({
+	availability,
+}: {
+	availability: ProductLink['availability'];
+}) =>
+	availability && (
+		<Typography
+			element="div"
+			variant="bodyXs"
+			theme={availabilityText[availability].theme}
+		>
+			{availabilityText[availability].label}
+		</Typography>
+	);
+
 const Missing = ({ children }: { children: string }) => (
 	<Typography variant="bodySm" theme={weakText}>
 		{children}
@@ -218,13 +247,17 @@ const renderLinkRow = (
 						<Typography element="div" variant="bodyBoldXs" theme={gapTheme}>
 							{describeDifference(difference)}
 						</Typography>
+						<Availability availability={link.availability} />
 					</div>
 				) : (
-					<CurrentPrice
-						link={link}
-						productName={productName}
-						articleCurrency={articleCurrency}
-					/>
+					<div>
+						<CurrentPrice
+							link={link}
+							productName={productName}
+							articleCurrency={articleCurrency}
+						/>
+						<Availability availability={link.availability} />
+					</div>
 				)}
 			</TableCell>
 			<TableCell>
@@ -303,7 +336,7 @@ const ProductTable = ({
 
 /**
  * The products found in an article, each with its links to the retailers that sell it,
- * the price each link had when it was written and its latest price in the directory.
+ * the price each link had when it was written and its latest price and stock in the directory.
  */
 export const ProductList = ({
 	products,

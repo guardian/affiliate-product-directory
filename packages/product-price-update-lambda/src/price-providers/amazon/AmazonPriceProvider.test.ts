@@ -41,7 +41,13 @@ function item(
 		price,
 		currency,
 		isBuyBoxWinner = true,
-	}: { price: number; currency: string; isBuyBoxWinner?: boolean },
+		availability,
+	}: {
+		price: number;
+		currency: string;
+		isBuyBoxWinner?: boolean;
+		availability?: unknown;
+	},
 ) {
 	return {
 		asin,
@@ -50,6 +56,7 @@ function item(
 				{
 					isBuyBoxWinner,
 					price: { money: { amount: price, currency } },
+					availability,
 				},
 			],
 		},
@@ -141,6 +148,81 @@ describe('refreshPrices', () => {
 		});
 		expect(updated!.updatedAt).toBeGreaterThan(staleUpdatedAt);
 		expect(mockRegisterMetric).toHaveBeenCalledWith('AmazonProductsFetched', 1);
+	});
+
+	describe('availability', () => {
+		async function refreshWithAvailability(availability: unknown) {
+			jest.useFakeTimers();
+			const product = buildProduct({
+				productMerchantUrl: 'https://www.amazon.co.uk/dp/B0C3HCD34R',
+				region: 'GB',
+			});
+			mockFetch.mockResolvedValue(
+				jsonResponse({
+					itemsResult: {
+						items: [
+							item('B0C3HCD34R', {
+								price: 31.99,
+								currency: 'GBP',
+								availability,
+							}),
+						],
+					},
+				}),
+			);
+
+			const pending = provider().refreshPrices([product]);
+			await flushThrottle();
+			const {
+				updated: [updated],
+			} = await pending;
+			return updated!;
+		}
+
+		it.each([
+			['IN_STOCK', 'in-stock'],
+			['IN_STOCK_SCARCE', 'in-stock'],
+			['LEADTIME', 'in-stock'],
+			['OUT_OF_STOCK', 'out-of-stock'],
+			['UNAVAILABLE', 'out-of-stock'],
+			['AVAILABLE_DATE', 'out-of-stock'],
+			['PREORDER', 'pre-order'],
+		])('maps the Buy Box listing type %s to %s', async (type, expected) => {
+			const updated = await refreshWithAvailability({ type });
+
+			expect(updated.availability).toBe(expected);
+		});
+
+		it('leaves availability off for UNKNOWN without logging it', async () => {
+			const updated = await refreshWithAvailability({ type: 'UNKNOWN' });
+
+			expect(updated.price).toBe(31.99);
+			expect(updated.availability).toBeUndefined();
+			expect(console.log).not.toHaveBeenCalledWith(
+				'AmazonUnknownAvailability',
+				expect.anything(),
+				expect.anything(),
+			);
+		});
+
+		it('logs an undocumented type and leaves availability off', async () => {
+			const updated = await refreshWithAvailability({ type: 'BACKORDER' });
+
+			expect(updated.price).toBe(31.99);
+			expect(updated.availability).toBeUndefined();
+			expect(console.log).toHaveBeenCalledWith(
+				'AmazonUnknownAvailability',
+				'BACKORDER',
+				'https://www.amazon.co.uk/dp/B0C3HCD34R',
+			);
+		});
+
+		it('still prices the product when availability has an unexpected shape', async () => {
+			const updated = await refreshWithAvailability('in stock');
+
+			expect(updated.price).toBe(31.99);
+			expect(updated.availability).toBeUndefined();
+		});
 	});
 
 	it("does not update a product priced in another region's currency", async () => {

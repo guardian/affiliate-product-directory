@@ -1,6 +1,9 @@
 import { registerMetric } from '@common/cloudwatch';
-import type { Product, Region } from '@common/models';
-import type { SkimlinksProductsResponse } from '@price-update/models';
+import type { Availability, Product, Region } from '@common/models';
+import type {
+	SkimlinksMatch,
+	SkimlinksProductsResponse,
+} from '@price-update/models';
 import {
 	groupByRegion,
 	REGIONS,
@@ -121,6 +124,7 @@ export class SkimlinksPriceProvider extends PriceProvider {
 			const refreshed = this.applyUpdate(product, {
 				price: match.price,
 				currency: match.currency,
+				availability: skimlinksAvailability(match),
 			});
 			if (refreshed) {
 				updated.push(refreshed);
@@ -132,3 +136,29 @@ export class SkimlinksPriceProvider extends PriceProvider {
 }
 
 const SKIMLINKS_COUNTRY_CODE: Record<Region, string> = { GB: 'GB', US: 'US' };
+
+const AVAILABILITIES: readonly string[] = [
+	'in-stock',
+	'out-of-stock',
+	'pre-order',
+] satisfies Availability[];
+
+/**
+ * `latest_availability` is preferred, as it's the only one that can say a product is on
+ * pre-order. Without it, `is_available` says whether it's in stock.
+ */
+const skimlinksAvailability = ({
+	is_available,
+	latest_availability,
+}: SkimlinksMatch): Availability | undefined => {
+	if (latest_availability && AVAILABILITIES.includes(latest_availability)) {
+		return latest_availability as Availability;
+	}
+	if (is_available === true) {
+		return 'in-stock';
+	}
+	if (is_available === false) {
+		return 'out-of-stock';
+	}
+	return undefined;
+};

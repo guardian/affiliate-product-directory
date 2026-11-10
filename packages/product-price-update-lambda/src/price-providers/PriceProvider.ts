@@ -74,6 +74,8 @@ export abstract class PriceProvider {
 		Object.assign(product, changes);
 		// A provider price replaces an expired manual one, so its expiry no longer applies.
 		product.expiresAt = undefined;
+		// Stock is only ever what this provider reported, so an earlier provider's is dropped.
+		product.availability = changes.availability;
 		product.updatedAt = Date.now();
 		product.updatedBy = this.name;
 		return product;
@@ -111,5 +113,5 @@ export interface PriceRefreshResult {
 
 /** Fields a provider is allowed to refresh (identity fields are immutable, timestamp/author are auto-stamped). */
 type ProductUpdate = Partial<
-	Pick<Product, 'removed' | 'removedAt' | 'price' | 'currency'>
+	Pick<Product, 'removed' | 'removedAt' | 'price' | 'currency' | 'availability'>
 >;
