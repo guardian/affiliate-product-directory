@@ -59,6 +59,20 @@ describe('createProductPrices', () => {
 		]);
 	});
 
+	it("includes the product's availability", async () => {
+		getProductsByUrl.mockResolvedValue([
+			{ ...pricedItem, availability: 'out-of-stock' },
+		]);
+
+		const prices = await createProductPrices(getProductsByUrl)([
+			'https://shop.example/a',
+		]);
+
+		expect(prices.get('https://shop.example/a')?.availability).toBe(
+			'out-of-stock',
+		);
+	});
+
 	it('leaves out products that have been removed or not priced yet', async () => {
 		const removed: Product = {
 			...pricedItem,

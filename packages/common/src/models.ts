@@ -1,6 +1,14 @@
 import type { AttributeValue } from '@aws-sdk/client-dynamodb';
 
 export type Region = 'GB' | 'US';
+export const AVAILABILITIES = [
+	'in-stock',
+	'out-of-stock',
+	'pre-order',
+] as const;
+export type Availability = (typeof AVAILABILITIES)[number];
+export const isAvailability = (value: string): value is Availability =>
+	AVAILABILITIES.some((availability) => availability === value);
 export interface Product {
 	productMerchantUrl: string;
 	region: Region;
@@ -11,6 +19,8 @@ export interface Product {
 	// Both are missing until a price provider has priced the product.
 	price?: number;
 	currency?: string;
+	// Missing if the price provider that last priced the product doesn't report stock.
+	availability?: Availability;
 	expiresAt?: number;
 }
 

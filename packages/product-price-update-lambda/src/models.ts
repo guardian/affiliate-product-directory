@@ -16,6 +16,11 @@ export const groupByRegion = (
 const SkimlinksMatchSchema = z.object({
 	price: z.number(),
 	currency: z.string(),
+	// true in stock, false out of stock, null unknown.
+	is_available: z.boolean().nullish(),
+	// Stock at Skimlinks' last scrape: 'in-stock', 'out-of-stock', 'pre-order' or null.
+	// Left as any string so that one unexpected value can't fail a whole batch.
+	latest_availability: z.string().nullish(),
 });
 export const SkimlinksProductsResponseSchema = z.object({
 	results: z.record(z.string(), z.array(SkimlinksMatchSchema)),

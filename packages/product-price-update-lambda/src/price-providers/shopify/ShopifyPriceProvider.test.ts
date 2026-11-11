@@ -86,6 +86,50 @@ describe('refreshPrices', () => {
 		);
 	});
 
+	it.each([
+		[true, 'in-stock'],
+		[false, 'out-of-stock'],
+	])(
+		"sets availability from the first variant's available %s",
+		async (available, expected) => {
+			const product = buildProduct({
+				productMerchantUrl: 'https://shop.example.com/products/thing',
+				region: 'GB',
+			});
+			const body = shopifyProduct(['24.50']);
+			mockFetch.mockResolvedValue(
+				jsonResponse({
+					product: {
+						...body.product,
+						variants: [{ ...body.product.variants[0], available }],
+					},
+				}),
+			);
+
+			const {
+				updated: [updated],
+			} = await provider().refreshPrices([product]);
+
+			expect(updated!.availability).toBe(expected);
+		},
+	);
+
+	it('leaves availability off when the variant has no available flag', async () => {
+		const product = buildProduct({
+			productMerchantUrl: 'https://shop.example.com/products/thing',
+			region: 'GB',
+			availability: 'in-stock',
+		});
+		mockFetch.mockResolvedValue(jsonResponse(shopifyProduct(['24.50'])));
+
+		const {
+			updated: [updated],
+		} = await provider().refreshPrices([product]);
+
+		expect(updated!.price).toBe(24.5);
+		expect(updated!.availability).toBeUndefined();
+	});
+
 	it("does not update a product priced in another region's currency", async () => {
 		const product = buildProduct({
 			productMerchantUrl: 'https://shop.example.com/products/thing',

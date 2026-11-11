@@ -1,5 +1,5 @@
 import { registerMetric } from '@common/cloudwatch';
-import type { Product, Region } from '@common/models';
+import type { Availability, Product, Region } from '@common/models';
 import { REGIONS } from '@price-update/models';
 import {
 	getAmazonAccessToken,
@@ -179,6 +179,10 @@ export class AmazonPriceProvider extends PriceProvider {
 			const refreshed = this.applyUpdate(product, {
 				price: money.amount,
 				currency: money.currency,
+				availability: AmazonPriceProvider.availability(
+					product,
+					listing.availability?.type,
+				),
 			});
 			if (refreshed) {
 				updated.push(refreshed);
@@ -186,6 +190,42 @@ export class AmazonPriceProvider extends PriceProvider {
 		}
 
 		return updated;
+	}
+
+	// The OffersV2 availability types, from
+	// https://affiliate-program.amazon.com/creatorsapi/docs/en-us/api-reference/resources/offersV2#availability
+	// An item that can only be bought later counts as out of stock, and one that can be
+	// ordered now but ships after a lead time counts as in stock.
+	private static readonly AVAILABILITY_TYPES: Record<
+		string,
+		Availability | undefined
+	> = {
+		IN_STOCK: 'in-stock',
+		IN_STOCK_SCARCE: 'in-stock',
+		LEADTIME: 'in-stock',
+		OUT_OF_STOCK: 'out-of-stock',
+		UNAVAILABLE: 'out-of-stock',
+		AVAILABLE_DATE: 'out-of-stock',
+		PREORDER: 'pre-order',
+		UNKNOWN: undefined,
+	};
+
+	private static availability(
+		product: Product,
+		type: string | undefined,
+	): Availability | undefined {
+		if (type === undefined) {
+			return undefined;
+		}
+		const availability = AmazonPriceProvider.AVAILABILITY_TYPES[type];
+		if (!(type in AmazonPriceProvider.AVAILABILITY_TYPES)) {
+			console.log(
+				'AmazonUnknownAvailability',
+				type,
+				product.productMerchantUrl,
+			);
+		}
+		return availability;
 	}
 
 	private sleep(ms: number): Promise<void> {
