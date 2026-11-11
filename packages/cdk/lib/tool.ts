@@ -27,11 +27,7 @@ export function createTool(
 		/** Policies attached to the tool Lambda's role. */
 		policies: Policy[];
 		/** PROD's CAPI key and pricing table, for a stage other than PROD to also list PROD's articles and prices. */
-		prodData?: {
-			capiKeyParam: CfnParameter;
-			pricingTableName: string;
-			editPricesParameterName: string;
-		};
+		prodData?: { capiKeyParam: CfnParameter; pricingTableName: string };
 	},
 ): GuApiLambda {
 	// Neither dev-gutools.co.uk nor gutools.co.uk is in Route 53, so the first deploy
@@ -44,10 +40,7 @@ export function createTool(
 		handler: 'index.handler',
 		environment: {
 			CAPI_KEY: capiKeyParam.valueAsString,
-			...(prodData && {
-				PROD_CAPI_KEY: prodData.capiKeyParam.valueAsString,
-				EDIT_PROD_PRICES_PARAMETER: prodData.editPricesParameterName,
-			}),
+			...(prodData && { PROD_CAPI_KEY: prodData.capiKeyParam.valueAsString }),
 		},
 		runtime: Runtime.NODEJS_22_X,
 		architecture: Architecture.ARM_64,
@@ -101,13 +94,8 @@ export function createTool(
 
 	if (prodData) {
 		const prodPricingTableArn = `arn:aws:dynamodb:${scope.region}:${scope.account}:table/${prodData.pricingTableName}`;
-		// The tool reads prices with BatchGetItem, and sets them by hand with GetItem and
-		// PutItem, which the server only does while the switch for it is on.
-		const prodPricingActions = [
-			'dynamodb:BatchGetItem',
-			'dynamodb:GetItem',
-			'dynamodb:PutItem',
-		];
+		// The tool only reads prices, with BatchGetItem.
+		const prodPricingActions = ['dynamodb:BatchGetItem'];
 
 		toolLambda.addToRolePolicy(
 			new PolicyStatement({
@@ -116,24 +104,13 @@ export function createTool(
 			}),
 		);
 
-		// An explicit deny overrides any allow, so no other policy on this role can let it do
-		// anything else to PROD's pricing table, such as deleting items or changing the table.
+		// An explicit deny overrides any allow, so no other policy on this role can let it
+		// write to, or change, PROD's pricing table.
 		toolLambda.addToRolePolicy(
 			new PolicyStatement({
 				effect: Effect.DENY,
 				notActions: prodPricingActions,
 				resources: [prodPricingTableArn, `${prodPricingTableArn}/*`],
-			}),
-		);
-
-		// The switch for setting PROD's prices by hand. It isn't created here, so it's off
-		// until someone adds it.
-		toolLambda.addToRolePolicy(
-			new PolicyStatement({
-				actions: ['ssm:GetParameter'],
-				resources: [
-					`arn:aws:ssm:${scope.region}:${scope.account}:parameter${prodData.editPricesParameterName}`,
-				],
 			}),
 		);
 	}

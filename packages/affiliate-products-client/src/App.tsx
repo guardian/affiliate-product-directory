@@ -17,7 +17,7 @@ import {
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { fetchArticles } from './api/articles';
-import { fetchCanEditProdPrices, fetchUserName } from './api/auth';
+import { fetchUserName } from './api/auth';
 import { ArticleList, ArticleListPlaceholder } from './ArticleList';
 import type { ArticleGroup } from './ArticleList';
 import { headlineInset } from './ArticleRow';
@@ -155,14 +155,9 @@ export const App = () => {
 	// Bumped to fetch the list again after a price is set, keeping the current one on screen
 	// (and its open articles open) until the new one arrives.
 	const [reloads, setReloads] = useState(0);
-	// PROD's prices can only be set from here while their switch is on.
-	const [canEditProdPrices, setCanEditProdPrices] = useState(false);
 	const priceEditing = useMemo(
-		() => ({
-			canEdit: !prod || canEditProdPrices,
-			onPriceEdit: () => setReloads((n) => n + 1),
-		}),
-		[prod, canEditProdPrices],
+		() => ({ canEdit: !prod, onPriceEdit: () => setReloads((n) => n + 1) }),
+		[prod],
 	);
 
 	const { starred, toggleStar } = useStarred(prod);
@@ -193,9 +188,6 @@ export const App = () => {
 		// The name is only shown in the toolbar, so there's nothing to show if this fails.
 		fetchUserName()
 			.then(setUserName)
-			.catch(() => undefined);
-		fetchCanEditProdPrices()
-			.then(setCanEditProdPrices)
 			.catch(() => undefined);
 	}, []);
 

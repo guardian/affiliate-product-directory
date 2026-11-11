@@ -58,19 +58,14 @@ describe('The AffiliateProductDirectoryLambda stack', () => {
 
 	describe("outside PROD, the tool's access to PROD's data", () => {
 		const template = createTemplate('TEST');
-		const prodPricingActions = [
-			'dynamodb:BatchGetItem',
-			'dynamodb:GetItem',
-			'dynamodb:PutItem',
-		];
 
-		it("only allows reading PROD's pricing table, and setting prices by hand", () => {
+		it("only allows reading PROD's pricing table", () => {
 			const allows = prodPricingTableStatements(template).filter(
 				({ Effect }) => Effect === 'Allow',
 			);
 
 			expect(allows).toHaveLength(1);
-			expect(allows[0]?.Action).toEqual(prodPricingActions);
+			expect(allows[0]?.Action).toBe('dynamodb:BatchGetItem');
 		});
 
 		it("explicitly denies anything else on PROD's pricing table", () => {
@@ -79,7 +74,7 @@ describe('The AffiliateProductDirectoryLambda stack', () => {
 			);
 
 			expect(denies).toHaveLength(1);
-			expect(denies[0]?.NotAction).toEqual(prodPricingActions);
+			expect(denies[0]?.NotAction).toBe('dynamodb:BatchGetItem');
 			expect(denies[0]?.Action).toBeUndefined();
 			const resources = JSON.stringify(denies[0]?.Resource);
 			expect(resources).toContain(`${prodPricingTable}"`);
@@ -95,32 +90,6 @@ describe('The AffiliateProductDirectoryLambda stack', () => {
 					Variables: Match.objectLike({
 						PROD_CAPI_KEY: { Ref: 'prodCapiKey' },
 					}),
-				},
-			});
-		});
-
-		it("lets the tool read the switch for setting PROD's prices by hand", () => {
-			const parameter =
-				'/TEST/frontend/affiliate-product-directory/edit-prod-prices';
-			template.hasResourceProperties('AWS::Lambda::Function', {
-				Environment: {
-					Variables: Match.objectLike({
-						EDIT_PROD_PRICES_PARAMETER: parameter,
-					}),
-				},
-			});
-			template.hasResourceProperties('AWS::IAM::Policy', {
-				PolicyDocument: {
-					Statement: Match.arrayWith([
-						Match.objectLike({
-							Action: 'ssm:GetParameter',
-							Resource: Match.objectLike({
-								'Fn::Join': Match.arrayWith([
-									Match.arrayWith([`:parameter${parameter}`]),
-								]),
-							}),
-						}),
-					]),
 				},
 			});
 		});
