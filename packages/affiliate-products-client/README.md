@@ -47,39 +47,28 @@ Composer links need CAPI's `internalComposerCode` field, which CAPI only returns
 
 1. The embed posts `{ source: 'affiliate-products', type: 'ready', version: 1 }` to Composer when it loads.
 2. Composer replies with `{ source: 'composer', type: 'content', version: 1, composerId, section, elements }`, where `elements` are the body's elements as Composer holds them. It sends it again after every `ready`, and about a second after each edit.
-3. The embed posts the message to `/api/embed/products`, which turns the elements into CAPI's shape (`composerElements.ts`), finds the products as the article list does, and adds their prices. Links the directory doesn't have yet are marked `notInDirectory`, as they won't have a live price until the article is published and priced.
+3. The embed posts the message to `/api/embed/products`, which turns the elements into CAPI's shape (`composerElements.ts`), finds the products as the article list does, and adds their prices. Links the directory doesn't have yet are previewed with the price providers, as `/api/preview` does, and those that get a price are saved to the directory. Links still without one are marked `notInDirectory`.
 4. The embed posts `{ source: 'affiliate-products', type: 'height', version: 1, height }` whenever its height changes, so Composer can size the iframe.
 
 Editors can set a price by hand in the embed, as in the article list. For a link the directory doesn't have yet, this adds it to the directory, in the article's region, with that price. When the article is published the directory keeps the product as it is, so the price is live straight away, and the price providers leave it alone until it expires.
 
-The messages are defined in [common/src/embed.ts](../common/src/embed.ts). The embed only accepts messages from the stage's Composer, and the server only lets that Composer frame `/embed`, with a `frame-ancestors` policy. An editor who isn't logged in gets a link to log in in a new tab, as Panda's login page can't be shown in a frame.
+The messages are defined in [common/src/embed.ts](../common/src/embed.ts). The embed only accepts messages from its stage's Composer: PROD's tool from PROD's Composer, and CODE's from CODE's or a local Composer. Run locally, it also accepts them from its own origin, for the harness below. The server only lets those Composers frame `/embed`, with a `frame-ancestors` policy. An editor who isn't logged in gets a link to log in in a new tab, as Panda's login page can't be shown in a frame.
 
 The shape of Composer's elements is a guess until Composer sends a real one: see `@mocks/ComposerContentFixture`.
 
-To try it locally, run the dev servers as below and go to http://localhost:5173/embed-harness.html, which stands in for Composer. Edit the message there to change what the embed is sent.
+### Running the embed locally
 
-To serve it through HTTPS for Composer's local dev build, install dev-nginx on the host:
+1. Start the tool as in [Running locally](#running-locally).
+2. Go to http://localhost:5173/embed-harness.html, which stands in for Composer. It shows the embed beside the `content` message Composer would send, and a log of the messages between them. Edit the message and it's sent again a second later; "Reload the embed" reloads it, which sends `ready` again.
+3. For Composer's local dev build, which needs the embed on HTTPS, run this once from the repository root (macOS, needs Homebrew and your password):
 
-```
-brew tap guardian/homebrew-devtools
-brew install guardian/devtools/dev-nginx
-```
+   ```
+   ./scripts/setup.sh
+   ```
 
-From the repository root, configure the local proxy once:
+   It installs dev-nginx, adds `affiliate-products.local.dev-gutools.co.uk` to your hosts file, creates its certificate and the nginx config from [nginx/nginx-mapping.yml](../../nginx/nginx-mapping.yml), and restarts nginx. With the dev servers running, the embed and harness are then at https://affiliate-products.local.dev-gutools.co.uk/embed and https://affiliate-products.local.dev-gutools.co.uk/embed-harness.html, with hot reload through Vite's `/vite-hmr` WebSocket. The localhost URLs keep working.
 
-```
-dev-nginx setup-app nginx/nginx-mapping.yml
-dev-nginx restart
-```
-
-`setup-app` also creates the local HTTPS certificate for
-`affiliate-products.local.dev-gutools.co.uk`.
-
-With the dev servers running, the embed and harness are then at
-https://affiliate-products.local.dev-gutools.co.uk/embed and
-https://affiliate-products.local.dev-gutools.co.uk/embed-harness.html. The nginx mapping
-also proxies Vite's `/vite-hmr` WebSocket connection for hot reload. The localhost URLs
-continue to work.
+Links the embed previews and prices are saved to CODE's pricing table, as are prices set by hand in it.
 
 ## Running locally
 
@@ -96,7 +85,9 @@ This starts the server on port 3040 (set `PORT` to change it) and the client's V
 
 Locally, every request is treated as coming from a fake user with a fake permission, because the Panda cookie is only sent to `*.dev-gutools.co.uk` and never to localhost.
 
-The directory's prices need AWS credentials for the frontend account: get them from Janus and set `AWS_PROFILE` to their profile, on the command line or in `packages/affiliate-products-server/.env`. Without them the articles can't be listed.
+The directory's prices need AWS credentials for the frontend account: get them from Janus and set `AWS_PROFILE` to their profile, on the command line or in `packages/affiliate-products-server/.env`. Without them the articles can't be listed. `CAPI_KEY` and `PROD_CAPI_KEY` can go in that `.env` file too, which the server loads when it starts.
+
+`STACK`, `STAGE` and `APP` default to `frontend`, `CODE` and `affiliate-products-tool`, so previews, in the embed and from `/api/preview`, read the price providers' switches and credentials from CODE's SSM parameters, as CODE's Lambda does. Metrics aren't recorded outside PROD, so a local run doesn't add to them.
 
 To run it the way it's deployed, with the server serving the built app, run `npm -w affiliate-products-client run build`, start the server (with `CAPI_KEY` set), and go to http://localhost:3040.
 

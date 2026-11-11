@@ -45,16 +45,24 @@ This section should provide clear steps for an engineer to begin utilising or co
 This should include setup and running instructions, as well as advice for contributing to or releasing updates to the project.
 -->
 
-To run the tool locally at https://affiliate-products.local.dev-gutools.co.uk, set up nginx and a local certificate once (macOS, needs Homebrew and your password):
+Install the dependencies:
+
+```
+npm install
+```
+
+To run the affiliate products tool locally, get Janus credentials for the frontend account, then start its server and client with a CODE CAPI key:
+
+```
+CAPI_KEY=<a CODE CAPI key> npm run affiliate-products-dev
+```
+
+The tool is then at http://localhost:5173. See the client's [README](packages/affiliate-products-client/README.md#running-locally) for more, including how to try the Composer embed.
+
+To serve it at https://affiliate-products.local.dev-gutools.co.uk too, as Composer's local dev build needs, set up nginx and a local certificate once (macOS, needs Homebrew and your password):
 
 ```
 ./scripts/setup.sh
-```
-
-Then start the server and client:
-
-```
-npm run affiliate-products-dev
 ```
 
 Run the tests with
