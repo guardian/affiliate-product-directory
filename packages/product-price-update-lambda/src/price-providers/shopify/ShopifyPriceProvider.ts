@@ -99,6 +99,12 @@ export class ShopifyPriceProvider extends PriceProvider {
 			const refreshed = this.applyUpdate(product, {
 				price,
 				currency: variant.price_currency,
+				availability:
+					variant.available === undefined
+						? undefined
+						: variant.available
+							? 'in-stock'
+							: 'out-of-stock',
 			});
 			if (refreshed) {
 				updated.push(refreshed);

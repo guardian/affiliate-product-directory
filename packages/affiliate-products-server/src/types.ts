@@ -36,7 +36,15 @@ export type ListDrafts = (section?: Section) => Promise<Article[]>;
 /** A product's price in the pricing table, with only the fields the tool uses, by its URL. */
 export type ProductPrices = Map<
 	string,
-	Pick<Product, 'currency' | 'price' | 'updatedAt' | 'updatedBy' | 'expiresAt'>
+	Pick<
+		Product,
+		| 'currency'
+		| 'price'
+		| 'updatedAt'
+		| 'updatedBy'
+		| 'expiresAt'
+		| 'availability'
+	>
 >;
 
 /** Returns the directory's price for each of these URLs that is an active product with one. */

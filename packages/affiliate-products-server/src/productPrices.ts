@@ -29,9 +29,17 @@ export const createProductPrices =
 						updatedAt,
 						updatedBy,
 						expiresAt,
+						availability,
 					}) => [
 						productMerchantUrl,
-						{ currency, price, updatedAt, updatedBy, expiresAt },
+						{
+							currency,
+							price,
+							updatedAt,
+							updatedBy,
+							expiresAt,
+							availability,
+						},
 					],
 				),
 		);
