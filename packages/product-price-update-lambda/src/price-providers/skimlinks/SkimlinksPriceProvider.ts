@@ -1,5 +1,10 @@
 import { registerMetric } from '@common/cloudwatch';
-import type { Availability, Product, Region } from '@common/models';
+import {
+	type Availability,
+	isAvailability,
+	type Product,
+	type Region,
+} from '@common/models';
 import type {
 	SkimlinksMatch,
 	SkimlinksProductsResponse,
@@ -137,12 +142,6 @@ export class SkimlinksPriceProvider extends PriceProvider {
 
 const SKIMLINKS_COUNTRY_CODE: Record<Region, string> = { GB: 'GB', US: 'US' };
 
-const AVAILABILITIES: readonly string[] = [
-	'in-stock',
-	'out-of-stock',
-	'pre-order',
-] satisfies Availability[];
-
 /**
  * `latest_availability` is preferred, as it's the only one that can say a product is on
  * pre-order. Without it, `is_available` says whether it's in stock.
@@ -151,8 +150,8 @@ const skimlinksAvailability = ({
 	is_available,
 	latest_availability,
 }: SkimlinksMatch): Availability | undefined => {
-	if (latest_availability && AVAILABILITIES.includes(latest_availability)) {
-		return latest_availability as Availability;
+	if (latest_availability && isAvailability(latest_availability)) {
+		return latest_availability;
 	}
 	if (is_available === true) {
 		return 'in-stock';

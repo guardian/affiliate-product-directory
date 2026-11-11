@@ -1,7 +1,14 @@
 import type { AttributeValue } from '@aws-sdk/client-dynamodb';
 
 export type Region = 'GB' | 'US';
-export type Availability = 'in-stock' | 'out-of-stock' | 'pre-order';
+export const AVAILABILITIES = [
+	'in-stock',
+	'out-of-stock',
+	'pre-order',
+] as const;
+export type Availability = (typeof AVAILABILITIES)[number];
+export const isAvailability = (value: string): value is Availability =>
+	AVAILABILITIES.some((availability) => availability === value);
 export interface Product {
 	productMerchantUrl: string;
 	region: Region;
