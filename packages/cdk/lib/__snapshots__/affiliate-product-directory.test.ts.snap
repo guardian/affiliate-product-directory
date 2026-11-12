@@ -373,8 +373,8 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
             "DataTraceEnabled": false,
             "HttpMethod": "*",
             "ResourcePath": "/*",
-            "ThrottlingBurstLimit": 50,
-            "ThrottlingRateLimit": 20,
+            "ThrottlingBurstLimit": 75,
+            "ThrottlingRateLimit": 30,
           },
         ],
         "RestApiId": {
