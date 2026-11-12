@@ -31,6 +31,9 @@ export const fetchArticles = async (
 	if (response.status === 401) {
 		return { status: 'unauthenticated' };
 	}
+	if (response.status === 403) {
+		return { status: 'forbidden' };
+	}
 	if (!response.ok) {
 		return { status: 'error' };
 	}

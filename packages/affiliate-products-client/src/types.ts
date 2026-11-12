@@ -7,6 +7,7 @@ export type ArticlesState =
 	| { status: 'loaded'; page: ArticlesPage }
 	// The Panda cookie has expired since the page loaded.
 	| { status: 'unauthenticated' }
+	| { status: 'forbidden' }
 	| { status: 'error' };
 
 /** Which part of the article list is being viewed, as held in the page's URL. */

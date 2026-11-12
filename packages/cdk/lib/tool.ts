@@ -47,6 +47,8 @@ export function createTool(
 		monitoringConfiguration: { noMonitoring: true },
 		api: {
 			id: 'AffiliateProductsToolApi',
+			// The API's only rate limit, applied across every Lambda instance. Per-IP limits
+			// would need WAF.
 			deployOptions: {
 				throttlingRateLimit: 20,
 				throttlingBurstLimit: 50,

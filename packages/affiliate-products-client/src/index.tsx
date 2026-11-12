@@ -4,6 +4,7 @@ import '@guardian/stand/fonts/MaterialSymbolsOutlined.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { Embed } from './Embed';
 
 const root = document.getElementById('root');
 
@@ -13,6 +14,7 @@ if (!root) {
 
 createRoot(root).render(
 	<StrictMode>
-		<App />
+		{/* Composer's panel, which it shows in an iframe. */}
+		{window.location.pathname === '/embed' ? <Embed /> : <App />}
 	</StrictMode>,
 );
