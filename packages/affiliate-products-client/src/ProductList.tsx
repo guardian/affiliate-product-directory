@@ -21,7 +21,7 @@ import { convertTypographyToEmotionStringStyle } from '@guardian/stand/utils';
 import { useContext, useState } from 'react';
 import { ButtonPreview } from './ButtonPreview';
 import { type Currency, currencySymbol } from './currency';
-import { formatDate } from './formatDate';
+import { formatDate, formatDateTime } from './formatDate';
 import { formatPrice } from './formatPrice';
 import { PriceEditingContext } from './PriceEditing';
 import { PriceOverrideModal } from './PriceOverrideModal';
@@ -30,6 +30,8 @@ import { priceGapAccent } from './style';
 
 // The columns are fixed so that a long URL is cut short rather than stretching its column.
 const columns = { sm: 'minmax(0, 1fr) 5.5rem 7rem 6.5rem 30%' };
+// Composer's narrow panel has room for just the prices, so the rest goes under the retailer.
+const compactColumns = { sm: 'minmax(0, 1fr) 5.5rem 5.5rem' };
 
 const weakText = { color: semanticColors.text.weak };
 
@@ -48,6 +50,13 @@ const numberStyles = css`
 	justify-content: flex-end;
 	text-align: right;
 	font-variant-numeric: tabular-nums;
+	/* A price wraps mid-number in a narrow column, e.g. "£16.5" over "0". */
+	white-space: nowrap;
+`;
+
+// Lets the URL under the retailer be cut short rather than widen the column.
+const compactRetailerStyles = css`
+	min-width: 0;
 `;
 
 const ellipsisStyles = css`
@@ -79,6 +88,35 @@ const gapTheme = { color: priceGapAccent.text };
 /** How far a price is from the article's, such as "31% higher". */
 const describeDifference = (difference: number) =>
 	`${Math.round(Math.abs(difference) * 100)}% ${difference > 0 ? 'higher' : 'lower'}`;
+
+// Out of stock stands out, as it's the one an editor may need to act on.
+const availabilityText: Record<
+	NonNullable<ProductLink['availability']>,
+	{ label: string; theme: { color: string } }
+> = {
+	'in-stock': { label: 'In stock', theme: weakText },
+	'out-of-stock': {
+		label: 'Out of stock',
+		theme: { color: semanticColors.text.error },
+	},
+	'pre-order': { label: 'Pre-order', theme: weakText },
+};
+
+/** Whether the price provider that last priced a link reported it in stock. Nothing if it didn't say. */
+const Availability = ({
+	availability,
+}: {
+	availability: ProductLink['availability'];
+}) =>
+	availability && (
+		<Typography
+			element="div"
+			variant="bodyXs"
+			theme={availabilityText[availability].theme}
+		>
+			{availabilityText[availability].label}
+		</Typography>
+	);
 
 const Missing = ({ children }: { children: string }) => (
 	<Typography variant="bodySm" theme={weakText}>
@@ -162,18 +200,35 @@ const CurrentPrice = ({
 	);
 };
 
+/** When a link's price was set and by what, or why it has none. */
+const updatedText = ({
+	updatedAt,
+	updatedBy,
+	expiresAt,
+	notInDirectory,
+}: ProductLink) => {
+	if (updatedAt === undefined) {
+		return notInDirectory ? 'Not in the directory yet' : 'Not priced yet';
+	}
+	if (updatedBy === 'manualOverride') {
+		return `Set manually ${formatDate(updatedAt)}${expiresAt !== undefined ? `, until ${formatDate(expiresAt)}` : ''}`;
+	}
+	return `Updated ${formatDate(updatedAt)}${updatedBy ? ` by ${updatedBy}` : ''}`;
+};
+
 const renderLinkRow = (
 	link: ProductLink,
 	productName: string | undefined,
 	articleCurrency: Currency | undefined,
+	compact: boolean,
 ) => {
-	const { url, label, retailer, basePrice, updatedAt, updatedBy } = link;
+	const { url, label, retailer, basePrice } = link;
 	const difference = priceDifference(link);
 	const gap = hasPriceGap(link);
 	return (
 		<TableRow key={url} id={url}>
 			<TableCell>
-				<div>
+				<div css={compact && compactRetailerStyles}>
 					<ButtonPreview link={link}>
 						<Link
 							href={url}
@@ -189,6 +244,30 @@ const renderLinkRow = (
 						<Typography element="div" variant="bodyXs" theme={weakText}>
 							{label}
 						</Typography>
+					)}
+					{compact && (
+						<>
+							<Typography
+								element="div"
+								variant="bodyXs"
+								theme={weakText}
+								cssOverrides={ellipsisStyles}
+								title={url}
+							>
+								{shortenUrl(url)}
+							</Typography>
+							<Typography element="div" variant="bodyXs" theme={weakText}>
+								<span
+									title={
+										link.updatedAt !== undefined
+											? formatDateTime(link.updatedAt)
+											: undefined
+									}
+								>
+									{updatedText(link)}
+								</span>
+							</Typography>
+						</>
 					)}
 				</div>
 			</TableCell>
@@ -218,19 +297,38 @@ const renderLinkRow = (
 						<Typography element="div" variant="bodyBoldXs" theme={gapTheme}>
 							{describeDifference(difference)}
 						</Typography>
+						<Availability availability={link.availability} />
 					</div>
 				) : (
-					<CurrentPrice
-						link={link}
-						productName={productName}
-						articleCurrency={articleCurrency}
-					/>
+					<div>
+						<CurrentPrice
+							link={link}
+							productName={productName}
+							articleCurrency={articleCurrency}
+						/>
+						<Availability availability={link.availability} />
+					</div>
 				)}
 			</TableCell>
+			{!compact && renderDetailCells(link)}
+		</TableRow>
+	);
+};
+
+/** The full list's Updated and Link columns. */
+const renderDetailCells = (link: ProductLink) => {
+	const { url, updatedAt, updatedBy } = link;
+	return (
+		<>
 			<TableCell>
 				{updatedAt !== undefined ? (
 					<div>
-						{formatDate(updatedAt)}
+						<time
+							dateTime={new Date(updatedAt).toISOString()}
+							title={formatDateTime(updatedAt)}
+						>
+							{formatDate(updatedAt)}
+						</time>
 						{updatedBy === 'manualOverride' ? (
 							<Typography element="div" variant="bodyXs" theme={weakText}>
 								set manually
@@ -246,21 +344,25 @@ const renderLinkRow = (
 						)}
 					</div>
 				) : (
-					<Missing>N/A</Missing>
+					<Missing>
+						{link.notInDirectory ? 'Not in the directory yet' : 'N/A'}
+					</Missing>
 				)}
 			</TableCell>
 			<TableCell>
-				<Link
-					href={url}
-					target="_blank"
-					rel="noreferrer"
-					typography="bodySm"
-					cssOverrides={ellipsisStyles}
-				>
-					{shortenUrl(url)}
-				</Link>
+				<span title={url}>
+					<Link
+						href={url}
+						target="_blank"
+						rel="noreferrer"
+						typography="bodySm"
+						cssOverrides={ellipsisStyles}
+					>
+						{shortenUrl(url)}
+					</Link>
+				</span>
 			</TableCell>
-		</TableRow>
+		</>
 	);
 };
 
@@ -268,9 +370,11 @@ const renderLinkRow = (
 const ProductTable = ({
 	product: { name, links },
 	articleCurrency,
+	compact,
 }: {
 	product: Product;
 	articleCurrency?: Currency;
+	compact: boolean;
 }) => (
 	<div css={productStyles}>
 		<h5 css={productNameStyles}>
@@ -282,7 +386,7 @@ const ProductTable = ({
 		</h5>
 		<Table
 			aria-label={name ? `Retailers for ${name}` : 'Retailers'}
-			columns={columns}
+			columns={compact ? compactColumns : columns}
 			headerVisibleFrom="sm"
 		>
 			<TableHeader>
@@ -291,11 +395,13 @@ const ProductTable = ({
 				<TableColumnHeader cssOverrides={numberStyles}>
 					Current
 				</TableColumnHeader>
-				<TableColumnHeader>Updated</TableColumnHeader>
-				<TableColumnHeader>Link</TableColumnHeader>
+				{!compact && <TableColumnHeader>Updated</TableColumnHeader>}
+				{!compact && <TableColumnHeader>Link</TableColumnHeader>}
 			</TableHeader>
 			<TableBody>
-				{links.map((link) => renderLinkRow(link, name, articleCurrency))}
+				{links.map((link) =>
+					renderLinkRow(link, name, articleCurrency, compact),
+				)}
 			</TableBody>
 		</Table>
 	</div>
@@ -303,15 +409,18 @@ const ProductTable = ({
 
 /**
  * The products found in an article, each with its links to the retailers that sell it,
- * the price each link had when it was written and its latest price in the directory.
+ * the price each link had when it was written and its latest price and stock in the directory.
  */
 export const ProductList = ({
 	products,
 	articleCurrency,
+	compact = false,
 }: {
 	products: Product[];
 	/** The currency the article's section is priced in, to warn when a price is set in another. */
 	articleCurrency?: Currency;
+	/** For a narrow column, such as Composer's panel: just the prices, with the rest under the retailer. */
+	compact?: boolean;
 }) => {
 	if (products.length === 0) {
 		return (
@@ -329,6 +438,7 @@ export const ProductList = ({
 					key={product.links[0]?.url}
 					product={product}
 					articleCurrency={articleCurrency}
+					compact={compact}
 				/>
 			))}
 		</>

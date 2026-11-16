@@ -16,6 +16,11 @@ export type KnownMetric =
 
 export async function registerMetric(metricName: KnownMetric, value: number) {
 	const { stack, stage } = getConfig();
+	// Metrics are only recorded in PROD, so CODE and local runs don't add to them.
+	if (stage !== 'PROD') {
+		console.debug(`Not recording ${metricName} (${value}) outside PROD`);
+		return;
+	}
 	const req = new PutMetricDataCommand({
 		Namespace: 'AffiliateProductDirectory',
 		MetricData: [

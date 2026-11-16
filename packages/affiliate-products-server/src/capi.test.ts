@@ -75,7 +75,6 @@ describe('createCapiArticles', () => {
 		baseUrl: 'https://capi.example.com',
 		apiKey: 'test-key',
 		composerBaseUrl: 'https://composer.example.com',
-		livePricingIds: new Set<string>(),
 		readSkimlinksDomains,
 	});
 
@@ -156,7 +155,6 @@ describe('createCapiArticles', () => {
 			baseUrl: 'https://capi.example.com',
 			apiKey: 'test-key',
 			composerBaseUrl: 'https://composer.example.com',
-			livePricingIds: new Set<string>(),
 			readSkimlinksDomains: () => Promise.resolve(undefined),
 		});
 
@@ -270,7 +268,6 @@ describe('createCapiArticle', () => {
 		baseUrl: 'https://capi.example.com',
 		apiKey: 'test-key',
 		composerBaseUrl: 'https://composer.example.com',
-		livePricingIds: new Set<string>(),
 		readSkimlinksDomains,
 	});
 
@@ -353,7 +350,6 @@ describe('live pricing', () => {
 		jest.restoreAllMocks();
 	});
 
-	const listedId = 'thefilter/2025/feb/20/best-dj-headphones';
 	const flaggedId = 'thefilter-us/2026/oct/12/protein-powder-faq-dietitians';
 
 	const createListArticles = () =>
@@ -361,7 +357,6 @@ describe('live pricing', () => {
 			baseUrl: 'https://capi.example.com',
 			apiKey: 'test-key',
 			composerBaseUrl: 'https://composer.example.com',
-			livePricingIds: new Set([listedId]),
 			readSkimlinksDomains,
 		});
 
@@ -377,8 +372,8 @@ describe('live pricing', () => {
 	it.each([
 		['the field is true', { livePricingEnabled: 'true' }, result.id, true],
 		['the field is false', { livePricingEnabled: 'false' }, result.id, false],
+		['the field is a boolean', { livePricingEnabled: true }, result.id, true],
 		['the field is missing', {}, result.id, false],
-		["it's on frontend's list", {}, listedId, true],
 	])(
 		'marks an article as having live pricing when %s',
 		async (_description, fields, id, livePricing) => {
@@ -397,7 +392,7 @@ describe('live pricing', () => {
 		},
 	);
 
-	it("lists just the flagged and listed articles by their IDs, after reading every article's field", async () => {
+	it("lists just the flagged articles by their IDs, after reading every article's field", async () => {
 		const fetch = jest
 			.spyOn(globalThis, 'fetch')
 			.mockResolvedValueOnce(
@@ -423,12 +418,12 @@ describe('live pricing', () => {
 		expect(scan1?.searchParams.get('page-size')).toBe('200');
 		expect(scan1?.searchParams.has('show-blocks')).toBe(false);
 		expect(scan2?.searchParams.get('page')).toBe('2');
-		expect(page?.searchParams.get('ids')).toBe(`${flaggedId},${listedId}`);
+		expect(page?.searchParams.get('ids')).toBe(flaggedId);
 		expect(page?.searchParams.has('section')).toBe(false);
 		expect(page?.searchParams.get('page')).toBe('2');
 	});
 
-	it('leaves out the listed articles from another section', async () => {
+	it("reads just the section's articles", async () => {
 		const fetch = jest
 			.spyOn(globalThis, 'fetch')
 			.mockResolvedValueOnce(

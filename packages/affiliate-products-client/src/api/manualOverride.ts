@@ -1,3 +1,4 @@
+import type { Region } from '@common/models';
 import type { Currency } from '../currency';
 /** The result of changing a manual override: undefined if it worked, or what went wrong. */
 export type OverrideResult = { error: string } | undefined;
@@ -38,6 +39,8 @@ export const setPriceOverride = (override: {
 	price: number;
 	// When the price stops being kept, as an ISO instant such as 2026-10-31T23:59:59.999Z.
 	expiryDate?: string;
+	// Adds the product to the directory in this region if it doesn't have it yet.
+	region?: Region;
 }) => sendOverride('POST', override);
 
 /** Removes a manual override, leaving the product unpriced until a price provider prices it. */
