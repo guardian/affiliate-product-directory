@@ -1,5 +1,6 @@
 import { css } from '@emotion/react';
 import { baseColors, semanticColors, semanticSpacing } from '@guardian/stand';
+import type { Stage } from './ProdData';
 
 // The tool's colour, from Stand's orange scale. It marks the tool in its top bar and icon
 // (in TopToolbar) and an open article: the bar down its left edge, its bottom border and
@@ -8,6 +9,24 @@ export const accent = {
 	strong: baseColors.orange[400],
 	tint: baseColors.orange[900],
 	tintBorder: baseColors.orange[800],
+};
+
+// The banner outside PROD uses Composer's colours for its stage banner, so DEV and CODE
+// look the same in both tools: black on yellow for DEV, white on orange-red for CODE.
+const stageBannerColours: Record<
+	Exclude<Stage, 'PROD'>,
+	{ background: string; text: string }
+> = {
+	DEV: { background: '#FFBB00', text: '#000000' },
+	CODE: { background: '#A42C0E', text: '#FFFFFF' },
+};
+
+export const stageBannerTheme = (stage: Exclude<Stage, 'PROD'>) => {
+	const { background, text } = stageBannerColours[stage];
+	return {
+		shared: { content: { color: text } },
+		warning: { backgroundColor: background, icon: { color: text } },
+	};
 };
 
 // Drafts are marked in Stand's yellow, as Composer marks content that isn't live: a tinted

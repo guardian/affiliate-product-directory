@@ -191,6 +191,80 @@ describe('refreshPrices', () => {
 		expect(result.notUpdated[0]).toBe(product);
 	});
 
+	describe('availability', () => {
+		async function availabilityFor(stock: {
+			is_available?: boolean | null;
+			latest_availability?: string | null;
+		}) {
+			const product = buildProduct({
+				productMerchantUrl: 'https://johnlewis.com/p/1',
+				region: 'GB',
+			});
+			mockFetch.mockResolvedValue(
+				jsonResponse({
+					results: {
+						'https://johnlewis.com/p/1': [{ ...match(5, 'GBP'), ...stock }],
+					},
+				}),
+			);
+
+			const {
+				updated: [updated],
+			} = await refreshPrices([product]);
+			return updated!;
+		}
+
+		it.each([
+			['in-stock', false],
+			['out-of-stock', true],
+			['pre-order', true],
+		])(
+			'uses latest_availability %s over is_available',
+			async (latest_availability, is_available) => {
+				const updated = await availabilityFor({
+					latest_availability,
+					is_available,
+				});
+
+				expect(updated.availability).toBe(latest_availability);
+			},
+		);
+
+		it.each([
+			[true, 'in-stock'],
+			[false, 'out-of-stock'],
+		])(
+			'falls back to is_available %s without latest_availability',
+			async (is_available, expected) => {
+				const updated = await availabilityFor({
+					is_available,
+					latest_availability: null,
+				});
+
+				expect(updated.availability).toBe(expected);
+			},
+		);
+
+		it('falls back to is_available when latest_availability is unrecognised', async () => {
+			const updated = await availabilityFor({
+				is_available: false,
+				latest_availability: 'discontinued',
+			});
+
+			expect(updated.availability).toBe('out-of-stock');
+		});
+
+		it('leaves availability off when stock is unknown', async () => {
+			const updated = await availabilityFor({
+				is_available: null,
+				latest_availability: null,
+			});
+
+			expect(updated.price).toBe(5);
+			expect(updated.availability).toBeUndefined();
+		});
+	});
+
 	it('skips products that come back with an empty match array', async () => {
 		const product = buildProduct({
 			productMerchantUrl: 'https://johnlewis.com/p/1',

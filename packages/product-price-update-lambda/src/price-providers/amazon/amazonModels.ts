@@ -14,7 +14,14 @@ const AmazonListingSchema = z.object({
 			savings: z.unknown().optional(),
 		})
 		.optional(),
-	availability: z.unknown().optional(),
+	// Anything unexpected is dropped rather than failing the whole batch.
+	availability: z
+		.object({
+			type: z.string().optional(),
+			message: z.string().optional(),
+		})
+		.optional()
+		.catch(undefined),
 	condition: z.unknown().optional(),
 	merchantInfo: z.unknown().optional(),
 	dealDetails: z.unknown().optional(),

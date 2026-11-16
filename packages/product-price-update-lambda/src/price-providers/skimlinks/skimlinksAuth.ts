@@ -4,14 +4,6 @@ import type { Region } from '@common/models';
 import { getParametersFromParameterStore } from '@common/parameterStore';
 import { z } from 'zod';
 
-const config = getConfig();
-const commonPath = `/${config.stage}/${config.stack}/${appName}/skimlinks`;
-const publisherIdKey = `${commonPath}/publisherId`;
-const clientIdKey = `${commonPath}/products/clientId`;
-const clientSecretKey = `${commonPath}/products/clientSecret`;
-const ukPublisherDomainIdKey = `${commonPath}/products/publisherDomainId/UK`;
-const usPublisherDomainIdKey = `${commonPath}/products/publisherDomainId/US`;
-
 export interface SkimlinksCredentials {
 	publisherId: string;
 	clientId: string;
@@ -27,6 +19,16 @@ export async function getSkimlinksCredentials(): Promise<SkimlinksCredentials> {
 	if (cachedCredentials) {
 		return cachedCredentials;
 	}
+
+	// Read here rather than on import, so that importing the price providers, as the tool's
+	// server does, doesn't need the stack's environment.
+	const config = getConfig();
+	const commonPath = `/${config.stage}/${config.stack}/${appName}/skimlinks`;
+	const publisherIdKey = `${commonPath}/publisherId`;
+	const clientIdKey = `${commonPath}/products/clientId`;
+	const clientSecretKey = `${commonPath}/products/clientSecret`;
+	const ukPublisherDomainIdKey = `${commonPath}/products/publisherDomainId/UK`;
+	const usPublisherDomainIdKey = `${commonPath}/products/publisherDomainId/US`;
 
 	const parameters = await getParametersFromParameterStore([
 		publisherIdKey,
