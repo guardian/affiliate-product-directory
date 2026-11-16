@@ -3,11 +3,11 @@ import { articlePath } from '@common/articlePath';
 import { getCapiBaseUrl } from '@common/config';
 import type { DynamoService } from '@common/database-service';
 import { composerOriginsForStage } from '@common/embed';
-import { ArticleStatusSchema, SectionSchema } from '@common/tool-models';
 import type { ArticlesPage, AuthResponse, User } from '@common/tool-models';
+import { ArticleStatusSchema, SectionSchema } from '@common/tool-models';
 import { ProductsUpdater } from '@price-update/ProductsUpdater';
-import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
+import express from 'express';
 import { z } from 'zod';
 import {
 	createCapiArticle,
@@ -232,7 +232,7 @@ export function createApp({
 			);
 		}
 
-		if (!auth.hasAccess(user.email)) {
+		if (!(await auth.hasAccess({ email: user.email, auth }))) {
 			return isApiRequest
 				? res.status(403).json({ error: noAccessMessage })
 				: res.status(403).send(noAccessMessage);
