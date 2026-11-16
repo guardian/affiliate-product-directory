@@ -5,3 +5,13 @@ export const formatDate = (date: string | number) =>
 		month: 'short',
 		year: 'numeric',
 	});
+
+/** A date with its time, such as 27 Oct 2026, 14:35, for a hover title on a date. */
+export const formatDateTime = (date: string | number) =>
+	new Date(date).toLocaleString('en-GB', {
+		day: 'numeric',
+		month: 'short',
+		year: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+	});

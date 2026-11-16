@@ -2,13 +2,14 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import type * as DatabaseServiceModule from '@common/database-service';
-import { livePricingAllowListIds } from '@common/livePricing';
+import { EmbedProductsResponseSchema } from '@common/embed';
 import type { Region } from '@common/models';
 import type { Product } from '@common/models';
 import { ArticlesPageSchema, AuthResponseSchema } from '@common/tool-models';
 import type { User } from '@common/tool-models';
 import { jest } from '@jest/globals';
 import { mockAmazonRefreshPrices } from '@mocks/AmazonPriceProviderMock';
+import { composerContentFixture } from '@mocks/ComposerContentFixture';
 import {
 	mockGetProductPrice,
 	mockUpdateProducts,
@@ -469,10 +470,14 @@ describe('createApp', () => {
 			expect(response.status).toBe(200);
 			expect(ArticlesPageSchema.parse(response.body).drafts).toBeUndefined();
 			expect(listDrafts).not.toHaveBeenCalled();
-			// CODE's articles on frontend's list, as none of CAPI's are flagged.
-			expect(capiRequests().at(-1)?.searchParams.get('ids')).toBe(
-				[...livePricingAllowListIds('CODE')].join(','),
-			);
+			// None of CAPI's articles are flagged, so only their fields are read.
+			expect(ArticlesPageSchema.parse(response.body).articles).toEqual([]);
+			expect(
+				capiRequests().every(
+					(search) =>
+						search.searchParams.get('show-fields') === 'livePricingEnabled',
+				),
+			).toBe(true);
 		});
 
 		it('rejects a livePricing other than true', async () => {
@@ -813,6 +818,103 @@ describe('createApp', () => {
 		}
 	});
 
+	it("adds a draft's product to the directory with the price set for it", async () => {
+		mockGetProductPrice.mockResolvedValueOnce(undefined);
+		mockUpdateProducts.mockResolvedValueOnce({ skipped: [] });
+
+		const response = await request(app()).post('/api/manualOverride').send({
+			productMerchantUrl: 'https://shop.example.com/products/new',
+			currency: 'USD',
+			price: 30,
+			region: 'US',
+		});
+
+		expect(response.status).toBe(204);
+		expect(mockUpdateProducts).toHaveBeenCalledWith({
+			items: [
+				expect.objectContaining({
+					productMerchantUrl: 'https://shop.example.com/products/new',
+					region: 'US',
+					price: 30,
+					currency: 'USD',
+					updatedBy: 'manualOverride',
+				}),
+			],
+		});
+	});
+
+	it("doesn't add a product without its region", async () => {
+		mockGetProductPrice.mockResolvedValueOnce(undefined);
+
+		const response = await request(app()).post('/api/manualOverride').send({
+			productMerchantUrl: 'https://shop.example.com/products/new',
+			currency: 'GBP',
+			price: 30,
+		});
+
+		expect(response.status).toBe(404);
+		expect(mockUpdateProducts).not.toHaveBeenCalled();
+	});
+
+	it("keeps a stored product's region when a region is sent", async () => {
+		mockGetProductPrice.mockResolvedValueOnce({
+			productMerchantUrl: 'https://shop.example.com/products/123',
+			region: 'GB',
+		});
+		mockUpdateProducts.mockResolvedValueOnce({ skipped: [] });
+
+		await request(app()).post('/api/manualOverride').send({
+			productMerchantUrl: 'https://shop.example.com/products/123',
+			currency: 'GBP',
+			price: 30,
+			region: 'US',
+		});
+
+		expect(mockUpdateProducts).toHaveBeenCalledWith({
+			items: [expect.objectContaining({ region: 'GB', price: 30 })],
+		});
+	});
+
+	it('adds a removed product back when a draft sets its price', async () => {
+		mockGetProductPrice.mockResolvedValueOnce({
+			productMerchantUrl: 'https://shop.example.com/products/123',
+			region: 'GB',
+			removed: 'true',
+			removedAt: 1,
+		});
+		mockUpdateProducts.mockResolvedValueOnce({ skipped: [] });
+
+		const response = await request(app()).post('/api/manualOverride').send({
+			productMerchantUrl: 'https://shop.example.com/products/123',
+			currency: 'USD',
+			price: 30,
+			region: 'US',
+		});
+
+		expect(response.status).toBe(204);
+		const saved = mockUpdateProducts.mock.calls[0]?.[0].items[0];
+		expect(saved).toMatchObject({ region: 'US', price: 30 });
+		expect(saved).not.toHaveProperty('removed');
+		expect(saved).not.toHaveProperty('removedAt');
+	});
+
+	it("doesn't set a price on a removed product without its region", async () => {
+		mockGetProductPrice.mockResolvedValueOnce({
+			productMerchantUrl: 'https://shop.example.com/products/123',
+			region: 'GB',
+			removed: 'true',
+		});
+
+		const response = await request(app()).post('/api/manualOverride').send({
+			productMerchantUrl: 'https://shop.example.com/products/123',
+			currency: 'GBP',
+			price: 30,
+		});
+
+		expect(response.status).toBe(404);
+		expect(mockUpdateProducts).not.toHaveBeenCalled();
+	});
+
 	it('rejects malformed manual override input', async () => {
 		const response = await request(app()).post('/api/manualOverride').send({
 			productMerchantUrl: 'https://shop.example.com/products/123',
@@ -889,5 +991,123 @@ describe('createApp', () => {
 		expect(mockAmazonRefreshPrices).not.toHaveBeenCalled();
 		expect(mockShopifyRefreshPrices).not.toHaveBeenCalled();
 		expect(mockUpdateProducts).not.toHaveBeenCalled();
+	});
+
+	describe('Composer embed', () => {
+		it('previews and saves products that are not in the directory', async () => {
+			const amazonUrl = 'https://www.amazon.co.uk/dp/B0EXAMPLE15';
+			const previewedAmazon: Product = {
+				productMerchantUrl: amazonUrl,
+				region: 'GB',
+				price: 479,
+				currency: 'GBP',
+				updatedAt: 1760000000000,
+				updatedBy: 'amazon',
+			};
+			mockAmazonRefreshPrices.mockImplementationOnce((products) =>
+				Promise.resolve({
+					updated: [
+						{
+							...products[0]!,
+							price: previewedAmazon.price,
+							currency: previewedAmazon.currency,
+							updatedAt: previewedAmazon.updatedAt,
+							updatedBy: previewedAmazon.updatedBy,
+						},
+					],
+					notUpdated: [],
+				}),
+			);
+
+			const response = await request(app())
+				.post('/api/embed/products')
+				.send(composerContentFixture);
+
+			expect(response.status).toBe(200);
+			expect(mockAmazonRefreshPrices).toHaveBeenCalledWith([
+				{ productMerchantUrl: amazonUrl, region: 'GB' },
+			]);
+			expect(mockUpdateProducts).toHaveBeenCalledWith({
+				items: [previewedAmazon],
+			});
+			const body = EmbedProductsResponseSchema.parse(response.body);
+			const amazonLink = body.products
+				.flatMap((product) => product.links)
+				.find((link) => link.url === amazonUrl);
+			expect(amazonLink).toMatchObject({
+				price: 479,
+			});
+			expect(amazonLink?.notInDirectory).toBeUndefined();
+		});
+
+		it('lists the products Composer sends, with their prices', async () => {
+			const response = await request(
+				app(
+					loggedIn,
+					pricingTable([
+						{
+							productMerchantUrl:
+								'https://www.argos.co.uk/product/example-shark',
+							region: 'GB',
+							price: 179,
+							currency: 'GBP',
+						},
+					]),
+				),
+			)
+				.post('/api/embed/products')
+				.send(composerContentFixture);
+
+			expect(response.status).toBe(200);
+			const body = EmbedProductsResponseSchema.parse(response.body);
+			expect(body.region).toBe('GB');
+			expect(body.products).toHaveLength(2);
+		});
+
+		it('rejects a message it can not read', async () => {
+			const response = await request(app())
+				.post('/api/embed/products')
+				.send({ ...composerContentFixture, version: 2 });
+
+			expect(response.status).toBe(400);
+		});
+
+		it("tells a logged-out embed it isn't logged in", async () => {
+			const response = await request(app(loggedOut))
+				.post('/api/embed/products')
+				.send(composerContentFixture);
+
+			expect(response.status).toBe(401);
+		});
+
+		it('lets only Composer frame the embed', async () => {
+			const response = await request(app()).get('/embed');
+
+			expect(response.status).toBe(200);
+			expect(response.headers['content-security-policy']).toBe(
+				'frame-ancestors https://composer.code.dev-gutools.co.uk https://composer.local.dev-gutools.co.uk',
+			);
+		});
+
+		it("doesn't limit framing anywhere else", async () => {
+			const response = await request(app()).get('/');
+
+			expect(response.headers['content-security-policy']).toBeUndefined();
+		});
+
+		it('links a logged-out editor to login in a new tab, rather than redirecting the frame', async () => {
+			const response = await request(app(loggedOut))
+				.get('/embed')
+				.set('Host', 'affiliate-products.code.dev-gutools.co.uk');
+
+			expect(response.status).toBe(401);
+			expect(response.headers['content-security-policy']).toMatch(
+				/^frame-ancestors /,
+			);
+			expect(response.text).toContain('target="_blank"');
+			expect(response.text).toContain(
+				`https://login.example.com/login?returnUrl=${encodeURIComponent('https://affiliate-products.code.dev-gutools.co.uk/')}`,
+			);
+		});
 	});
 });

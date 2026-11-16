@@ -146,4 +146,47 @@ describe('applyUpdate', () => {
 		expect(updated).toMatchObject({ price: 12, updatedBy: 'test' });
 		expect(updated?.expiresAt).toBeUndefined();
 	});
+
+	it('sets the availability it is given', () => {
+		const product = buildProduct({ region: 'GB' });
+
+		const updated = new TestPriceProvider()['applyUpdate'](product, {
+			price: 5,
+			currency: 'GBP',
+			availability: 'out-of-stock',
+		});
+
+		expect(updated).toMatchObject({
+			price: 5,
+			currency: 'GBP',
+			availability: 'out-of-stock',
+			updatedBy: 'test',
+		});
+	});
+
+	it("drops an earlier provider's availability when given none", () => {
+		const product = buildProduct({ region: 'GB', availability: 'in-stock' });
+
+		const updated = new TestPriceProvider()['applyUpdate'](product, {
+			price: 5,
+			currency: 'GBP',
+			availability: undefined,
+		});
+
+		expect(updated?.price).toBe(5);
+		expect(updated?.availability).toBeUndefined();
+	});
+
+	it('leaves availability alone when the currency is rejected', () => {
+		const product = buildProduct({ region: 'GB', availability: 'in-stock' });
+
+		const updated = new TestPriceProvider()['applyUpdate'](product, {
+			price: 5,
+			currency: 'USD',
+			availability: 'out-of-stock',
+		});
+
+		expect(updated).toBeUndefined();
+		expect(product.availability).toBe('in-stock');
+	});
 });

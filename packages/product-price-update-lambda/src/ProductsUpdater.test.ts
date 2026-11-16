@@ -272,6 +272,7 @@ describe('refreshPrices', () => {
 			updatedBy: 'manualOverride',
 			price: 10,
 			currency: 'GBP',
+			availability: 'in-stock',
 			expiresAt: Date.now() - 60_000,
 		});
 		const unpricedProduct = buildProduct({
@@ -291,6 +292,7 @@ describe('refreshPrices', () => {
 					...expiredManualOverride,
 					price: undefined,
 					currency: undefined,
+					availability: undefined,
 					expiresAt: undefined,
 					updatedBy: undefined,
 					updatedAt: NOW,

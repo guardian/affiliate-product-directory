@@ -1,0 +1,5 @@
+name: affiliate-products
+mappings:
+  - prefix: affiliate-products
+    port: 5173
+    websocket: /vite-hmr

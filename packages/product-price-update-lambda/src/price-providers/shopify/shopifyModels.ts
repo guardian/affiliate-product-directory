@@ -4,6 +4,8 @@ const ShopifyVariantSchema = z.object({
 	id: z.number().optional(),
 	price: z.string(),
 	price_currency: z.enum(['GBP', 'USD']),
+	// Not every storefront includes this.
+	available: z.boolean().optional(),
 });
 
 /** The shape of a Shopify storefront's `/products/<handle>.json` response. */
