@@ -15,25 +15,29 @@ const pandaDomains: Record<string, string> = {
  * Checks the Panda cookie set by login.gutools.co.uk (login.code.dev-gutools.co.uk in CODE)
  * against the public key in the pan-domain-auth-settings bucket, as gudocs2 does.
  */
-export async function createPandaAuth(stage: string): Promise<Auth> {
+export function createPandaAuth(stage: string): Auth {
 	const pandaDomain = pandaDomains[stage];
 	if (!pandaDomain) {
 		throw new Error(`No Panda domain for stage ${stage}`);
 	}
 
-	const panda = await PanDomainAuthentication.builder({
+	// Fetched once, when the auth is created, and awaited by each request.
+	const panda = PanDomainAuthentication.builder({
 		cookieName: 'gutoolsAuth-assym',
 		region: 'eu-west-1',
 		bucket: 'pan-domain-auth-settings',
 		keyFile: `${pandaDomain}.settings.public`,
 		validateUser: guardianValidation,
 	});
+	// A failed fetch would otherwise be an unhandled rejection, which stops the Lambda's Node
+	// process. It's still thrown to each request that awaits it.
+	panda.catch(() => undefined);
 
 	const { listUserPermissions } = initPermissions({ stage });
 
 	return {
 		authenticate: async (cookieHeader) => {
-			const result = await panda.verify(cookieHeader);
+			const result = await (await panda).verify(cookieHeader);
 			if (!result.success) {
 				return undefined;
 			}

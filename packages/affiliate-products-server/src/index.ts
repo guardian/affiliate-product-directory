@@ -13,7 +13,7 @@ const { stage } = getConfig();
 const clientDir = path.join(process.env.LAMBDA_TASK_ROOT ?? '', 'client');
 
 // Created once per Lambda instance, so warm invocations reuse the cached Panda key and permissions.
-const auth = await createPandaAuth(stage);
+const auth = createPandaAuth(stage);
 const prodCapiKey = process.env.PROD_CAPI_KEY;
 
 export const handler = serverlessExpress({

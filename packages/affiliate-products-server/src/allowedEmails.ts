@@ -6,7 +6,7 @@ import type { Auth } from './types';
  */
 const allowedEmails = new Set([
 	// The Filter team
-	// 'solomon.owen-williams@guardian.co.uk',
+	'solomon.owen-williams@guardian.co.uk',
 	'andrew.howe-ely@guardian.co.uk',
 	'peran.osborn@guardian.co.uk',
 	'elliott.cooper@guardian.co.uk',
