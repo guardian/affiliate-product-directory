@@ -15,19 +15,19 @@ const pandaDomains: Record<string, string> = {
  * Checks the Panda cookie set by login.gutools.co.uk (login.code.dev-gutools.co.uk in CODE)
  * against the public key in the pan-domain-auth-settings bucket, as gudocs2 does.
  */
-export function createPandaAuth(stage: string): Auth {
+export async function createPandaAuth(stage: string): Promise<Auth> {
 	const pandaDomain = pandaDomains[stage];
 	if (!pandaDomain) {
 		throw new Error(`No Panda domain for stage ${stage}`);
 	}
 
-	const panda = new PanDomainAuthentication(
-		'gutoolsAuth-assym',
-		'eu-west-1',
-		'pan-domain-auth-settings',
-		`${pandaDomain}.settings.public`,
-		guardianValidation,
-	);
+	const panda = await PanDomainAuthentication.builder({
+		cookieName: 'gutoolsAuth-assym',
+		region: 'eu-west-1',
+		bucket: 'pan-domain-auth-settings',
+		keyFile: `${pandaDomain}.settings.public`,
+		validateUser: guardianValidation,
+	});
 
 	const { listUserPermissions } = initPermissions({ stage });
 
