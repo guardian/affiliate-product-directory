@@ -1,10 +1,12 @@
+import type { Auth } from './types';
+
 /**
  * The people who may use the tool, by the email address they log in with, in lower case.
  * Anyone else who logs in is told they don't have permission.
  */
 const allowedEmails = new Set([
-	// The Ftiler team
-	'solomon.owen-williams@guardian.co.uk',
+	// The Filter team
+	// 'solomon.owen-williams@guardian.co.uk',
 	'andrew.howe-ely@guardian.co.uk',
 	'peran.osborn@guardian.co.uk',
 	'elliott.cooper@guardian.co.uk',
@@ -35,5 +37,18 @@ const allowedEmails = new Set([
 ]);
 
 /** Whether a user may use the tool. Case is ignored, as it is in email addresses. */
-export const isAllowedEmail = (email: string) =>
-	allowedEmails.has(email.trim().toLowerCase());
+export const isAllowedEmail = async ({
+	email,
+	auth,
+}: {
+	email: string;
+	auth: Auth;
+}) => {
+	if (allowedEmails.has(email.trim().toLowerCase())) {
+		return true;
+	}
+
+	return (await auth.listPermissions(email)).includes(
+		'affiliate_products_access',
+	);
+};
