@@ -1,0 +1,26 @@
+{
+  "name": "change-capture-lambda",
+  "version": "1.0.0",
+  "description": "Lambda to capture DynamoDB changes and write to S3 for Fivetran",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "jest",
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.447.0",
+    "@aws-sdk/util-dynamodb": "^3.447.0"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-s3": "^3.447.0",
+    "@types/aws-lambda": "^8.10.140",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.11.5",
+    "aws-sdk-client-mock": "^4.1.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.3.3"
+  }
+}

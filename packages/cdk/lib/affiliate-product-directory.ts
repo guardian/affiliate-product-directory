@@ -12,6 +12,7 @@ import { createDynamoTables } from './dynamo';
 import { attachPoliciesToLambda, createLambdas } from './lambda';
 import { createPolicies } from './policies';
 import { createTool } from './tool';
+import { createChangeCapturePipeline } from './change-capture-pipeline';
 
 interface AffiliateProductDirectoryProps extends GuStackProps {
 	/** The affiliate products tool is only created in stages given a domain for it. */
@@ -134,6 +135,15 @@ export class AffiliateProductDirectory extends GuStack {
 		});
 
 		createAlarms(this, { appName, alarmActionsEnabled, snsTopic, stage });
+
+		// Change-capture pipeline for DynamoDB tables
+		createChangeCapturePipeline(this, {
+			tables: [
+				{ name: 'productPricing', table: productPricingTable },
+				{ name: 'productArticle', table: productArticleTable },
+			],
+			appName,
+		});
 
 		if (props.toolDomainName) {
 			createTool(this, {
