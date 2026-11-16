@@ -1,17 +1,11 @@
 import { jest } from '@jest/globals';
+import { buildAuth } from '@mocks/AuthMock';
 import { isAllowedEmail } from './allowedEmails';
-import type { Auth } from './types';
 
 // An auth whose permissions service grants every user the given permissions.
 const authWithPermissions = (permissions: string[]) => {
 	const listPermissions = jest.fn(() => Promise.resolve(permissions));
-	const auth: Auth = {
-		authenticate: () => Promise.resolve(undefined),
-		hasAccess: () => Promise.resolve(false),
-		listPermissions,
-		loginUrl: 'https://login.example.com/login',
-	};
-	return { auth, listPermissions };
+	return { auth: buildAuth({ listPermissions }), listPermissions };
 };
 
 describe('isAllowedEmail', () => {

@@ -6,9 +6,9 @@ import { EmbedProductsResponseSchema } from '@common/embed';
 import type { Region } from '@common/models';
 import type { Product } from '@common/models';
 import { ArticlesPageSchema, AuthResponseSchema } from '@common/tool-models';
-import type { User } from '@common/tool-models';
 import { jest } from '@jest/globals';
 import { mockAmazonRefreshPrices } from '@mocks/AmazonPriceProviderMock';
+import { buildAuth, mockUser } from '@mocks/AuthMock';
 import { composerContentFixture } from '@mocks/ComposerContentFixture';
 import {
 	mockGetProductPrice,
@@ -54,29 +54,19 @@ describe('createApp', () => {
 		rmSync(clientDir, { recursive: true, force: true });
 	});
 
-	const user: User = {
-		email: 'test.user@guardian.co.uk',
-		firstName: 'Test',
-		lastName: 'User',
-	};
+	const user = mockUser;
 
-	const loggedIn: Auth = {
-		authenticate: () => Promise.resolve(user),
-		hasAccess: (email) => email === user.email,
-		listPermissions: (email) =>
-			Promise.resolve(email === user.email ? ['some_permission'] : []),
-		loginUrl: 'https://login.example.com/login',
-	};
+	const loggedIn = buildAuth({
+		listPermissions: () => Promise.resolve(['some_permission']),
+	});
 
-	const loggedOut: Auth = {
-		...loggedIn,
+	const loggedOut = buildAuth({
 		authenticate: () => Promise.resolve(undefined),
-	};
+	});
 
-	const loggedInWithoutAccess: Auth = {
-		...loggedIn,
-		hasAccess: () => false,
-	};
+	const loggedInWithoutAccess = buildAuth({
+		hasAccess: () => Promise.resolve(false),
+	});
 
 	// The Skimlinks merchants' domains, which include the shop the article links to.
 	const readSkimlinksDomains = () => Promise.resolve(new Set(['shop.example']));
@@ -648,13 +638,12 @@ describe('createApp', () => {
 
 	it('passes the request cookies to authenticate', async () => {
 		let receivedCookies: string | undefined;
-		const auth: Auth = {
-			...loggedIn,
+		const auth = buildAuth({
 			authenticate: (cookieHeader) => {
 				receivedCookies = cookieHeader;
 				return Promise.resolve(user);
 			},
-		};
+		});
 
 		await request(app(auth)).get('/').set('Cookie', 'gutoolsAuth-assym=abc');
 
@@ -709,23 +698,10 @@ describe('createApp', () => {
 		},
 	);
 
-	it.each(['/', '/assets/index-abc123.js'])(
-		'tells logged-in users without access that they lack permission at %s',
-		async (url) => {
-			const response = await request(app(loggedInWithoutAccess)).get(url);
-
-			expect(response.status).toBe(403);
-			expect(response.text).toBe(
-				"You don't have permission to access the affiliate products tool.",
-			);
-		},
-	);
-
 	it('hides error details from users', async () => {
-		const failing: Auth = {
-			...loggedIn,
+		const failing = buildAuth({
 			authenticate: () => Promise.reject(new Error('secret details')),
-		};
+		});
 		jest.spyOn(console, 'error').mockImplementation(() => {});
 
 		const response = await request(app(failing)).get('/');

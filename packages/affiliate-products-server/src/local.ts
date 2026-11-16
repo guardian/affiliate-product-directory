@@ -24,7 +24,7 @@ const localAuth: Auth = {
 			firstName: 'Local',
 			lastName: 'User',
 		}),
-	hasAccess: () => true,
+	hasAccess: () => Promise.resolve(true),
 	listPermissions: () => Promise.resolve(['local_permission']),
 	loginUrl: '',
 };
