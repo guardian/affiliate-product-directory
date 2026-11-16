@@ -19,19 +19,19 @@ describe('isAllowedEmail', () => {
 		const { auth, listPermissions } = authWithPermissions([]);
 
 		await expect(
-			isAllowedEmail({ email: 'solomon.owen-williams@guardian.co.uk', auth }),
+			isAllowedEmail({ email: 'peran.osborn@guardian.co.uk', auth }),
 		).resolves.toBe(true);
 		expect(listPermissions).not.toHaveBeenCalled();
 	});
 
-	it.each([
-		'Solomon.Owen-Williams@guardian.co.uk',
-		' solomon.owen-williams@guardian.co.uk ',
-	])('allows %p, ignoring case and surrounding spaces', async (email) => {
-		const { auth } = authWithPermissions([]);
+	it.each(['peran.osborn@guardian.co.uk', ' peran.osborn@guardian.co.uk '])(
+		'allows %p, ignoring case and surrounding spaces',
+		async (email) => {
+			const { auth } = authWithPermissions([]);
 
-		await expect(isAllowedEmail({ email, auth })).resolves.toBe(true);
-	});
+			await expect(isAllowedEmail({ email, auth })).resolves.toBe(true);
+		},
+	);
 
 	it('refuses an email address that is not listed and has no permissions', async () => {
 		const { auth } = authWithPermissions([]);

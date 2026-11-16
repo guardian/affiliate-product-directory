@@ -5,8 +5,8 @@ import type { Auth } from './types';
  * Anyone else who logs in is told they don't have permission.
  */
 const allowedEmails = new Set([
-	// The Ftiler team
-	'solomon.owen-williams@guardian.co.uk',
+	// The Filter team
+	// 'solomon.owen-williams@guardian.co.uk',
 	'andrew.howe-ely@guardian.co.uk',
 	'peran.osborn@guardian.co.uk',
 	'elliott.cooper@guardian.co.uk',
