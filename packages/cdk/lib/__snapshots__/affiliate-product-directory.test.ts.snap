@@ -2218,7 +2218,7 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
             "Value": "TEST",
           },
         ],
-        "Timeout": 300,
+        "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
     },
