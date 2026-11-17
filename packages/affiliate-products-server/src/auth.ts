@@ -3,7 +3,7 @@ import {
 	PanDomainAuthentication,
 } from '@guardian/pan-domain-node';
 import { init as initPermissions } from '@guardian/permissions-client';
-import { isAllowedEmail } from './allowedEmails';
+import { hasAccessPermission } from './hasAccess';
 import type { Auth } from './types';
 
 const pandaDomains: Record<string, string> = {
@@ -44,7 +44,7 @@ export function createPandaAuth(stage: string): Auth {
 			const { email, firstName, lastName, avatarUrl } = result.user;
 			return { email, firstName, lastName, avatarUrl };
 		},
-		hasAccess: isAllowedEmail,
+		hasAccess: hasAccessPermission,
 		listPermissions: listUserPermissions,
 		loginUrl: `https://login.${pandaDomain}/login`,
 	};
