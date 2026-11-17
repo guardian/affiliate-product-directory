@@ -564,7 +564,7 @@ describe('createApp', () => {
 					'text/csv; charset=utf-8',
 				);
 				expect(response.headers['content-disposition']).toBe(
-					'attachment; filename="an-article-links.csv"',
+					'attachment; filename=an-article-links.csv',
 				);
 				expect(response.text.split('\n')).toEqual([
 					expect.stringContaining('"External Link"'),
