@@ -13,6 +13,6 @@
 		"@aws-sdk/client-ssm": "^3.1169.0",
 		"@aws-sdk/lib-dynamodb": "^3.1169.0",
 		"esbuild": "0.28.2",
-		"zod": "^4.5.4"
+		"zod": "^4.6.6"
 	}
 }
