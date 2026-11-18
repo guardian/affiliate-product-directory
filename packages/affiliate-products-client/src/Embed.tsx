@@ -125,7 +125,6 @@ export const Embed = () => {
 	const region = state.status === 'loaded' ? state.response.region : undefined;
 	const priceEditing = useMemo<PriceEditing>(
 		() => ({
-			canEdit: true,
 			onPriceEdit: () => reloadRef.current(),
 			draftRegion: region,
 		}),

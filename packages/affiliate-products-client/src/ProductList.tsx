@@ -18,12 +18,11 @@ import {
 } from '@guardian/stand/Table';
 import { Typography } from '@guardian/stand/Typography';
 import { convertTypographyToEmotionStringStyle } from '@guardian/stand/utils';
-import { useContext, useState } from 'react';
+import { useState } from 'react';
 import { ButtonPreview } from './ButtonPreview';
 import { type Currency, currencySymbol } from './currency';
 import { formatDate, formatDateTime } from './formatDate';
 import { formatPrice } from './formatPrice';
-import { PriceEditingContext } from './PriceEditing';
 import { PriceOverrideModal } from './PriceOverrideModal';
 import { hasPriceGap, priceDifference } from './productStats';
 import { priceGapAccent } from './style';
@@ -161,7 +160,6 @@ const CurrentPrice = ({
 	productName?: string;
 	articleCurrency?: Currency;
 }) => {
-	const { canEdit } = useContext(PriceEditingContext);
 	const [editing, setEditing] = useState(false);
 	const { currency, price, updatedBy } = link;
 	const shown =
@@ -170,10 +168,6 @@ const CurrentPrice = ({
 		) : (
 			<Missing>—</Missing>
 		);
-
-	if (!canEdit) {
-		return shown;
-	}
 
 	return (
 		<span css={currentPriceStyles}>

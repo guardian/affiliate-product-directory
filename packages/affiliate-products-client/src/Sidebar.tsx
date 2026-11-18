@@ -10,7 +10,6 @@ import {
 	until,
 } from '@guardian/stand/utils';
 import { useId, useState } from 'react';
-import { isProd } from './ProdData';
 import { sections } from './sections';
 
 // Below md the sidebar sits above the list, rather than beside it.
@@ -207,52 +206,6 @@ const statusOptions: Array<{ value: ArticleStatus; name: string }> = [
 // Only the articles with live pricing can be picked out, as CAPI can't search for those without.
 const livePricingOptions = [{ value: 'on', name: 'Enabled' }];
 
-// The stage's own data, which is always CODE where PROD's can be shown too.
-const dataOptions = [
-	{ prod: false, name: 'CODE' },
-	{ prod: true, name: 'PROD' },
-];
-
-const DataFilter = ({
-	prod,
-	onChange,
-}: {
-	prod: boolean;
-	onChange: (prod: boolean) => void;
-}) => {
-	const [open, setOpen] = useState(true);
-	const listId = useId();
-
-	return (
-		<section>
-			<div css={headerStyles}>
-				<FilterHeading
-					name="Data"
-					open={open}
-					listId={listId}
-					onToggle={() => setOpen(!open)}
-				/>
-			</div>
-			{open && (
-				<ul id={listId} css={listStyles}>
-					{dataOptions.map((option) => (
-						<li key={option.name} css={listItemStyles}>
-							<button
-								type="button"
-								css={optionStyles(prod === option.prod)}
-								aria-pressed={prod === option.prod}
-								onClick={() => onChange(option.prod)}
-							>
-								{option.name}
-							</button>
-						</li>
-					))}
-				</ul>
-			)}
-		</section>
-	);
-};
-
 /** The list's filters, in the layout's sidebar. */
 export const Sidebar = ({
 	section,
@@ -261,8 +214,6 @@ export const Sidebar = ({
 	onStatusChange,
 	livePricing,
 	onLivePricingChange,
-	prod,
-	onProdChange,
 }: {
 	section?: Section;
 	onSectionChange: (section?: Section) => void;
@@ -270,8 +221,6 @@ export const Sidebar = ({
 	onStatusChange: (status?: ArticleStatus) => void;
 	livePricing: boolean;
 	onLivePricingChange: (livePricing: boolean) => void;
-	prod: boolean;
-	onProdChange: (prod: boolean) => void;
 }) => (
 	<Layout.Sidebar
 		as="nav"
@@ -297,6 +246,5 @@ export const Sidebar = ({
 			selected={livePricing ? 'on' : undefined}
 			onChange={(value) => onLivePricingChange(value === 'on')}
 		/>
-		{!isProd && <DataFilter prod={prod} onChange={onProdChange} />}
 	</Layout.Sidebar>
 );

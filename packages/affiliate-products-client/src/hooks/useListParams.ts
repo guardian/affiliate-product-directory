@@ -28,16 +28,15 @@ const ListParamsSchema = z.object({
 /** Reads the list's params from a URL's query string, such as `?page=2&section=thefilter-us&status=live&livePricing=true&prod=true`. */
 export const parseListParams = (search: string): ListParams => {
 	const params = new URLSearchParams(search);
-	const { page, section, status, livePricing, prod, path } =
-		ListParamsSchema.parse({
-			page: params.get('page') ?? undefined,
-			section: params.get('section') ?? undefined,
-			status: params.get('status') ?? undefined,
-			livePricing: params.get('livePricing') ?? undefined,
-			prod: params.get('prod') ?? undefined,
-			path: params.get('path') ?? undefined,
-		});
-	return { page, section, status, livePricing, prod, path };
+	const { page, section, status, livePricing, path } = ListParamsSchema.parse({
+		page: params.get('page') ?? undefined,
+		section: params.get('section') ?? undefined,
+		status: params.get('status') ?? undefined,
+		livePricing: params.get('livePricing') ?? undefined,
+		prod: params.get('prod') ?? undefined,
+		path: params.get('path') ?? undefined,
+	});
+	return { page, section, status, livePricing, path };
 };
 
 /** The query string for the list's params. Defaults are left out, so the first page of every section of the stage's own data is ''. */
@@ -46,7 +45,6 @@ export const formatListParams = ({
 	section,
 	status,
 	livePricing,
-	prod,
 	path,
 }: ListParams): string => {
 	const params = new URLSearchParams();
@@ -61,9 +59,6 @@ export const formatListParams = ({
 	}
 	if (livePricing) {
 		params.set('livePricing', 'true');
-	}
-	if (prod) {
-		params.set('prod', 'true');
 	}
 	if (path) {
 		params.set('path', path);
@@ -94,7 +89,6 @@ export const useListParams = () => {
 			next.section === params.section &&
 			next.status === params.status &&
 			next.livePricing === params.livePricing &&
-			next.prod === params.prod &&
 			next.path === params.path
 		) {
 			return;
@@ -121,8 +115,6 @@ export const useListParams = () => {
 		// As is just the articles with live pricing.
 		setLivePricing: (livePricing: boolean) =>
 			navigate({ ...params, page: 1, livePricing, path: undefined }),
-		// So is another stage's data, though a search for one article looks for it there too.
-		setProd: (prod: boolean) => navigate({ ...params, page: 1, prod }),
 		// Shows just the article at a URL or path, or the list again when undefined.
 		setPath: (path: string | undefined) =>
 			navigate({ ...params, page: 1, path }),

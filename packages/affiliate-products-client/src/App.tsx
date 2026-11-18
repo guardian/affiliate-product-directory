@@ -27,7 +27,7 @@ import { useStarred } from './hooks/useStarred';
 import { useStarredArticles } from './hooks/useStarredArticles';
 import { Pagination } from './Pagination';
 import { PriceEditingContext } from './PriceEditing';
-import { ProdDataContext, stage } from './ProdData';
+import { stage } from './ProdData';
 import { Sidebar } from './Sidebar';
 import { StarredContext } from './Starred';
 import { stageBannerTheme } from './style';
@@ -139,13 +139,11 @@ export const App = () => {
 		section,
 		status,
 		livePricing,
-		prod,
 		path,
 		setPage,
 		setSection,
 		setStatus,
 		setLivePricing,
-		setProd,
 		setPath,
 	} = useListParams();
 	const [fetched, setFetched] = useState<{
@@ -156,11 +154,11 @@ export const App = () => {
 	// (and its open articles open) until the new one arrives.
 	const [reloads, setReloads] = useState(0);
 	const priceEditing = useMemo(
-		() => ({ canEdit: !prod, onPriceEdit: () => setReloads((n) => n + 1) }),
-		[prod],
+		() => ({ onPriceEdit: () => setReloads((n) => n + 1) }),
+		[],
 	);
 
-	const { starred, toggleStar } = useStarred(prod);
+	const { starred, toggleStar } = useStarred();
 	const starredContext = {
 		isStarred: (id: string) => starred.includes(id),
 		toggleStar,
@@ -169,7 +167,7 @@ export const App = () => {
 		articles: starredArticles,
 		failed: starredFailed,
 		retry: retryStarred,
-	} = useStarredArticles(starred, prod, reloads);
+	} = useStarredArticles(starred, reloads);
 
 	// The starred articles the sidebar's filters would show, in the order they were starred.
 	const pinned =
@@ -193,7 +191,7 @@ export const App = () => {
 
 	useEffect(() => {
 		const controller = new AbortController();
-		const params = { page, section, status, livePricing, prod, path };
+		const params = { page, section, status, livePricing, path };
 		fetchArticles(params, controller.signal)
 			.then((state) => setFetched({ params, state }))
 			.catch(() => {
@@ -202,7 +200,7 @@ export const App = () => {
 				}
 			});
 		return () => controller.abort();
-	}, [page, section, status, livePricing, prod, path, reloads]);
+	}, [page, section, status, livePricing, path, reloads]);
 
 	// Whatever was fetched last is for a previous view until the current one's articles arrive.
 	const articles: ArticlesState =
@@ -210,7 +208,6 @@ export const App = () => {
 		fetched.params.section === section &&
 		fetched.params.status === status &&
 		fetched.params.livePricing === livePricing &&
-		fetched.params.prod === prod &&
 		fetched.params.path === path
 			? fetched.state
 			: { status: 'loading' };
@@ -231,8 +228,7 @@ export const App = () => {
 		found.length === 0 ? (
 			<div css={messageStyles}>
 				<InlineMessage level="information">
-					There’s no article at /{path}
-					{prod ? ' in PROD' : ''}. Check the URL, or that it has been
+					There’s no article at /{path}. Check the URL, or that it has been
 					published.
 				</InlineMessage>
 				{showAllButton}
@@ -358,17 +354,13 @@ export const App = () => {
 					onStatusChange={setStatus}
 					livePricing={livePricing}
 					onLivePricingChange={setLivePricing}
-					prod={prod}
-					onProdChange={setProd}
 				/>
 				<Layout.Main paddingTop={false} cssOverrides={mainStyles}>
-					<ProdDataContext.Provider value={prod}>
-						<PriceEditingContext.Provider value={priceEditing}>
-							<StarredContext.Provider value={starredContext}>
-								{renderArticles()}
-							</StarredContext.Provider>
-						</PriceEditingContext.Provider>
-					</ProdDataContext.Provider>
+					<PriceEditingContext.Provider value={priceEditing}>
+						<StarredContext.Provider value={starredContext}>
+							{renderArticles()}
+						</StarredContext.Provider>
+					</PriceEditingContext.Provider>
 				</Layout.Main>
 			</Layout>
 		</>
