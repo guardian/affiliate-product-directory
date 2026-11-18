@@ -26,7 +26,6 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       "GuAlarm",
       "GuAlarm",
       "GuAlarm",
-      "GuParameter",
       "GuCertificate",
       "GuApiLambda",
       "GuCname",
@@ -69,10 +68,6 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
     },
     "capiKey": {
       "Default": "/TEST/frontend/affiliate-product-directory/capi-key",
-      "Type": "AWS::SSM::Parameter::Value<String>",
-    },
-    "prodCapiKey": {
-      "Default": "/PROD/frontend/affiliate-product-directory/capi-key",
       "Type": "AWS::SSM::Parameter::Value<String>",
     },
   },
@@ -565,9 +560,6 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
             "CAPI_KEY": {
               "Ref": "capiKey",
             },
-            "PROD_CAPI_KEY": {
-              "Ref": "prodCapiKey",
-            },
             "STACK": "frontend",
             "STAGE": "TEST",
           },
@@ -757,52 +749,6 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
               "Action": "s3:GetObject",
               "Effect": "Allow",
               "Resource": "arn:aws:s3:::gu-skimlinks-store/skimlinks/skimlinks-domains.csv",
-            },
-            {
-              "Action": "dynamodb:BatchGetItem",
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::Join": [
-                  "",
-                  [
-                    "arn:aws:dynamodb:eu-west-1:",
-                    {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":table/affiliate-product-directory-pricing-PROD",
-                  ],
-                ],
-              },
-            },
-            {
-              "Effect": "Deny",
-              "NotAction": "dynamodb:BatchGetItem",
-              "Resource": [
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:aws:dynamodb:eu-west-1:",
-                      {
-                        "Ref": "AWS::AccountId",
-                      },
-                      ":table/affiliate-product-directory-pricing-PROD",
-                    ],
-                  ],
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:aws:dynamodb:eu-west-1:",
-                      {
-                        "Ref": "AWS::AccountId",
-                      },
-                      ":table/affiliate-product-directory-pricing-PROD/*",
-                    ],
-                  ],
-                },
-              ],
             },
           ],
           "Version": "2012-10-17",

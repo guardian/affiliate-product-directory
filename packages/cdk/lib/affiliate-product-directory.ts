@@ -14,8 +14,7 @@ import { createPolicies } from './policies';
 import { createTool } from './tool';
 
 interface AffiliateProductDirectoryProps extends GuStackProps {
-	/** The affiliate products tool is only created in stages given a domain for it. */
-	toolDomainName?: string;
+	toolDomainName: string;
 }
 
 export class AffiliateProductDirectory extends GuStack {
@@ -135,31 +134,18 @@ export class AffiliateProductDirectory extends GuStack {
 
 		createAlarms(this, { appName, alarmActionsEnabled, snsTopic, stage });
 
-		if (props.toolDomainName) {
-			createTool(this, {
-				domainName: props.toolDomainName,
-				capiKeyParam,
-				// The products' prices, read from the pricing table on every request, and written
-				// to it. Previews also fetch live prices from the price providers, which read their
-				// switches and credentials from Parameter Store and record metrics.
-				policies: [
-					productPricingDynamoDBReadPolicy,
-					productPricingDynamoDBWritePolicy,
-					parameterStoreReadPolicy,
-					metricPutPolicy,
-				],
-				// PROD's tool always shows PROD's data. Elsewhere it can also show PROD's, read-only.
-				prodData:
-					stage === 'PROD'
-						? undefined
-						: {
-								capiKeyParam: new GuParameter(this, 'prodCapiKey', {
-									fromSSM: true,
-									default: `/PROD/${this.stack}/${appName}/capi-key`,
-								}),
-								pricingTableName: `${appName}-pricing-PROD`,
-							},
-			});
-		}
+		createTool(this, {
+			domainName: props.toolDomainName,
+			capiKeyParam,
+			// The products' prices, read from the pricing table on every request, and written
+			// to it. Previews also fetch live prices from the price providers, which read their
+			// switches and credentials from Parameter Store and record metrics.
+			policies: [
+				productPricingDynamoDBReadPolicy,
+				productPricingDynamoDBWritePolicy,
+				parameterStoreReadPolicy,
+				metricPutPolicy,
+			],
+		});
 	}
 }
