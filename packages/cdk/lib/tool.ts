@@ -6,6 +6,7 @@ import { type CfnParameter, Duration } from 'aws-cdk-lib';
 import { EndpointType } from 'aws-cdk-lib/aws-apigateway';
 import { Effect, type Policy, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
+import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { attachPoliciesToLambda } from './lambda';
 
 const app = 'affiliate-products-tool';
@@ -116,6 +117,13 @@ export function createTool(
 			}),
 		);
 	}
+
+	// This parameter is consumed by https://github.com/guardian/waf.
+	new StringParameter(scope, 'ApiGatewaySsmParam', {
+		parameterName: `/infosec/waf/services/${scope.stage}/${app}-api-gateway-arn`,
+		description: `The ARN of the API Gateway for ${app}-${scope.stage}. This parameter is created via CDK.`,
+		stringValue: toolLambda.api.deploymentStage.stageArn,
+	});
 
 	new GuCname(scope, 'AffiliateProductsToolCname', {
 		app,
