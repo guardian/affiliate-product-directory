@@ -816,6 +816,40 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       },
       "Type": "AWS::IAM::Policy",
     },
+    "ApiGatewaySsmParamD3FCF46B": {
+      "Properties": {
+        "Description": "The ARN of the API Gateway for affiliate-products-tool-TEST. This parameter is created via CDK.",
+        "Name": "/infosec/waf/services/TEST/affiliate-products-tool-api-gateway-arn",
+        "Tags": {
+          "App": "affiliate-product-directory",
+          "Stack": "frontend",
+          "Stage": "TEST",
+          "gu:cdk:version": "TEST",
+          "gu:repo": "guardian/affiliate-product-directory",
+        },
+        "Type": "String",
+        "Value": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":apigateway:eu-west-1::/restapis/",
+              {
+                "Ref": "AffiliateProductsToolAffiliateProductsToolApi641AB241",
+              },
+              "/stages/",
+              {
+                "Ref": "AffiliateProductsToolAffiliateProductsToolApiDeploymentStageprodFDECAD93",
+              },
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
     "BackfillConnection25E8AC50": {
       "Properties": {
         "Description": "Connect product-directory-update-lambda TEST to backfill events",
