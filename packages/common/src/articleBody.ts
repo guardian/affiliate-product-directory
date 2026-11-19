@@ -1,16 +1,4 @@
-// The parts of an article's body that products are read from, in CAPI's shape. The
-// server reads CAPI's articles into these, and the embed reads Composer's drafts into
-// them, so this file is bundled into the client and should only import zod.
-
 import { z } from 'zod';
-
-/** A price found in a link's label. */
-export interface ExtractedPrice {
-	entireMatch: string;
-	numericPrice: number;
-	currencySymbol: string;
-	priceAsString: string;
-}
 
 const LinkElementSchema = z.object({
 	type: z.string(),

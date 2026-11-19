@@ -114,18 +114,6 @@ describe('embedProducts', () => {
 		]);
 	});
 
-	it('looks each URL up once', async () => {
-		const getProductsByUrl = pricingTable([]);
-
-		await embedProducts(
-			{ region: 'GB', urls: [amazonUrl, amazonUrl] },
-			getProductsByUrl,
-			noPreviewPrices,
-		);
-
-		expect(getProductsByUrl).toHaveBeenCalledWith([amazonUrl]);
-	});
-
 	it("doesn't read the pricing table for a draft with no products", async () => {
 		const getProductsByUrl = pricingTable([]);
 

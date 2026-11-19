@@ -4,7 +4,6 @@ import {
 	EmbedProductsResponseSchema,
 	embedRequestMaxUrls,
 	sectionRegion,
-	withEmbedPrices,
 } from '@common/embed';
 import type {
 	ComposerContentMessage,
@@ -15,14 +14,8 @@ import type { Region } from '@common/models';
 import { extractProducts } from '@common/products';
 import type { Product } from '@common/tool-models';
 
-/** The products in a draft, with their prices in the directory. */
-export interface EmbedProducts {
-	region: Region;
-	products: Product[];
-}
-
 export type EmbedProductsState =
-	| { status: 'loaded'; response: EmbedProducts }
+	| { status: 'loaded'; response: { region: Region; products: Product[] } }
 	| { status: 'unauthenticated' }
 	| { status: 'forbidden' }
 	| { status: 'error' };
@@ -31,7 +24,6 @@ type PricesState =
 	| { status: 'loaded'; prices: EmbedProductsResponse['prices'] }
 	| Exclude<EmbedProductsState, { status: 'loaded' }>;
 
-/** The directory's prices for one request's URLs. */
 const fetchPrices = async (
 	request: EmbedProductsRequest,
 	signal: AbortSignal,
@@ -60,11 +52,7 @@ const fetchPrices = async (
 	return { status: 'loaded', prices: body.data.prices };
 };
 
-/**
- * The products in the draft Composer has sent, with their prices in the directory. The
- * products are found here, and only their URLs are sent for pricing, in batches sent
- * together, as the WAF in front of the tool blocks large request bodies.
- */
+/** The products in the draft Composer has sent, with their prices in the directory. */
 export const fetchEmbedProducts = async (
 	content: ComposerContentMessage,
 	signal: AbortSignal,
@@ -92,6 +80,12 @@ export const fetchEmbedProducts = async (
 	}
 	return {
 		status: 'loaded',
-		response: { region, products: withEmbedPrices(products, prices) },
+		response: {
+			region,
+			products: products.map((product) => ({
+				...product,
+				links: product.links.map((link) => ({ ...link, ...prices[link.url] })),
+			})),
+		},
 	};
 };

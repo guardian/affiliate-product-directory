@@ -7,9 +7,8 @@ type Result =
 	{ ok: true; body: EmbedProductsResponse } | { ok: false; error: string };
 
 /**
- * The directory's prices for the product URLs in the draft Composer has sent to the
- * embed. URLs not yet in the directory are previewed in the request's region, and
- * successfully priced products are saved.
+ * The directory's prices for the URLs the embed has sent. URLs not yet in the directory
+ * are previewed, and successfully priced products are saved.
  */
 export const embedProducts = async (
 	request: unknown,
@@ -21,8 +20,7 @@ export const embedProducts = async (
 		return { ok: false, error: message.error.message };
 	}
 
-	const { region } = message.data;
-	const urls = [...new Set(message.data.urls)];
+	const { region, urls } = message.data;
 
 	const stored = urls.length > 0 ? await getProductsByUrl(urls) : [];
 	const storedUrls = new Set(

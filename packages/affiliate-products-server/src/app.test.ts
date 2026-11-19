@@ -962,7 +962,7 @@ describe('createApp', () => {
 			});
 		});
 
-		it('rejects a request it can not read', async () => {
+		it('rejects a message it can not read', async () => {
 			const response = await request(app())
 				.post('/api/embed/products')
 				.send({ region: 'GB', urls: 'https://www.amazon.co.uk' });

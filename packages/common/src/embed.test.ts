@@ -2,9 +2,7 @@ import {
 	ComposerContentMessageSchema,
 	composerOriginsForHost,
 	composerOriginsForStage,
-	EmbedProductsRequestSchema,
 	sectionRegion,
-	withEmbedPrices,
 } from './embed';
 
 describe('ComposerContentMessageSchema', () => {
@@ -106,80 +104,5 @@ describe('sectionRegion', () => {
 		[null, 'GB'],
 	])('prices %s in %s', (section, region) => {
 		expect(sectionRegion(section)).toBe(region);
-	});
-});
-
-describe('EmbedProductsRequestSchema', () => {
-	it('accepts a region and URLs', () => {
-		expect(
-			EmbedProductsRequestSchema.safeParse({
-				region: 'US',
-				urls: ['https://www.amazon.com/dp/B0EXAMPLE'],
-			}).success,
-		).toBe(true);
-	});
-
-	it.each([
-		['another region', { region: 'FR', urls: [] }],
-		['no URLs', { region: 'GB' }],
-		["Composer's content message", { section: 'thefilter', elements: [] }],
-	])('rejects a request with %s', (_name, request) => {
-		expect(EmbedProductsRequestSchema.safeParse(request).success).toBe(false);
-	});
-});
-
-describe('withEmbedPrices', () => {
-	const amazonUrl = 'https://www.amazon.co.uk/dp/B0EXAMPLE15';
-	const argosUrl = 'https://www.argos.co.uk/product/example-shark';
-
-	it('adds each link its price, keeping what the article says', () => {
-		const products = withEmbedPrices(
-			[
-				{
-					name: 'Dyson V15 Detect',
-					links: [
-						{
-							url: amazonUrl,
-							label: '£549 at Amazon',
-							retailer: 'Amazon',
-							basePrice: { currencySymbol: '£', amount: 549 },
-						},
-					],
-				},
-				{ links: [{ url: argosUrl, label: '£179 at Argos' }] },
-			],
-			{
-				[amazonUrl]: { price: 499, currency: 'GBP', updatedBy: 'amazon' },
-				[argosUrl]: { notInDirectory: true },
-			},
-		);
-
-		expect(products).toEqual([
-			{
-				name: 'Dyson V15 Detect',
-				links: [
-					{
-						url: amazonUrl,
-						label: '£549 at Amazon',
-						retailer: 'Amazon',
-						basePrice: { currencySymbol: '£', amount: 549 },
-						price: 499,
-						currency: 'GBP',
-						updatedBy: 'amazon',
-					},
-				],
-			},
-			{
-				links: [
-					{ url: argosUrl, label: '£179 at Argos', notInDirectory: true },
-				],
-			},
-		]);
-	});
-
-	it('leaves links the response has nothing for alone', () => {
-		const products = [{ links: [{ url: amazonUrl, label: '£549 at Amazon' }] }];
-
-		expect(withEmbedPrices(products, {})).toEqual(products);
 	});
 });

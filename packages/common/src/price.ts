@@ -1,7 +1,15 @@
 // These mirror dotcom-rendering's livePriceUtils (src/components/AffiliateProducts), so the
 // tool reads a price from a link's label the same way the site does. Keep the two in step.
 
-import type { ExtractedPrice, ProductCta } from './articleBody';
+import type { ProductCta } from './articleBody';
+
+/** A price found in a link's label. */
+export interface ExtractedPrice {
+	entireMatch: string;
+	numericPrice: number;
+	currencySymbol: string;
+	priceAsString: string;
+}
 
 export const getProductLinkLabelWithPrice = (cta: ProductCta): string => {
 	const overrideLabel = cta.text.trim().length > 0;
