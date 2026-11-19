@@ -54,6 +54,12 @@ export const EmbedProductsRequestSchema = z.object({
 
 export type EmbedProductsRequest = z.infer<typeof EmbedProductsRequestSchema>;
 
+/**
+ * The most URLs the embed sends in one request. The WAF blocks bodies over 8 KB, and 50
+ * of the longest URLs in a 450-link gift guide came to 6.2 KB.
+ */
+export const embedRequestMaxUrls = 50;
+
 /** A URL's price in the directory, and whether the directory has it at all. */
 const EmbedLinkPriceSchema = ProductLinkSchema.pick({
 	currency: true,

@@ -1,12 +1,15 @@
+import { chunk } from '@common/chunk';
 import { composerElementsToBlocks } from '@common/composerElements';
 import {
 	EmbedProductsResponseSchema,
+	embedRequestMaxUrls,
 	sectionRegion,
 	withEmbedPrices,
 } from '@common/embed';
 import type {
 	ComposerContentMessage,
 	EmbedProductsRequest,
+	EmbedProductsResponse,
 } from '@common/embed';
 import type { Region } from '@common/models';
 import { extractProducts } from '@common/products';
@@ -24,24 +27,15 @@ export type EmbedProductsState =
 	| { status: 'forbidden' }
 	| { status: 'error' };
 
-/**
- * The products in the draft Composer has sent, with their prices in the directory. The
- * products are found here, and only their URLs are sent for pricing, as the WAF in front
- * of the tool blocks a request with the whole draft.
- */
-export const fetchEmbedProducts = async (
-	content: ComposerContentMessage,
-	signal: AbortSignal,
-): Promise<EmbedProductsState> => {
-	const region = sectionRegion(content.section);
-	const products = extractProducts(composerElementsToBlocks(content.elements));
-	const urls = [
-		...new Set(
-			products.flatMap((product) => product.links.map((link) => link.url)),
-		),
-	];
+type PricesState =
+	| { status: 'loaded'; prices: EmbedProductsResponse['prices'] }
+	| Exclude<EmbedProductsState, { status: 'loaded' }>;
 
-	const request: EmbedProductsRequest = { region, urls };
+/** The directory's prices for one request's URLs. */
+const fetchPrices = async (
+	request: EmbedProductsRequest,
+	signal: AbortSignal,
+): Promise<PricesState> => {
 	const response = await fetch('/api/embed/products', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
@@ -63,8 +57,41 @@ export const fetchEmbedProducts = async (
 		console.error('Unexpected response from /api/embed/products', body.error);
 		return { status: 'error' };
 	}
+	return { status: 'loaded', prices: body.data.prices };
+};
+
+/**
+ * The products in the draft Composer has sent, with their prices in the directory. The
+ * products are found here, and only their URLs are sent for pricing, in batches sent
+ * together, as the WAF in front of the tool blocks large request bodies.
+ */
+export const fetchEmbedProducts = async (
+	content: ComposerContentMessage,
+	signal: AbortSignal,
+): Promise<EmbedProductsState> => {
+	const region = sectionRegion(content.section);
+	const products = extractProducts(composerElementsToBlocks(content.elements));
+	const urls = [
+		...new Set(
+			products.flatMap((product) => product.links.map((link) => link.url)),
+		),
+	];
+
+	// A draft with no links still sends one request, which checks the editor is logged in.
+	const batches = urls.length > 0 ? chunk(urls, embedRequestMaxUrls) : [[]];
+	const results = await Promise.all(
+		batches.map((batch) => fetchPrices({ region, urls: batch }, signal)),
+	);
+
+	const prices: EmbedProductsResponse['prices'] = {};
+	for (const result of results) {
+		if (result.status !== 'loaded') {
+			return result;
+		}
+		Object.assign(prices, result.prices);
+	}
 	return {
 		status: 'loaded',
-		response: { region, products: withEmbedPrices(products, body.data.prices) },
+		response: { region, products: withEmbedPrices(products, prices) },
 	};
 };
