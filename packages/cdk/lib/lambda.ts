@@ -39,7 +39,7 @@ export function createPriceUpdateLambda(
 		app: 'product-price-update-lambda',
 		fileName: 'product-price-update-lambda.zip',
 		handler: 'index.eventHandler',
-		timeout: Duration.seconds(300),
+		timeout: Duration.seconds(900),
 		runtime: Runtime.NODEJS_22_X,
 		architecture: Architecture.ARM_64,
 		// Used for defining cron job execution

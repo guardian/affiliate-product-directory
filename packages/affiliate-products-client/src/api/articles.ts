@@ -2,11 +2,11 @@ import { ArticlesPageSchema } from '@common/tool-models';
 import type { ArticlesState, ListParams } from '../types';
 
 /**
- * Fetches a page of articles from one section, or from both if none is given, from PROD if
- * asked. The first page has the drafts too, unless just live articles are asked for.
+ * Fetches a page of articles from one section, or from both if none is given.
+ * The first page has the drafts too, unless just live articles are asked for.
  */
 export const fetchArticles = async (
-	{ page, section, status, livePricing, prod, path }: ListParams,
+	{ page, section, status, livePricing, path }: ListParams,
 	signal: AbortSignal,
 ): Promise<ArticlesState> => {
 	const params = new URLSearchParams({ page: String(page) });
@@ -19,9 +19,6 @@ export const fetchArticles = async (
 	if (livePricing) {
 		params.set('livePricing', 'true');
 	}
-	if (prod) {
-		params.set('prod', 'true');
-	}
 	if (path) {
 		params.set('path', path);
 	}
@@ -30,6 +27,9 @@ export const fetchArticles = async (
 	});
 	if (response.status === 401) {
 		return { status: 'unauthenticated' };
+	}
+	if (response.status === 403) {
+		return { status: 'forbidden' };
 	}
 	if (!response.ok) {
 		return { status: 'error' };

@@ -15,7 +15,7 @@
 	],
 	"devDependencies": {
 		"@guardian/eslint-config": "16.0.0",
-		"@guardian/prettier": "10.0.0",
+		"@guardian/prettier": "11.0.0",
 		"@guardian/tsconfig": "2.0.0",
 		"@jest/globals": "30.3.0",
 		"@types/jest": "30.0.0",
@@ -25,8 +25,8 @@
 		"eslint-plugin-prettier": "5.5.7",
 		"jest": "30.5.2",
 		"prettier": "3.9.10",
-		"ts-jest": "29.4.12",
-		"tsx": "4.23.13",
+		"ts-jest": "29.4.15",
+		"tsx": "4.23.15",
 		"typescript": "5.9.3"
 	},
 	"prettier": "@guardian/prettier",

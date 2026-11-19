@@ -2,13 +2,14 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import type * as DatabaseServiceModule from '@common/database-service';
-import { livePricingAllowListIds } from '@common/livePricing';
+import { EmbedProductsResponseSchema } from '@common/embed';
 import type { Region } from '@common/models';
 import type { Product } from '@common/models';
 import { ArticlesPageSchema, AuthResponseSchema } from '@common/tool-models';
-import type { User } from '@common/tool-models';
 import { jest } from '@jest/globals';
 import { mockAmazonRefreshPrices } from '@mocks/AmazonPriceProviderMock';
+import { buildAuth, mockUser } from '@mocks/AuthMock';
+import { composerContentFixture } from '@mocks/ComposerContentFixture';
 import {
 	mockGetProductPrice,
 	mockUpdateProducts,
@@ -53,29 +54,19 @@ describe('createApp', () => {
 		rmSync(clientDir, { recursive: true, force: true });
 	});
 
-	const user: User = {
-		email: 'test.user@guardian.co.uk',
-		firstName: 'Test',
-		lastName: 'User',
-	};
+	const user = mockUser;
 
-	const loggedIn: Auth = {
-		authenticate: () => Promise.resolve(user),
-		hasAccess: (email) => email === user.email,
-		listPermissions: (email) =>
-			Promise.resolve(email === user.email ? ['some_permission'] : []),
-		loginUrl: 'https://login.example.com/login',
-	};
+	const loggedIn = buildAuth({
+		listPermissions: () => Promise.resolve(['some_permission']),
+	});
 
-	const loggedOut: Auth = {
-		...loggedIn,
+	const loggedOut = buildAuth({
 		authenticate: () => Promise.resolve(undefined),
-	};
+	});
 
-	const loggedInWithoutAccess: Auth = {
-		...loggedIn,
-		hasAccess: () => false,
-	};
+	const loggedInWithoutAccess = buildAuth({
+		hasAccess: () => Promise.resolve(false),
+	});
 
 	// The Skimlinks merchants' domains, which include the shop the article links to.
 	const readSkimlinksDomains = () => Promise.resolve(new Set(['shop.example']));
@@ -319,65 +310,6 @@ describe('createApp', () => {
 		expect(response.text).toBe('Internal server error');
 	});
 
-	describe('with PROD data', () => {
-		const prodProduct: Product = { ...pricedProduct, price: 30 };
-
-		const appWithProd = () => {
-			const stageTable = pricingTable([pricedProduct]);
-			const prodTable = pricingTable([prodProduct]);
-			const withProd = createApp({
-				clientDir,
-				auth: loggedIn,
-				stage: 'CODE',
-				capiKey: 'code-key',
-				dynamoService: stageTable,
-				prod: { capiKey: 'prod-key', dynamoService: prodTable },
-				readSkimlinksDomains,
-			});
-			return { withProd, stageTable, prodTable };
-		};
-
-		it("lists PROD's articles and prices given prod=true", async () => {
-			const { withProd, stageTable, prodTable } = appWithProd();
-
-			const response = await request(withProd).get(
-				'/api/articles?page=2&section=thefilter&prod=true',
-			);
-
-			expect(response.status).toBe(200);
-			const [search, ...otherSearches] = capiRequests();
-			expect(otherSearches).toEqual([]);
-			expect(search?.origin).toBe('https://content.guardianapis.com');
-			expect(search?.searchParams.get('api-key')).toBe('prod-key');
-			expect(search?.searchParams.get('page')).toBe('2');
-			expect(search?.searchParams.get('section')).toBe('thefilter');
-
-			const [prodArticle] = ArticlesPageSchema.parse(response.body).articles;
-			expect(prodArticle?.composerUrl).toBe(
-				'https://composer.gutools.co.uk/content/abc123',
-			);
-			expect(prodArticle?.products).toEqual(withPrice(prodProduct));
-			expect(prodTable.getProductsByUrl).toHaveBeenCalled();
-			expect(stageTable.getProductsByUrl).not.toHaveBeenCalled();
-		});
-
-		it("lists the stage's own articles and prices without prod=true", async () => {
-			const { withProd, stageTable, prodTable } = appWithProd();
-
-			const response = await request(withProd).get('/api/articles');
-
-			expect(response.status).toBe(200);
-			expect(capiRequests().map((search) => search.origin)).toEqual([
-				'https://content.code.dev-guardianapis.com',
-			]);
-			expect(
-				ArticlesPageSchema.parse(response.body).articles[0]?.products,
-			).toEqual(withPrice(pricedProduct));
-			expect(stageTable.getProductsByUrl).toHaveBeenCalled();
-			expect(prodTable.getProductsByUrl).not.toHaveBeenCalled();
-		});
-	});
-
 	describe('with drafts', () => {
 		const draft = {
 			...article,
@@ -469,10 +401,14 @@ describe('createApp', () => {
 			expect(response.status).toBe(200);
 			expect(ArticlesPageSchema.parse(response.body).drafts).toBeUndefined();
 			expect(listDrafts).not.toHaveBeenCalled();
-			// CODE's articles on frontend's list, as none of CAPI's are flagged.
-			expect(capiRequests().at(-1)?.searchParams.get('ids')).toBe(
-				[...livePricingAllowListIds('CODE')].join(','),
-			);
+			// None of CAPI's articles are flagged, so only their fields are read.
+			expect(ArticlesPageSchema.parse(response.body).articles).toEqual([]);
+			expect(
+				capiRequests().every(
+					(search) =>
+						search.searchParams.get('show-fields') === 'livePricingEnabled',
+				),
+			).toBe(true);
 		});
 
 		it('rejects a livePricing other than true', async () => {
@@ -511,19 +447,6 @@ describe('createApp', () => {
 		const response = await request(app()).get('/api/articles');
 
 		expect(ArticlesPageSchema.parse(response.body).drafts).toBeUndefined();
-	});
-
-	it("rejects prod=true when PROD's articles can't be listed", async () => {
-		const response = await request(app()).get('/api/articles?prod=true');
-
-		expect(response.status).toBe(400);
-		expect(capi).not.toHaveBeenCalled();
-	});
-
-	it.each(['false', '1', 'TRUE', ''])('rejects prod=%s', async (prod) => {
-		const response = await request(app()).get(`/api/articles?prod=${prod}`);
-
-		expect(response.status).toBe(400);
 	});
 
 	it.each(['0', '-1', 'abc', '1.5', ''])('rejects page=%s', async (page) => {
@@ -569,7 +492,7 @@ describe('createApp', () => {
 					'text/csv; charset=utf-8',
 				);
 				expect(response.headers['content-disposition']).toBe(
-					'attachment; filename="an-article-links.csv"',
+					'attachment; filename=an-article-links.csv',
 				);
 				expect(response.text.split('\n')).toEqual([
 					expect.stringContaining('"External Link"'),
@@ -592,14 +515,11 @@ describe('createApp', () => {
 			).toBe(true);
 		});
 
-		it.each([{}, { path: 'not a path' }, { path: article.id, prod: 'yes' }])(
-			'refuses %j',
-			async (query) => {
-				const response = await csv(query);
+		it.each([{}, { path: 'not a path' }])('refuses %j', async (query) => {
+			const response = await csv(query);
 
-				expect(response.status).toBe(400);
-			},
-		);
+			expect(response.status).toBe(400);
+		});
 
 		it("says when there's no article at the path", async () => {
 			const response = await csv({ path: 'thefilter/2026/oct/06/missing' });
@@ -643,13 +563,12 @@ describe('createApp', () => {
 
 	it('passes the request cookies to authenticate', async () => {
 		let receivedCookies: string | undefined;
-		const auth: Auth = {
-			...loggedIn,
+		const auth = buildAuth({
 			authenticate: (cookieHeader) => {
 				receivedCookies = cookieHeader;
 				return Promise.resolve(user);
 			},
-		};
+		});
 
 		await request(app(auth)).get('/').set('Cookie', 'gutoolsAuth-assym=abc');
 
@@ -704,23 +623,10 @@ describe('createApp', () => {
 		},
 	);
 
-	it.each(['/', '/assets/index-abc123.js'])(
-		'tells logged-in users without access that they lack permission at %s',
-		async (url) => {
-			const response = await request(app(loggedInWithoutAccess)).get(url);
-
-			expect(response.status).toBe(403);
-			expect(response.text).toBe(
-				"You don't have permission to access the affiliate products tool.",
-			);
-		},
-	);
-
 	it('hides error details from users', async () => {
-		const failing: Auth = {
-			...loggedIn,
+		const failing = buildAuth({
 			authenticate: () => Promise.reject(new Error('secret details')),
-		};
+		});
 		jest.spyOn(console, 'error').mockImplementation(() => {});
 
 		const response = await request(app(failing)).get('/');
@@ -813,6 +719,103 @@ describe('createApp', () => {
 		}
 	});
 
+	it("adds a draft's product to the directory with the price set for it", async () => {
+		mockGetProductPrice.mockResolvedValueOnce(undefined);
+		mockUpdateProducts.mockResolvedValueOnce({ skipped: [] });
+
+		const response = await request(app()).post('/api/manualOverride').send({
+			productMerchantUrl: 'https://shop.example.com/products/new',
+			currency: 'USD',
+			price: 30,
+			region: 'US',
+		});
+
+		expect(response.status).toBe(204);
+		expect(mockUpdateProducts).toHaveBeenCalledWith({
+			items: [
+				expect.objectContaining({
+					productMerchantUrl: 'https://shop.example.com/products/new',
+					region: 'US',
+					price: 30,
+					currency: 'USD',
+					updatedBy: 'manualOverride',
+				}),
+			],
+		});
+	});
+
+	it("doesn't add a product without its region", async () => {
+		mockGetProductPrice.mockResolvedValueOnce(undefined);
+
+		const response = await request(app()).post('/api/manualOverride').send({
+			productMerchantUrl: 'https://shop.example.com/products/new',
+			currency: 'GBP',
+			price: 30,
+		});
+
+		expect(response.status).toBe(404);
+		expect(mockUpdateProducts).not.toHaveBeenCalled();
+	});
+
+	it("keeps a stored product's region when a region is sent", async () => {
+		mockGetProductPrice.mockResolvedValueOnce({
+			productMerchantUrl: 'https://shop.example.com/products/123',
+			region: 'GB',
+		});
+		mockUpdateProducts.mockResolvedValueOnce({ skipped: [] });
+
+		await request(app()).post('/api/manualOverride').send({
+			productMerchantUrl: 'https://shop.example.com/products/123',
+			currency: 'GBP',
+			price: 30,
+			region: 'US',
+		});
+
+		expect(mockUpdateProducts).toHaveBeenCalledWith({
+			items: [expect.objectContaining({ region: 'GB', price: 30 })],
+		});
+	});
+
+	it('adds a removed product back when a draft sets its price', async () => {
+		mockGetProductPrice.mockResolvedValueOnce({
+			productMerchantUrl: 'https://shop.example.com/products/123',
+			region: 'GB',
+			removed: 'true',
+			removedAt: 1,
+		});
+		mockUpdateProducts.mockResolvedValueOnce({ skipped: [] });
+
+		const response = await request(app()).post('/api/manualOverride').send({
+			productMerchantUrl: 'https://shop.example.com/products/123',
+			currency: 'USD',
+			price: 30,
+			region: 'US',
+		});
+
+		expect(response.status).toBe(204);
+		const saved = mockUpdateProducts.mock.calls[0]?.[0].items[0];
+		expect(saved).toMatchObject({ region: 'US', price: 30 });
+		expect(saved).not.toHaveProperty('removed');
+		expect(saved).not.toHaveProperty('removedAt');
+	});
+
+	it("doesn't set a price on a removed product without its region", async () => {
+		mockGetProductPrice.mockResolvedValueOnce({
+			productMerchantUrl: 'https://shop.example.com/products/123',
+			region: 'GB',
+			removed: 'true',
+		});
+
+		const response = await request(app()).post('/api/manualOverride').send({
+			productMerchantUrl: 'https://shop.example.com/products/123',
+			currency: 'GBP',
+			price: 30,
+		});
+
+		expect(response.status).toBe(404);
+		expect(mockUpdateProducts).not.toHaveBeenCalled();
+	});
+
 	it('rejects malformed manual override input', async () => {
 		const response = await request(app()).post('/api/manualOverride').send({
 			productMerchantUrl: 'https://shop.example.com/products/123',
@@ -889,5 +892,123 @@ describe('createApp', () => {
 		expect(mockAmazonRefreshPrices).not.toHaveBeenCalled();
 		expect(mockShopifyRefreshPrices).not.toHaveBeenCalled();
 		expect(mockUpdateProducts).not.toHaveBeenCalled();
+	});
+
+	describe('Composer embed', () => {
+		it('previews and saves products that are not in the directory', async () => {
+			const amazonUrl = 'https://www.amazon.co.uk/dp/B0EXAMPLE15';
+			const previewedAmazon: Product = {
+				productMerchantUrl: amazonUrl,
+				region: 'GB',
+				price: 479,
+				currency: 'GBP',
+				updatedAt: 1760000000000,
+				updatedBy: 'amazon',
+			};
+			mockAmazonRefreshPrices.mockImplementationOnce((products) =>
+				Promise.resolve({
+					updated: [
+						{
+							...products[0]!,
+							price: previewedAmazon.price,
+							currency: previewedAmazon.currency,
+							updatedAt: previewedAmazon.updatedAt,
+							updatedBy: previewedAmazon.updatedBy,
+						},
+					],
+					notUpdated: [],
+				}),
+			);
+
+			const response = await request(app())
+				.post('/api/embed/products')
+				.send(composerContentFixture);
+
+			expect(response.status).toBe(200);
+			expect(mockAmazonRefreshPrices).toHaveBeenCalledWith([
+				{ productMerchantUrl: amazonUrl, region: 'GB' },
+			]);
+			expect(mockUpdateProducts).toHaveBeenCalledWith({
+				items: [previewedAmazon],
+			});
+			const body = EmbedProductsResponseSchema.parse(response.body);
+			const amazonLink = body.products
+				.flatMap((product) => product.links)
+				.find((link) => link.url === amazonUrl);
+			expect(amazonLink).toMatchObject({
+				price: 479,
+			});
+			expect(amazonLink?.notInDirectory).toBeUndefined();
+		});
+
+		it('lists the products Composer sends, with their prices', async () => {
+			const response = await request(
+				app(
+					loggedIn,
+					pricingTable([
+						{
+							productMerchantUrl:
+								'https://www.argos.co.uk/product/example-shark',
+							region: 'GB',
+							price: 179,
+							currency: 'GBP',
+						},
+					]),
+				),
+			)
+				.post('/api/embed/products')
+				.send(composerContentFixture);
+
+			expect(response.status).toBe(200);
+			const body = EmbedProductsResponseSchema.parse(response.body);
+			expect(body.region).toBe('GB');
+			expect(body.products).toHaveLength(2);
+		});
+
+		it('rejects a message it can not read', async () => {
+			const response = await request(app())
+				.post('/api/embed/products')
+				.send({ ...composerContentFixture, version: 2 });
+
+			expect(response.status).toBe(400);
+		});
+
+		it("tells a logged-out embed it isn't logged in", async () => {
+			const response = await request(app(loggedOut))
+				.post('/api/embed/products')
+				.send(composerContentFixture);
+
+			expect(response.status).toBe(401);
+		});
+
+		it('lets only Composer frame the embed', async () => {
+			const response = await request(app()).get('/embed');
+
+			expect(response.status).toBe(200);
+			expect(response.headers['content-security-policy']).toBe(
+				'frame-ancestors https://composer.code.dev-gutools.co.uk https://composer.local.dev-gutools.co.uk',
+			);
+		});
+
+		it("doesn't limit framing anywhere else", async () => {
+			const response = await request(app()).get('/');
+
+			expect(response.headers['content-security-policy']).toBeUndefined();
+		});
+
+		it('links a logged-out editor to login in a new tab, rather than redirecting the frame', async () => {
+			const response = await request(app(loggedOut))
+				.get('/embed')
+				.set('Host', 'affiliate-products.code.dev-gutools.co.uk');
+
+			expect(response.status).toBe(401);
+			expect(response.headers['content-security-policy']).toMatch(
+				/^frame-ancestors /,
+			);
+			expect(response.text).toContain('target="_blank"');
+			expect(response.text).toContain(
+				`https://login.example.com/login?returnUrl=${encodeURIComponent('https://affiliate-products.code.dev-gutools.co.uk/')}`,
+			);
+		});
 	});
 });

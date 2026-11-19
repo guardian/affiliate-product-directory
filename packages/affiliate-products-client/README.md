@@ -6,7 +6,7 @@ It is served, along with its API, by [affiliate-products-server](../affiliate-pr
 
 ## Authentication
 
-Every request, for the page or the API, must carry a valid Panda cookie, as for Composer and other editorial tools. Users without one are sent to login.gutools.co.uk (login.code.dev-gutools.co.uk in CODE), except for API requests, which get a 401. The server checks the cookie against the public key in the `pan-domain-auth-settings` bucket. Only the people whose email addresses are listed in [allowedEmails.ts](../affiliate-products-server/src/allowedEmails.ts) can use the tool: anyone else who logs in gets a 403 saying they don't have permission. To give someone access, add their address to that list. The server also reads users' permissions from the permissions service's `permissions-cache` bucket using [@guardian/permissions-client](https://github.com/guardian/permissions). `/api/auth` returns the logged-in user and their permissions.
+Every request, for the page or the API, must carry a valid Panda cookie, as for Composer and other editorial tools. Users without one are sent to login.gutools.co.uk (login.code.dev-gutools.co.uk in CODE), except for API requests, which get a 401. The server checks the cookie against the public key in the `pan-domain-auth-settings` bucket. Only the people with the `affiliate_products_access` permission can use the tool: anyone else who logs in gets a 403 saying they don't have permission. To give someone access, grant them that permission in the permissions service. The server reads users' permissions from the permissions service's `permissions-cache` bucket using [@guardian/permissions-client](https://github.com/guardian/permissions), as checked in [hasAccess.ts](../affiliate-products-server/src/hasAccess.ts). `/api/auth` returns the logged-in user and their permissions.
 
 ## Article list
 
@@ -35,11 +35,38 @@ Expanding a row also shows how many links the article has, counted as the Affili
 
 The affiliate share is the Amazon and Skimlinks links as a share of all three. The panel's Download CSV button gets `/api/link-counts.csv?url=…`, the bookmarklet's CSV of the page's external links: each once, Amazon links first, then Skimlinks links, then the rest, leaving out the hosts the bookmarklet leaves out of its CSV, with the same columns. The server only fetches pages on www.theguardian.com and CODE's site, which serves its articles from m.code.dev-theguardian.com. On CODE, links to www.theguardian.com count as the page's own, as they would on PROD.
 
-### PROD data
-
-In CODE, the sidebar's Data filter switches the list to PROD's articles and prices, adding `prod=true` to the page's URL and to `/api/articles`. The server then does the same as above, against PROD CAPI (with the PROD `capi-key` SSM parameter, as `PROD_CAPI_KEY`), PROD's Composer, and PROD's pricing table. The tool's role can only `BatchGetItem` from PROD's table, and explicitly denies everything else on it, so it can never write to it. PROD's tool only shows its own data, so the client hides the Data filter on `*.gutools.co.uk`.
+### CAPI data
 
 Composer links need CAPI's `internalComposerCode` field, which CAPI only returns to internal-tier keys. With a developer-tier key they show as unavailable.
+
+## Composer embed
+
+`/embed` is a panel of the products in a draft, with their prices in the directory, for Composer to show in an iframe beside the article. The tool can't read drafts itself, so Composer sends the article with `postMessage`:
+
+1. The embed posts `{ source: 'affiliate-products', type: 'ready', version: 1 }` to Composer when it loads.
+2. Composer replies with `{ source: 'composer', type: 'content', version: 1, composerId, section, elements }`, where `elements` are the body's elements as Composer holds them. It sends it again after every `ready`, and about a second after each edit.
+3. The embed posts the message to `/api/embed/products`, which turns the elements into CAPI's shape (`composerElements.ts`), finds the products as the article list does, and adds their prices. Links the directory doesn't have yet are previewed with the price providers, as `/api/preview` does, and those that get a price are saved to the directory. Links still without one are marked `notInDirectory`.
+4. The embed posts `{ source: 'affiliate-products', type: 'height', version: 1, height }` whenever its height changes, so Composer can size the iframe.
+
+Editors can set a price by hand in the embed, as in the article list. For a link the directory doesn't have yet, this adds it to the directory, in the article's region, with that price. When the article is published the directory keeps the product as it is, so the price is live straight away, and the price providers leave it alone until it expires.
+
+The messages are defined in [common/src/embed.ts](../common/src/embed.ts). The embed only accepts messages from its stage's Composer: PROD's tool from PROD's Composer, and CODE's from CODE's or a local Composer. Run locally, it also accepts them from its own origin, for the harness below. The server only lets those Composers frame `/embed`, with a `frame-ancestors` policy. An editor who isn't logged in gets a link to log in in a new tab, as Panda's login page can't be shown in a frame.
+
+The shape of Composer's elements is a guess until Composer sends a real one: see `@mocks/ComposerContentFixture`.
+
+### Running the embed locally
+
+1. Start the tool as in [Running locally](#running-locally).
+2. Go to http://localhost:5173/embed-harness.html, which stands in for Composer. It shows the embed beside the `content` message Composer would send, and a log of the messages between them. Edit the message and it's sent again a second later; "Reload the embed" reloads it, which sends `ready` again.
+3. For Composer's local dev build, which needs the embed on HTTPS, run this once from the repository root (macOS, needs Homebrew and your password):
+
+   ```
+   ./scripts/setup.sh
+   ```
+
+   It installs dev-nginx, adds `affiliate-products.local.dev-gutools.co.uk` to your hosts file, creates its certificate and the nginx config from [nginx/nginx-mapping.yml](../../nginx/nginx-mapping.yml), and restarts nginx. With the dev servers running, the embed and harness are then at https://affiliate-products.local.dev-gutools.co.uk/embed and https://affiliate-products.local.dev-gutools.co.uk/embed-harness.html, with hot reload through Vite's `/vite-hmr` WebSocket. The localhost URLs keep working.
+
+Links the embed previews and prices are saved to CODE's pricing table, as are prices set by hand in it.
 
 ## Running locally
 
@@ -56,7 +83,9 @@ This starts the server on port 3040 (set `PORT` to change it) and the client's V
 
 Locally, every request is treated as coming from a fake user with a fake permission, because the Panda cookie is only sent to `*.dev-gutools.co.uk` and never to localhost.
 
-The directory's prices need AWS credentials for the frontend account: get them from Janus and set `AWS_PROFILE` to their profile, on the command line or in `packages/affiliate-products-server/.env`. Without them the articles can't be listed.
+The directory's prices need AWS credentials for the frontend account: get them from Janus and set `AWS_PROFILE` to their profile, on the command line or in `packages/affiliate-products-server/.env`. Without them the articles can't be listed. `CAPI_KEY` and `PROD_CAPI_KEY` can go in that `.env` file too, which the server loads when it starts.
+
+`STACK`, `STAGE` and `APP` default to `frontend`, `CODE` and `affiliate-products-tool`, so previews, in the embed and from `/api/preview`, read the price providers' switches and credentials from CODE's SSM parameters, as CODE's Lambda does. Metrics aren't recorded outside PROD, so a local run doesn't add to them.
 
 To run it the way it's deployed, with the server serving the built app, run `npm -w affiliate-products-client run build`, start the server (with `CAPI_KEY` set), and go to http://localhost:3040.
 

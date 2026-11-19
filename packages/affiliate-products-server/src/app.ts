@@ -2,12 +2,12 @@ import path from 'path';
 import { articlePath } from '@common/articlePath';
 import { getCapiBaseUrl } from '@common/config';
 import type { DynamoService } from '@common/database-service';
-import { livePricingAllowListIds } from '@common/livePricing';
-import { ArticleStatusSchema, SectionSchema } from '@common/tool-models';
+import { composerOriginsForStage } from '@common/embed';
 import type { ArticlesPage, AuthResponse, User } from '@common/tool-models';
+import { ArticleStatusSchema, SectionSchema } from '@common/tool-models';
 import { ProductsUpdater } from '@price-update/ProductsUpdater';
-import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
+import express from 'express';
 import { z } from 'zod';
 import {
 	createCapiArticle,
@@ -15,6 +15,7 @@ import {
 	createCapiArticles,
 	getComposerBaseUrl,
 } from './capi';
+import { embedProducts } from './embedProducts';
 import { linksCsv, shortTitle } from './linkCounts';
 import {
 	handleOverrideDeleteRequest,
@@ -53,7 +54,6 @@ const readStage = ({
 		baseUrl: getCapiBaseUrl(stage),
 		apiKey: capiKey,
 		composerBaseUrl: getComposerBaseUrl(stage),
-		livePricingIds: livePricingAllowListIds(stage),
 		readSkimlinksDomains,
 	};
 	return {
@@ -111,6 +111,26 @@ const readDrafts = async (
 	}
 };
 
+const escapeHtml = (text: string) =>
+	text.replace(
+		/[&<>"]/g,
+		(char) =>
+			({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[char] ?? char,
+	);
+
+/**
+ * What the embed shows to an editor who isn't logged in. Panda's login page can't be
+ * shown in Composer's iframe, so it's opened in a new tab instead.
+ */
+const embedLoginPage = (loginUrl: string) => `<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Log in to the affiliate products tool</title></head>
+<body style="font-family: system-ui, sans-serif; font-size: 14px; margin: 12px;">
+<p><a href="${escapeHtml(loginUrl)}" target="_blank" rel="noreferrer">Log in to the affiliate products tool</a> to see live prices for this article's products.</p>
+<p>Then reload this panel.</p>
+</body>
+</html>`;
+
 /**
  * Serves the affiliate-products-client build and its API from a single origin,
  * so the page and the API sit behind the same auth middleware.
@@ -122,7 +142,6 @@ export function createApp({
 	capiKey,
 	listDrafts,
 	dynamoService,
-	prod,
 	readSkimlinksDomains,
 }: {
 	clientDir: string;
@@ -144,7 +163,19 @@ export function createApp({
 	const productsUpdater = new ProductsUpdater(dynamoService);
 
 	const app = express();
+	// The body must be parsed before any async middleware. In Lambda, serverless-express's
+	// request looks finished after a tick, so express.json would skip it, leaving req.body
+	// as the raw Buffer.
+	// Composer sends the whole body of a draft, which can be bigger than express.json's default.
+	app.use('/api/embed', express.json({ limit: '2mb' }));
 	app.use(express.json());
+
+	// Only Composer may show the embed in a frame.
+	const embedFrameAncestors = `frame-ancestors ${composerOriginsForStage(stage).join(' ')}`;
+	app.use('/embed', (_req, res, next) => {
+		res.setHeader('Content-Security-Policy', embedFrameAncestors);
+		next();
+	});
 
 	const stageData = readStage({
 		stage,
@@ -153,26 +184,6 @@ export function createApp({
 		dynamoService,
 		readSkimlinksDomains,
 	});
-	const prodData =
-		prod && readStage({ stage: 'PROD', ...prod, readSkimlinksDomains });
-
-	/**
-	 * The stage's data, or PROD's when asked for with prod=true. Undefined, having responded
-	 * with an error, if prod is anything else, or PROD's data can't be read here.
-	 */
-	const readDataSource = (req: Request, res: Response) => {
-		const prodParam = z.literal('true').optional().safeParse(req.query.prod);
-		if (!prodParam.success) {
-			res.status(400).json({ error: 'prod must be true, or left out' });
-			return undefined;
-		}
-		const dataSource = prodParam.data ? prodData : stageData;
-		// Fails rather than reading this stage's articles as if they were PROD's.
-		if (!dataSource) {
-			res.status(400).json({ error: "PROD's articles can't be read here" });
-		}
-		return dataSource;
-	};
 
 	app.use(async (req, res, next) => {
 		const isApiRequest = req.path.startsWith('/api/');
@@ -183,13 +194,24 @@ export function createApp({
 			if (isApiRequest) {
 				return res.status(401).json({ error: 'Not authenticated' });
 			}
+			if (req.path === '/embed') {
+				const returnUrl = `https://${req.get('host')}/`;
+				return res
+					.status(401)
+					.type('html')
+					.send(
+						embedLoginPage(
+							`${auth.loginUrl}?returnUrl=${encodeURIComponent(returnUrl)}`,
+						),
+					);
+			}
 			const returnUrl = `https://${req.get('host')}${req.originalUrl}`;
 			return res.redirect(
 				`${auth.loginUrl}?returnUrl=${encodeURIComponent(returnUrl)}`,
 			);
 		}
 
-		if (!auth.hasAccess(user.email)) {
+		if (!(await auth.hasAccess({ email: user.email, auth }))) {
 			return isApiRequest
 				? res.status(403).json({ error: noAccessMessage })
 				: res.status(403).send(noAccessMessage);
@@ -242,10 +264,6 @@ export function createApp({
 			return;
 		}
 		const onlyLivePricing = livePricing.data === 'true';
-		const dataSource = readDataSource(req, res);
-		if (!dataSource) {
-			return;
-		}
 		// The drafts come before the live articles, so they're only on the first page.
 		const showDrafts =
 			!path &&
@@ -254,18 +272,18 @@ export function createApp({
 		const showLive = status.data !== 'draft';
 		const [drafts, livePage] = await Promise.all([
 			showDrafts
-				? readDrafts(dataSource.listDrafts, section.data)
+				? readDrafts(stageData.listDrafts, section.data)
 				: Promise.resolve(undefined),
 			path
-				? findArticle(dataSource.getArticle, path)
+				? findArticle(stageData.getArticle, path)
 				: showLive
-					? dataSource.listArticles(Number(page), section.data, onlyLivePricing)
+					? stageData.listArticles(Number(page), section.data, onlyLivePricing)
 					: Promise.resolve(noArticles),
 		]);
 		const articlesPage: ArticlesPage = drafts
 			? { drafts, ...livePage }
 			: livePage;
-		const productPrices = await dataSource.getProductPrices(
+		const productPrices = await stageData.getProductPrices(
 			productUrls(articlesPage),
 		);
 		res.json(attachProductPrices(articlesPage, productPrices));
@@ -278,12 +296,8 @@ export function createApp({
 			res.status(400).json({ error: "path must be an article's URL or path" });
 			return;
 		}
-		const dataSource = readDataSource(req, res);
-		if (!dataSource) {
-			return;
-		}
 		const [article, skimlinksDomains] = await Promise.all([
-			dataSource.getArticleLinks(path),
+			stageData.getArticleLinks(path),
 			readSkimlinksDomains(),
 		]);
 		if (!article) {
@@ -323,6 +337,19 @@ export function createApp({
 			return res.status(result.status).json({ error: result.error });
 		}
 		return res.status(200).json(result.products);
+	});
+
+	// The products in a draft that Composer has sent to the embed, with their prices.
+	app.post('/api/embed/products', async (req, res) => {
+		const result = await embedProducts(
+			req.body,
+			(urls) => dynamoService.getProductsByUrl(urls),
+			(products) => productsUpdater.getPreviewPrices(products),
+		);
+		if (!result.ok) {
+			return res.status(400).json({ error: result.error });
+		}
+		return res.json(result.body);
 	});
 
 	// Unknown API paths shouldn't fall through to the SPA's index.html.

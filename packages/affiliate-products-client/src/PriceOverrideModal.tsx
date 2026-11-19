@@ -105,7 +105,7 @@ export const PriceOverrideModal = ({
 	isOpen: boolean;
 	onOpenChange: (isOpen: boolean) => void;
 }) => {
-	const { onPriceEdit } = useContext(PriceEditingContext);
+	const { onPriceEdit, draftRegion } = useContext(PriceEditingContext);
 	const formId = useId();
 	const isOverridden = link.updatedBy === 'manualOverride';
 	const [currency, setCurrency] = useState<Currency>(defaultCurrency(link));
@@ -162,6 +162,7 @@ export const PriceOverrideModal = ({
 				currency,
 				price: amount,
 				expiryDate: expiry ? endOfDay(expiry).toISOString() : undefined,
+				region: draftRegion,
 			}).catch(() => ({ error: 'The price couldn’t be saved.' })),
 		);
 	};

@@ -3,7 +3,7 @@ import {
 	PanDomainAuthentication,
 } from '@guardian/pan-domain-node';
 import { init as initPermissions } from '@guardian/permissions-client';
-import { isAllowedEmail } from './allowedEmails';
+import { hasAccessPermission } from './hasAccess';
 import type { Auth } from './types';
 
 const pandaDomains: Record<string, string> = {
@@ -21,26 +21,30 @@ export function createPandaAuth(stage: string): Auth {
 		throw new Error(`No Panda domain for stage ${stage}`);
 	}
 
-	const panda = new PanDomainAuthentication(
-		'gutoolsAuth-assym',
-		'eu-west-1',
-		'pan-domain-auth-settings',
-		`${pandaDomain}.settings.public`,
-		guardianValidation,
-	);
+	// Fetched once, when the auth is created, and awaited by each request.
+	const panda = PanDomainAuthentication.builder({
+		cookieName: 'gutoolsAuth-assym',
+		region: 'eu-west-1',
+		bucket: 'pan-domain-auth-settings',
+		keyFile: `${pandaDomain}.settings.public`,
+		validateUser: guardianValidation,
+	});
+	// A failed fetch would otherwise be an unhandled rejection, which stops the Lambda's Node
+	// process. It's still thrown to each request that awaits it.
+	panda.catch(() => undefined);
 
 	const { listUserPermissions } = initPermissions({ stage });
 
 	return {
 		authenticate: async (cookieHeader) => {
-			const result = await panda.verify(cookieHeader);
+			const result = await (await panda).verify(cookieHeader);
 			if (!result.success) {
 				return undefined;
 			}
 			const { email, firstName, lastName, avatarUrl } = result.user;
 			return { email, firstName, lastName, avatarUrl };
 		},
-		hasAccess: isAllowedEmail,
+		hasAccess: hasAccessPermission,
 		listPermissions: listUserPermissions,
 		loginUrl: `https://login.${pandaDomain}/login`,
 	};
