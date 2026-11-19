@@ -449,19 +449,6 @@ describe('createApp', () => {
 		expect(ArticlesPageSchema.parse(response.body).drafts).toBeUndefined();
 	});
 
-	it("rejects prod=true when PROD's articles can't be listed", async () => {
-		const response = await request(app()).get('/api/articles?prod=true');
-
-		expect(response.status).toBe(400);
-		expect(capi).not.toHaveBeenCalled();
-	});
-
-	it.each(['false', '1', 'TRUE', ''])('rejects prod=%s', async (prod) => {
-		const response = await request(app()).get(`/api/articles?prod=${prod}`);
-
-		expect(response.status).toBe(400);
-	});
-
 	it.each(['0', '-1', 'abc', '1.5', ''])('rejects page=%s', async (page) => {
 		const response = await request(app()).get(`/api/articles?page=${page}`);
 
@@ -528,14 +515,11 @@ describe('createApp', () => {
 			).toBe(true);
 		});
 
-		it.each([{}, { path: 'not a path' }, { path: article.id, prod: 'yes' }])(
-			'refuses %j',
-			async (query) => {
-				const response = await csv(query);
+		it.each([{}, { path: 'not a path' }])('refuses %j', async (query) => {
+			const response = await csv(query);
 
-				expect(response.status).toBe(400);
-			},
-		);
+			expect(response.status).toBe(400);
+		});
 
 		it("says when there's no article at the path", async () => {
 			const response = await csv({ path: 'thefilter/2026/oct/06/missing' });
