@@ -33,7 +33,6 @@ export const parseListParams = (search: string): ListParams => {
 		section: params.get('section') ?? undefined,
 		status: params.get('status') ?? undefined,
 		livePricing: params.get('livePricing') ?? undefined,
-		prod: params.get('prod') ?? undefined,
 		path: params.get('path') ?? undefined,
 	});
 	return { page, section, status, livePricing, path };
