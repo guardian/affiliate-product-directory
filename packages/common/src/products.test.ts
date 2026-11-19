@@ -1,6 +1,6 @@
-import type { Product } from '@common/tool-models';
+import type { BlockElement, LinkElement } from './articleBody';
 import { extractProducts } from './products';
-import type { BlockElement, LinkElement } from './types';
+import type { Product } from './tool-models';
 
 const productButton = (url: string, label: string): LinkElement => ({
 	type: 'link',

@@ -1,5 +1,5 @@
+import type { Block } from '@common/articleBody';
 import { bodyLinks, countLinks, linksCsv } from './linkCounts';
-import type { Block } from './types';
 
 // The Skimlinks merchants' domains, as in the file in S3.
 const skimlinksDomains = new Set(['argos.co.uk', 'johnlewis.com']);

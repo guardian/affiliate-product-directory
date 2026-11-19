@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { Region } from './models';
-import { ProductSchema } from './tool-models';
+import { ProductLinkSchema } from './tool-models';
+import type { Product } from './tool-models';
 
 /**
  * The messages between Composer and the tool's /embed page, which Composer shows in an
@@ -33,7 +34,7 @@ export const ComposerContentMessageSchema = z.object({
 	version: z.literal(embedMessageVersion),
 	composerId: z.string(),
 	section: z.string().nullable(),
-	// The body's elements as Composer holds them. The server turns them into CAPI's shape.
+	// The body's elements as Composer holds them. The embed turns them into CAPI's shape.
 	elements: z.array(z.unknown()),
 });
 
@@ -41,12 +42,45 @@ export type ComposerContentMessage = z.infer<
 	typeof ComposerContentMessageSchema
 >;
 
-export const EmbedProductsResponseSchema = z.object({
-	products: z.array(ProductSchema),
+/**
+ * The embed's request for the prices of a draft's products. The embed finds the products
+ * itself and sends only their URLs, as the WAF in front of the tool blocks large bodies.
+ */
+export const EmbedProductsRequestSchema = z.object({
+	// The region a URL the directory doesn't have yet is priced in.
 	region: z.enum(['GB', 'US']),
+	urls: z.array(z.string()),
+});
+
+export type EmbedProductsRequest = z.infer<typeof EmbedProductsRequestSchema>;
+
+/** A URL's price in the directory, and whether the directory has it at all. */
+const EmbedLinkPriceSchema = ProductLinkSchema.pick({
+	currency: true,
+	price: true,
+	updatedAt: true,
+	updatedBy: true,
+	expiresAt: true,
+	availability: true,
+	notInDirectory: true,
+});
+
+export const EmbedProductsResponseSchema = z.object({
+	// By URL. Empty for a URL the directory has but hasn't priced.
+	prices: z.record(z.string(), EmbedLinkPriceSchema),
 });
 
 export type EmbedProductsResponse = z.infer<typeof EmbedProductsResponseSchema>;
+
+/** Adds the directory's price to each of the products' links that the response has. */
+export const withEmbedPrices = (
+	products: Product[],
+	prices: EmbedProductsResponse['prices'],
+): Product[] =>
+	products.map((product) => ({
+		...product,
+		links: product.links.map((link) => ({ ...link, ...prices[link.url] })),
+	}));
 
 const composerOrigins = {
 	PROD: ['https://composer.gutools.co.uk'],

@@ -9,7 +9,6 @@ import { ArticlesPageSchema, AuthResponseSchema } from '@common/tool-models';
 import { jest } from '@jest/globals';
 import { mockAmazonRefreshPrices } from '@mocks/AmazonPriceProviderMock';
 import { buildAuth, mockUser } from '@mocks/AuthMock';
-import { composerContentFixture } from '@mocks/ComposerContentFixture';
 import {
 	mockGetProductPrice,
 	mockUpdateProducts,
@@ -922,7 +921,7 @@ describe('createApp', () => {
 
 			const response = await request(app())
 				.post('/api/embed/products')
-				.send(composerContentFixture);
+				.send({ region: 'GB', urls: [amazonUrl] });
 
 			expect(response.status).toBe(200);
 			expect(mockAmazonRefreshPrices).toHaveBeenCalledWith([
@@ -932,23 +931,20 @@ describe('createApp', () => {
 				items: [previewedAmazon],
 			});
 			const body = EmbedProductsResponseSchema.parse(response.body);
-			const amazonLink = body.products
-				.flatMap((product) => product.links)
-				.find((link) => link.url === amazonUrl);
-			expect(amazonLink).toMatchObject({
+			expect(body.prices[amazonUrl]).toMatchObject({
 				price: 479,
 			});
-			expect(amazonLink?.notInDirectory).toBeUndefined();
+			expect(body.prices[amazonUrl]?.notInDirectory).toBeUndefined();
 		});
 
-		it('lists the products Composer sends, with their prices', async () => {
+		it("returns the directory's price for each URL the embed sends", async () => {
+			const argosUrl = 'https://www.argos.co.uk/product/example-shark';
 			const response = await request(
 				app(
 					loggedIn,
 					pricingTable([
 						{
-							productMerchantUrl:
-								'https://www.argos.co.uk/product/example-shark',
+							productMerchantUrl: argosUrl,
 							region: 'GB',
 							price: 179,
 							currency: 'GBP',
@@ -957,18 +953,19 @@ describe('createApp', () => {
 				),
 			)
 				.post('/api/embed/products')
-				.send(composerContentFixture);
+				.send({ region: 'GB', urls: [argosUrl] });
 
 			expect(response.status).toBe(200);
 			const body = EmbedProductsResponseSchema.parse(response.body);
-			expect(body.region).toBe('GB');
-			expect(body.products).toHaveLength(2);
+			expect(body.prices).toEqual({
+				[argosUrl]: { price: 179, currency: 'GBP' },
+			});
 		});
 
-		it('rejects a message it can not read', async () => {
+		it('rejects a request it can not read', async () => {
 			const response = await request(app())
 				.post('/api/embed/products')
-				.send({ ...composerContentFixture, version: 2 });
+				.send({ region: 'GB', urls: 'https://www.amazon.co.uk' });
 
 			expect(response.status).toBe(400);
 		});
@@ -976,7 +973,7 @@ describe('createApp', () => {
 		it("tells a logged-out embed it isn't logged in", async () => {
 			const response = await request(app(loggedOut))
 				.post('/api/embed/products')
-				.send(composerContentFixture);
+				.send({ region: 'GB', urls: [] });
 
 			expect(response.status).toBe(401);
 		});

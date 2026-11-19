@@ -1,6 +1,7 @@
+import type { Block, BlockElement } from '@common/articleBody';
+import { decodeEntities } from '@common/html';
 import type { LinkCounts } from '@common/tool-models';
-import { decodeEntities } from './html';
-import type { ArticleLinks, Block, BlockElement } from './types';
+import type { ArticleLinks } from './types';
 
 /** The hrefs of the links in some HTML, such as a text element's. */
 const hrefs = (html: string) =>

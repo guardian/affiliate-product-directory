@@ -1,36 +1,28 @@
-import { ComposerContentMessageSchema, sectionRegion } from '@common/embed';
+import { EmbedProductsRequestSchema } from '@common/embed';
 import type { EmbedProductsResponse } from '@common/embed';
 import type { Product as StoredProduct } from '@common/models';
-import { composerElementsToBlocks } from './composerElements';
 import { createProductPrices } from './productPrices';
-import { extractProducts } from './products';
 
 type Result =
 	{ ok: true; body: EmbedProductsResponse } | { ok: false; error: string };
 
 /**
- * The products in the draft Composer has sent, with their prices in the directory. Links
- * not yet in the directory are previewed, and successfully priced products are saved.
+ * The directory's prices for the product URLs in the draft Composer has sent to the
+ * embed. URLs not yet in the directory are previewed in the request's region, and
+ * successfully priced products are saved.
  */
 export const embedProducts = async (
 	request: unknown,
 	getProductsByUrl: (urls: string[]) => Promise<StoredProduct[]>,
 	getPreviewPrices: (products: StoredProduct[]) => Promise<StoredProduct[]>,
 ): Promise<Result> => {
-	const message = ComposerContentMessageSchema.safeParse(request);
+	const message = EmbedProductsRequestSchema.safeParse(request);
 	if (!message.success) {
 		return { ok: false, error: message.error.message };
 	}
 
-	const region = sectionRegion(message.data.section);
-	const products = extractProducts(
-		composerElementsToBlocks(message.data.elements),
-	);
-	const urls = [
-		...new Set(
-			products.flatMap((product) => product.links.map((link) => link.url)),
-		),
-	];
+	const { region } = message.data;
+	const urls = [...new Set(message.data.urls)];
 
 	const stored = urls.length > 0 ? await getProductsByUrl(urls) : [];
 	const storedUrls = new Set(
@@ -57,15 +49,15 @@ export const embedProducts = async (
 	return {
 		ok: true,
 		body: {
-			region,
-			products: products.map((product) => ({
-				...product,
-				links: product.links.map((link) => ({
-					...link,
-					...prices.get(link.url),
-					...(!inDirectory.has(link.url) && { notInDirectory: true }),
-				})),
-			})),
+			prices: Object.fromEntries(
+				urls.map((url) => [
+					url,
+					{
+						...prices.get(url),
+						...(!inDirectory.has(url) && { notInDirectory: true }),
+					},
+				]),
+			),
 		},
 	};
 };
