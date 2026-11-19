@@ -77,13 +77,13 @@ npm install
 CAPI_KEY=<a CODE CAPI key> npm run affiliate-products-dev
 ```
 
-The home page lists articles from CODE CAPI, so the server needs a CODE CAPI key. Deployed, it uses the stage's key from the existing `capi-key` SSM parameter. To try the Data filter, also set `PROD_CAPI_KEY` to a PROD CAPI key.
+The home page lists articles from CODE CAPI, so the server needs a CODE CAPI key. Deployed, it uses the stage's key from the existing `capi-key` SSM parameter.
 
 This starts the server on port 3040 (set `PORT` to change it) and the client's Vite dev server on port 5173; Ctrl+C stops both. The server restarts itself when its code changes. Go to http://localhost:5173 for hot reloading. Vite proxies `/api` to the server.
 
 Locally, every request is treated as coming from a fake user with a fake permission, because the Panda cookie is only sent to `*.dev-gutools.co.uk` and never to localhost.
 
-The directory's prices need AWS credentials for the frontend account: get them from Janus and set `AWS_PROFILE` to their profile, on the command line or in `packages/affiliate-products-server/.env`. Without them the articles can't be listed. `CAPI_KEY` and `PROD_CAPI_KEY` can go in that `.env` file too, which the server loads when it starts.
+The directory's prices need AWS credentials for the Frontend account: get them from Janus and set `AWS_PROFILE` to their profile, on the command line or in `packages/affiliate-products-server/.env`. Without them the articles can't be listed. `CAPI_KEY` can go in that `.env` file too, which the server loads when it starts.
 
 `STACK`, `STAGE` and `APP` default to `frontend`, `CODE` and `affiliate-products-tool`, so previews, in the embed and from `/api/preview`, read the price providers' switches and credentials from CODE's SSM parameters, as CODE's Lambda does. Metrics aren't recorded outside PROD, so a local run doesn't add to them.
 
