@@ -142,7 +142,6 @@ export function createApp({
 	capiKey,
 	listDrafts,
 	dynamoService,
-	prod,
 	readSkimlinksDomains,
 }: {
 	clientDir: string;
@@ -185,26 +184,6 @@ export function createApp({
 		dynamoService,
 		readSkimlinksDomains,
 	});
-	const prodData =
-		prod && readStage({ stage: 'PROD', ...prod, readSkimlinksDomains });
-
-	/**
-	 * The stage's data, or PROD's when asked for with prod=true. Undefined, having responded
-	 * with an error, if prod is anything else, or PROD's data can't be read here.
-	 */
-	const readDataSource = (req: Request, res: Response) => {
-		const prodParam = z.literal('true').optional().safeParse(req.query.prod);
-		if (!prodParam.success) {
-			res.status(400).json({ error: 'prod must be true, or left out' });
-			return undefined;
-		}
-		const dataSource = prodParam.data ? prodData : stageData;
-		// Fails rather than reading this stage's articles as if they were PROD's.
-		if (!dataSource) {
-			res.status(400).json({ error: "PROD's articles can't be read here" });
-		}
-		return dataSource;
-	};
 
 	app.use(async (req, res, next) => {
 		const isApiRequest = req.path.startsWith('/api/');
@@ -285,10 +264,6 @@ export function createApp({
 			return;
 		}
 		const onlyLivePricing = livePricing.data === 'true';
-		const dataSource = readDataSource(req, res);
-		if (!dataSource) {
-			return;
-		}
 		// The drafts come before the live articles, so they're only on the first page.
 		const showDrafts =
 			!path &&
@@ -297,18 +272,18 @@ export function createApp({
 		const showLive = status.data !== 'draft';
 		const [drafts, livePage] = await Promise.all([
 			showDrafts
-				? readDrafts(dataSource.listDrafts, section.data)
+				? readDrafts(stageData.listDrafts, section.data)
 				: Promise.resolve(undefined),
 			path
-				? findArticle(dataSource.getArticle, path)
+				? findArticle(stageData.getArticle, path)
 				: showLive
-					? dataSource.listArticles(Number(page), section.data, onlyLivePricing)
+					? stageData.listArticles(Number(page), section.data, onlyLivePricing)
 					: Promise.resolve(noArticles),
 		]);
 		const articlesPage: ArticlesPage = drafts
 			? { drafts, ...livePage }
 			: livePage;
-		const productPrices = await dataSource.getProductPrices(
+		const productPrices = await stageData.getProductPrices(
 			productUrls(articlesPage),
 		);
 		res.json(attachProductPrices(articlesPage, productPrices));
@@ -321,12 +296,8 @@ export function createApp({
 			res.status(400).json({ error: "path must be an article's URL or path" });
 			return;
 		}
-		const dataSource = readDataSource(req, res);
-		if (!dataSource) {
-			return;
-		}
 		const [article, skimlinksDomains] = await Promise.all([
-			dataSource.getArticleLinks(path),
+			stageData.getArticleLinks(path),
 			readSkimlinksDomains(),
 		]);
 		if (!article) {

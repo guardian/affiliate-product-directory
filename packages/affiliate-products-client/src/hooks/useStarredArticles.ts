@@ -8,7 +8,6 @@ const batchSize = 5;
 
 interface Loaded {
 	/** The data and list fetch the articles are from, so a change of either fetches them again. */
-	prod: boolean;
 	reloads: number;
 	articles: Map<string, Article>;
 	/** The IDs whose lookup failed last time, which are tried again on a retry. */
@@ -18,7 +17,6 @@ interface Loaded {
 /** Looks up starred articles, a few at a time, as each can be on any page. */
 const lookUp = async (
 	ids: string[],
-	prod: boolean,
 	signal: AbortSignal,
 ): Promise<{ found: Article[]; failed: string[] }> => {
 	const found: Article[] = [];
@@ -33,7 +31,6 @@ const lookUp = async (
 						section: undefined,
 						status: undefined,
 						livePricing: false,
-						prod,
 						path: id,
 					},
 					signal,
@@ -59,16 +56,12 @@ const lookUp = async (
  * change; all of them are looked up again when the data changes or a price is set.
  * Undefined until the first lookup for the data being shown is done.
  */
-export const useStarredArticles = (
-	starred: string[],
-	prod: boolean,
-	reloads: number,
-) => {
+export const useStarredArticles = (starred: string[], reloads: number) => {
 	const [loaded, setLoaded] = useState<Loaded>();
 	const [retries, setRetries] = useState(0);
 
 	useEffect(() => {
-		const current = loaded?.prod === prod && loaded.reloads === reloads;
+		const current = loaded?.reloads === reloads;
 		const missing = current
 			? starred.filter((id) => !loaded.articles.has(id))
 			: starred;
@@ -76,15 +69,12 @@ export const useStarredArticles = (
 			return;
 		}
 		const controller = new AbortController();
-		void lookUp(missing, prod, controller.signal).then(({ found, failed }) => {
+		void lookUp(missing, controller.signal).then(({ found, failed }) => {
 			if (controller.signal.aborted) {
 				return;
 			}
 			setLoaded((previous) => {
-				const kept =
-					previous?.prod === prod
-						? previous.articles
-						: new Map<string, Article>();
+				const kept = previous?.articles ?? new Map<string, Article>();
 				// A failed lookup keeps the article as it was last loaded, if it was.
 				const articles = new Map(
 					current ? kept : [...kept].filter(([id]) => failed.includes(id)),
@@ -92,24 +82,21 @@ export const useStarredArticles = (
 				for (const article of found) {
 					articles.set(article.id, article);
 				}
-				return { prod, reloads, articles, failed: new Set(failed) };
+				return { reloads, articles, failed: new Set(failed) };
 			});
 		});
 		return () => controller.abort();
 		// loaded is read only to see what's missing, so its own changes don't look up again.
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- see above
-	}, [starred, prod, reloads, retries]);
+	}, [starred, reloads, retries]);
 
-	const articles = loaded?.prod === prod ? loaded.articles : undefined;
+	const articles = loaded?.articles;
 	return {
 		articles,
 		/** The starred articles that couldn't be looked up. */
-		failed:
-			loaded?.prod === prod
-				? starred.filter(
-						(id) => loaded.failed.has(id) && !loaded.articles.has(id),
-					)
-				: [],
+		failed: starred.filter(
+			(id) => loaded?.failed.has(id) && !loaded.articles.has(id),
+		),
 		retry: () => setRetries((n) => n + 1),
 	};
 };

@@ -35,9 +35,7 @@ Expanding a row also shows how many links the article has, counted as the Affili
 
 The affiliate share is the Amazon and Skimlinks links as a share of all three. The panel's Download CSV button gets `/api/link-counts.csv?url=…`, the bookmarklet's CSV of the page's external links: each once, Amazon links first, then Skimlinks links, then the rest, leaving out the hosts the bookmarklet leaves out of its CSV, with the same columns. The server only fetches pages on www.theguardian.com and CODE's site, which serves its articles from m.code.dev-theguardian.com. On CODE, links to www.theguardian.com count as the page's own, as they would on PROD.
 
-### PROD data
-
-In CODE, the sidebar's Data filter switches the list to PROD's articles and prices, adding `prod=true` to the page's URL and to `/api/articles`. The server then does the same as above, against PROD CAPI (with the PROD `capi-key` SSM parameter, as `PROD_CAPI_KEY`), PROD's Composer, and PROD's pricing table. The tool's role can only `BatchGetItem` from PROD's table, and explicitly denies everything else on it, so it can never write to it. PROD's tool only shows its own data, so the client hides the Data filter on `*.gutools.co.uk`.
+### CAPI data
 
 Composer links need CAPI's `internalComposerCode` field, which CAPI only returns to internal-tier keys. With a developer-tier key they show as unavailable.
 

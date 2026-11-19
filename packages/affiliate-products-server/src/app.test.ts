@@ -310,65 +310,6 @@ describe('createApp', () => {
 		expect(response.text).toBe('Internal server error');
 	});
 
-	describe('with PROD data', () => {
-		const prodProduct: Product = { ...pricedProduct, price: 30 };
-
-		const appWithProd = () => {
-			const stageTable = pricingTable([pricedProduct]);
-			const prodTable = pricingTable([prodProduct]);
-			const withProd = createApp({
-				clientDir,
-				auth: loggedIn,
-				stage: 'CODE',
-				capiKey: 'code-key',
-				dynamoService: stageTable,
-				prod: { capiKey: 'prod-key', dynamoService: prodTable },
-				readSkimlinksDomains,
-			});
-			return { withProd, stageTable, prodTable };
-		};
-
-		it("lists PROD's articles and prices given prod=true", async () => {
-			const { withProd, stageTable, prodTable } = appWithProd();
-
-			const response = await request(withProd).get(
-				'/api/articles?page=2&section=thefilter&prod=true',
-			);
-
-			expect(response.status).toBe(200);
-			const [search, ...otherSearches] = capiRequests();
-			expect(otherSearches).toEqual([]);
-			expect(search?.origin).toBe('https://content.guardianapis.com');
-			expect(search?.searchParams.get('api-key')).toBe('prod-key');
-			expect(search?.searchParams.get('page')).toBe('2');
-			expect(search?.searchParams.get('section')).toBe('thefilter');
-
-			const [prodArticle] = ArticlesPageSchema.parse(response.body).articles;
-			expect(prodArticle?.composerUrl).toBe(
-				'https://composer.gutools.co.uk/content/abc123',
-			);
-			expect(prodArticle?.products).toEqual(withPrice(prodProduct));
-			expect(prodTable.getProductsByUrl).toHaveBeenCalled();
-			expect(stageTable.getProductsByUrl).not.toHaveBeenCalled();
-		});
-
-		it("lists the stage's own articles and prices without prod=true", async () => {
-			const { withProd, stageTable, prodTable } = appWithProd();
-
-			const response = await request(withProd).get('/api/articles');
-
-			expect(response.status).toBe(200);
-			expect(capiRequests().map((search) => search.origin)).toEqual([
-				'https://content.code.dev-guardianapis.com',
-			]);
-			expect(
-				ArticlesPageSchema.parse(response.body).articles[0]?.products,
-			).toEqual(withPrice(pricedProduct));
-			expect(stageTable.getProductsByUrl).toHaveBeenCalled();
-			expect(prodTable.getProductsByUrl).not.toHaveBeenCalled();
-		});
-	});
-
 	describe('with drafts', () => {
 		const draft = {
 			...article,
@@ -508,19 +449,6 @@ describe('createApp', () => {
 		expect(ArticlesPageSchema.parse(response.body).drafts).toBeUndefined();
 	});
 
-	it("rejects prod=true when PROD's articles can't be listed", async () => {
-		const response = await request(app()).get('/api/articles?prod=true');
-
-		expect(response.status).toBe(400);
-		expect(capi).not.toHaveBeenCalled();
-	});
-
-	it.each(['false', '1', 'TRUE', ''])('rejects prod=%s', async (prod) => {
-		const response = await request(app()).get(`/api/articles?prod=${prod}`);
-
-		expect(response.status).toBe(400);
-	});
-
 	it.each(['0', '-1', 'abc', '1.5', ''])('rejects page=%s', async (page) => {
 		const response = await request(app()).get(`/api/articles?page=${page}`);
 
@@ -587,14 +515,11 @@ describe('createApp', () => {
 			).toBe(true);
 		});
 
-		it.each([{}, { path: 'not a path' }, { path: article.id, prod: 'yes' }])(
-			'refuses %j',
-			async (query) => {
-				const response = await csv(query);
+		it.each([{}, { path: 'not a path' }])('refuses %j', async (query) => {
+			const response = await csv(query);
 
-				expect(response.status).toBe(400);
-			},
-		);
+			expect(response.status).toBe(400);
+		});
 
 		it("says when there's no article at the path", async () => {
 			const response = await csv({ path: 'thefilter/2026/oct/06/missing' });

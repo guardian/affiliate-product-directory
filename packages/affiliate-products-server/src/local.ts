@@ -29,9 +29,6 @@ const localAuth: Auth = {
 	loginUrl: '',
 };
 
-// Also set PROD_CAPI_KEY to a PROD CAPI key to be able to list PROD's articles and prices.
-const prodCapiKey = process.env.PROD_CAPI_KEY;
-
 // Run with CAPI_KEY set to a CAPI key for that stage, and AWS credentials for the frontend
 // account to read the tables and the Skimlinks domains. The prices are from the same stage as the articles, as each
 // stage's directory is built from its CAPI.
@@ -42,12 +39,6 @@ createApp({
 	capiKey: getCapiKey(),
 	dynamoService: new DynamoService(stage),
 	readSkimlinksDomains: createSkimlinksDomains(),
-	prod: prodCapiKey
-		? {
-				capiKey: prodCapiKey,
-				dynamoService: new DynamoService('PROD'),
-			}
-		: undefined,
 }).listen(port, () => {
 	console.log(`Listening on http://localhost:${port}`);
 });

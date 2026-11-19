@@ -14,11 +14,9 @@ import {
 	convertTypographyToEmotionStringStyle,
 	from,
 } from '@guardian/stand/utils';
-import { useContext } from 'react';
 import { sectionCurrency } from './currency';
 import { formatDate } from './formatDate';
 import { SkimlinksIcon } from './icons';
-import { ProdDataContext } from './ProdData';
 import { ProductList } from './ProductList';
 import {
 	priceGapCount,
@@ -240,14 +238,12 @@ export const ArticleDetail = ({
 }) => {
 	const retailers = retailersUsed(article);
 	const gaps = priceGapCount(article);
-	const prod = useContext(ProdDataContext);
 	const { webUrl } = article;
 	// A draft isn't in CAPI yet, so its links can only be counted once it's published.
 	const csvUrl =
 		webUrl &&
 		`/api/links.csv?${new URLSearchParams({
 			path: article.id,
-			...(prod && { prod: 'true' }),
 		}).toString()}`;
 
 	return (
