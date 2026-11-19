@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const storageKey = 'affiliate-products:starred';
+const storageKey = 'affiliate-products:starred:own';
 
 // Storage can be blocked or cleared, so a failure leaves no articles starred.
 const readStarred = (): string[] => {
