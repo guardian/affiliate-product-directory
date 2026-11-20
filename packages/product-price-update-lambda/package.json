@@ -7,7 +7,7 @@
 		"type-check": "tsc --noEmit -p tsconfig.json",
 		"start": "tsx --env-file=.env src/run-locally.ts",
 		"prebuild": "rm -rf dist",
-		"build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outdir=dist",
+		"build": "esbuild src/index.ts --bundle --platform=node --target=node26 --outdir=dist",
 		"postbuild": "cd dist && zip -r product-price-update-lambda.zip ."
 	},
 	"devDependencies": {
