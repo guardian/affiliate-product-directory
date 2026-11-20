@@ -1,4 +1,4 @@
-import type { Article } from '@common/tool-models';
+import type { Article, User } from '@common/tool-models';
 import { css, Global } from '@emotion/react';
 import {
 	semanticColors,
@@ -17,7 +17,7 @@ import {
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { fetchArticles } from './api/articles';
-import { fetchUserName } from './api/auth';
+import { fetchUserData } from './api/auth';
 import { ArticleList, ArticleListPlaceholder } from './ArticleList';
 import type { ArticleGroup } from './ArticleList';
 import { headlineInset } from './ArticleRow';
@@ -133,7 +133,7 @@ const publishedGroup = (
 });
 
 export const App = () => {
-	const [userName, setUserName] = useState<string>();
+	const [userData, setUserData] = useState<User>();
 	const {
 		page,
 		section,
@@ -184,8 +184,8 @@ export const App = () => {
 
 	useEffect(() => {
 		// The name is only shown in the toolbar, so there's nothing to show if this fails.
-		fetchUserName()
-			.then(setUserName)
+		fetchUserData()
+			.then(setUserData)
 			.catch(() => undefined);
 	}, []);
 
@@ -341,7 +341,7 @@ export const App = () => {
 				)}
 				<Layout.TopBar>
 					<TopToolbar
-						userName={userName}
+						userData={userData}
 						search={
 							<ArticleSearch key={path ?? ''} path={path} onSearch={setPath} />
 						}
