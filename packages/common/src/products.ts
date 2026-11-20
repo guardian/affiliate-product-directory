@@ -1,7 +1,7 @@
-import type { Product, ProductLink } from '@common/tool-models';
+import type { Block, BlockElement, LinkElement } from './articleBody';
 import { decodeEntities, stripTags } from './html';
 import { extractPriceFromLabel, getProductLinkLabelWithPrice } from './price';
-import type { Block, BlockElement, LinkElement } from './types';
+import type { Product, ProductLink } from './tool-models';
 
 const isProductButton = (element: LinkElement) =>
 	element.type === 'link' &&

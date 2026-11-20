@@ -1,6 +1,5 @@
 import type { Product as StoredProduct } from '@common/models';
 import { jest } from '@jest/globals';
-import { composerContentFixture } from '@mocks/ComposerContentFixture';
 import { embedProducts } from './embedProducts';
 
 const amazonUrl = 'https://www.amazon.co.uk/dp/B0EXAMPLE15';
@@ -11,6 +10,8 @@ const pricingTable = (products: StoredProduct[]) =>
 	jest.fn<(urls: string[]) => Promise<StoredProduct[]>>(() =>
 		Promise.resolve(products),
 	);
+
+const draftUrls = { region: 'GB', urls: [amazonUrl, johnLewisUrl, argosUrl] };
 
 const noPreviewPrices = jest.fn<
 	(products: StoredProduct[]) => Promise<StoredProduct[]>
@@ -33,7 +34,7 @@ describe('embedProducts', () => {
 		]);
 
 		const result = await embedProducts(
-			composerContentFixture,
+			draftUrls,
 			getProductsByUrl,
 			noPreviewPrices,
 		);
@@ -44,22 +45,21 @@ describe('embedProducts', () => {
 			johnLewisUrl,
 			argosUrl,
 		]);
-		if (!result.ok) {
-			throw new Error(result.error);
-		}
-		expect(result.body.region).toBe('GB');
-		const links = result.body.products.flatMap((product) => product.links);
-		expect(
-			links.map(({ url, price, notInDirectory }) => ({
-				url,
-				price,
-				notInDirectory,
-			})),
-		).toEqual([
-			{ url: amazonUrl, price: 499, notInDirectory: undefined },
-			{ url: johnLewisUrl, price: undefined, notInDirectory: undefined },
-			{ url: argosUrl, price: undefined, notInDirectory: true },
-		]);
+		expect(result).toEqual({
+			ok: true,
+			body: {
+				prices: {
+					[amazonUrl]: {
+						price: 499,
+						currency: 'GBP',
+						updatedAt: 1,
+						updatedBy: 'amazon',
+					},
+					[johnLewisUrl]: {},
+					[argosUrl]: { notInDirectory: true },
+				},
+			},
+		});
 	});
 
 	it('previews and adds URLs missing from the directory', async () => {
@@ -78,7 +78,7 @@ describe('embedProducts', () => {
 		);
 
 		const result = await embedProducts(
-			composerContentFixture,
+			draftUrls,
 			pricingTable([]),
 			getPreviewPrices,
 		);
@@ -91,41 +91,45 @@ describe('embedProducts', () => {
 		if (!result.ok) {
 			throw new Error(result.error);
 		}
-		const links = result.body.products.flatMap((product) => product.links);
-		expect(links[0]).toMatchObject({
-			url: amazonUrl,
-			price: 479,
-		});
-		expect(links[0]?.notInDirectory).toBeUndefined();
-		expect(links.slice(1).every((link) => link.notInDirectory)).toBe(true);
+		const { prices } = result.body;
+		expect(prices[amazonUrl]).toMatchObject({ price: 479 });
+		expect(prices[amazonUrl]?.notInDirectory).toBeUndefined();
+		expect(prices[johnLewisUrl]).toEqual({ notInDirectory: true });
+		expect(prices[argosUrl]).toEqual({ notInDirectory: true });
 	});
 
-	it("prices thefilter-us's drafts in the US", async () => {
-		const result = await embedProducts(
-			{ ...composerContentFixture, section: 'thefilter-us' },
+	it("previews in the request's region", async () => {
+		const getPreviewPrices = jest.fn<
+			(products: StoredProduct[]) => Promise<StoredProduct[]>
+		>(() => Promise.resolve([]));
+
+		await embedProducts(
+			{ region: 'US', urls: [amazonUrl] },
 			pricingTable([]),
-			noPreviewPrices,
+			getPreviewPrices,
 		);
 
-		expect(result.ok && result.body.region).toBe('US');
+		expect(getPreviewPrices).toHaveBeenCalledWith([
+			{ productMerchantUrl: amazonUrl, region: 'US' },
+		]);
 	});
 
 	it("doesn't read the pricing table for a draft with no products", async () => {
 		const getProductsByUrl = pricingTable([]);
 
 		const result = await embedProducts(
-			{ ...composerContentFixture, elements: [] },
+			{ region: 'GB', urls: [] },
 			getProductsByUrl,
 			noPreviewPrices,
 		);
 
-		expect(result).toEqual({ ok: true, body: { region: 'GB', products: [] } });
+		expect(result).toEqual({ ok: true, body: { prices: {} } });
 		expect(getProductsByUrl).not.toHaveBeenCalled();
 	});
 
 	it.each([
-		['an unknown version', { ...composerContentFixture, version: 2 }],
-		['no elements', { ...composerContentFixture, elements: undefined }],
+		['an unknown region', { region: 'FR', urls: [amazonUrl] }],
+		['no URLs', { region: 'GB' }],
 		['nothing', undefined],
 	])('rejects a request with %s', async (_name, request) => {
 		const result = await embedProducts(

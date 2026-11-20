@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import type { Block, BlockElement, LinkElement, ProductCta } from './types';
+import type {
+	Block,
+	BlockElement,
+	LinkElement,
+	ProductCta,
+} from './articleBody';
 
 /**
  * How Composer holds the elements that products are in, as in the sample message saved
