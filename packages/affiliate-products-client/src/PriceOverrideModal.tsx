@@ -10,7 +10,7 @@ import { Option, Select } from '@guardian/stand/Select';
 import { TextInput } from '@guardian/stand/TextInput';
 import { Typography } from '@guardian/stand/Typography';
 import { parseDate } from '@internationalized/date';
-import { type FormEvent, useContext, useId, useState } from 'react';
+import { useContext, useState } from 'react';
 import type { DateValue } from 'react-aria-components';
 import { removePriceOverride, setPriceOverride } from './api/manualOverride';
 import {
@@ -106,7 +106,6 @@ export const PriceOverrideModal = ({
 	onOpenChange: (isOpen: boolean) => void;
 }) => {
 	const { onPriceEdit, draftRegion } = useContext(PriceEditingContext);
-	const formId = useId();
 	const isOverridden = link.updatedBy === 'manualOverride';
 	const [currency, setCurrency] = useState<Currency>(defaultCurrency(link));
 	const [price, setPrice] = useState(
@@ -148,8 +147,7 @@ export const PriceOverrideModal = ({
 		onPriceEdit();
 	};
 
-	const save = async (event: FormEvent) => {
-		event.preventDefault();
+	const save = async () => {
 		setSubmitted(true);
 		if (priceError || expiryError) {
 			return;
@@ -190,9 +188,7 @@ export const PriceOverrideModal = ({
 					{isOverridden ? 'Change manual price' : 'Set price manually'}
 				</Dialog.Header>
 				<Dialog.Content>
-					{/* The dialog lays out its parts itself, so the form is inside its content and
-					    the submit button, in the dialog's buttons, is tied to it by its id. */}
-					<form id={formId} onSubmit={(event) => void save(event)} noValidate>
+					<div>
 						<div css={summaryStyles}>
 							{productName && (
 								<Typography element="div" variant="bodyBoldSm">
@@ -240,6 +236,11 @@ export const PriceOverrideModal = ({
 									onChange={changePrice}
 									description={cleaned}
 									inputMode="decimal"
+									onKeyDown={(event) => {
+										if (event.key === 'Enter' && !saving) {
+											void save();
+										}
+									}}
 									autoFocus
 									error={submitted ? priceError : undefined}
 									fluid
@@ -267,7 +268,7 @@ export const PriceOverrideModal = ({
 							/>
 							{error && <InlineMessage level="error">{error}</InlineMessage>}
 						</div>
-					</form>
+					</div>
 				</Dialog.Content>
 				<Dialog.Buttons>
 					{isOverridden && (
@@ -287,7 +288,7 @@ export const PriceOverrideModal = ({
 					>
 						Cancel
 					</Button>
-					<Button type="submit" form={formId} isDisabled={saving}>
+					<Button onPress={() => void save()} isDisabled={saving}>
 						{saving ? 'Saving…' : 'Save price'}
 					</Button>
 				</Dialog.Buttons>
