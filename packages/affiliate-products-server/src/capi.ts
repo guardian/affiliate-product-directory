@@ -1,7 +1,7 @@
+import { extractProducts } from '@common/products';
 import { articlesPageSize, SectionSchema } from '@common/tool-models';
 import type { Article, Section } from '@common/tool-models';
 import { bodyLinks, countLinks, linkKind } from './linkCounts';
-import { extractProducts } from './products';
 import {
 	type CapiResult,
 	type GetArticle,

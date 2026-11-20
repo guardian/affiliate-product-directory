@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { Region } from './models';
-import { ProductSchema } from './tool-models';
+import { ProductLinkSchema } from './tool-models';
 
 /**
  * The messages between Composer and the tool's /embed page, which Composer shows in an
@@ -33,7 +33,7 @@ export const ComposerContentMessageSchema = z.object({
 	version: z.literal(embedMessageVersion),
 	composerId: z.string(),
 	section: z.string().nullable(),
-	// The body's elements as Composer holds them. The server turns them into CAPI's shape.
+	// The body's elements as Composer holds them. The embed turns them into CAPI's shape.
 	elements: z.array(z.unknown()),
 });
 
@@ -41,9 +41,29 @@ export type ComposerContentMessage = z.infer<
 	typeof ComposerContentMessageSchema
 >;
 
-export const EmbedProductsResponseSchema = z.object({
-	products: z.array(ProductSchema),
+export const EmbedProductsRequestSchema = z.object({
 	region: z.enum(['GB', 'US']),
+	urls: z.array(z.string()),
+});
+
+export type EmbedProductsRequest = z.infer<typeof EmbedProductsRequestSchema>;
+
+// Keeps each request under the WAF's 8 KB body limit.
+export const embedRequestMaxUrls = 50;
+
+export const EmbedProductsResponseSchema = z.object({
+	prices: z.record(
+		z.string(),
+		ProductLinkSchema.pick({
+			currency: true,
+			price: true,
+			updatedAt: true,
+			updatedBy: true,
+			expiresAt: true,
+			availability: true,
+			notInDirectory: true,
+		}),
+	),
 });
 
 export type EmbedProductsResponse = z.infer<typeof EmbedProductsResponseSchema>;
