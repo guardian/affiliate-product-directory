@@ -1,4 +1,5 @@
 import { baseColors, semanticColors } from '@guardian/stand';
+import { Avatar } from '@guardian/stand/Avatar';
 import type { FaviconTheme } from '@guardian/stand/Favicon';
 import {
 	TopBar,
@@ -8,8 +9,8 @@ import {
 	TopBarToolName,
 } from '@guardian/stand/TopBar';
 import type { TopBarTheme } from '@guardian/stand/TopBar';
-import { Typography } from '@guardian/stand/Typography';
 import type { ReactNode } from 'react';
+import type { User } from '../../common/src/tool-models';
 
 const topBarTheme: TopBarTheme = {
 	backgroundColor: baseColors.orange[200],
@@ -28,10 +29,10 @@ const faviconTheme: FaviconTheme = {
 };
 
 export const TopToolbar = ({
-	userName,
+	userData,
 	search,
 }: {
-	userName?: string;
+	userData?: User;
 	/** The search for an article, beside the tool's name. */
 	search: ReactNode;
 }) => (
@@ -44,15 +45,16 @@ export const TopToolbar = ({
 		<TopBarContainerLeft>
 			<TopBarItem theme={{ border: 'none' }}>{search}</TopBarItem>
 		</TopBarContainerLeft>
-		{userName && (
+		{userData && (
 			<TopBarContainerRight>
 				<TopBarItem>
-					<Typography
-						variant="bodySm"
-						theme={{ color: semanticColors.text.strongerInverse }}
-					>
-						{userName}
-					</Typography>
+					<Avatar
+						src={userData.avatarUrl}
+						alt={`${userData.firstName} ${userData.lastName}`}
+						initials={
+							userData.firstName.charAt(0) + userData.lastName.charAt(0)
+						}
+					/>
 				</TopBarItem>
 			</TopBarContainerRight>
 		)}
