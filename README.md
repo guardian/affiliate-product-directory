@@ -7,7 +7,7 @@ This description should consider a wider audience as it is likely to be the firs
 see. As such, this description should be carefully considered.
 -->
 
-The Affiliate Product Directory is a set of resources and lambdas which compose a database of affiliate product links in (The Filter) articles and meta data about them. This powers features such as live pricing.
+The Affiliate Product Directory is a tool and set of AWS services for finding and managing affiliate products in The Filter articles. It stores product metadata and prices, powers live pricing in articles, and provides an internal tool for browsing articles and their affiliate links.
 
 ## Contents
 
@@ -33,9 +33,11 @@ Areas to include:
 
 -->
 
-This project exists to serve the Product Directory of affiliate products in The Filter articles. It comprises of lambdas to populate and update the database tables as products are added and removed from articles, and to keep the pricing information about them up to date.
+This project serves the Product Directory of affiliate products in The Filter articles. It includes a web tool for browsing articles, products, retailer links and prices, as well as AWS lambdas that keep the directory and its prices up to date.
 
-The directory exists to solve two main challenges: products are spread around articles and there was previously no other centralised way to find them; and to support live pricing in Filter articles. The directory only exists to store metadata, and does not duplicate the editorially driven content stored in articles.
+The directory solves two main challenges: products are spread across articles, with no centralised way to find them, and live pricing needs a maintained source of product prices. The directory stores metadata rather than duplicating the editorially driven content in articles.
+
+The internal Affiliate Products tool is a React app for browsing The Filter and The Filter US articles, inspecting their products and retailer links, checking link counts, and viewing or editing prices. It also provides a Composer embed that shows products and prices for a draft article. Access requires a valid Panda cookie and the `affiliate_products_access` permission; see the [client README](packages/affiliate-products-client/README.md) for details.
 
 ## 2. Getting Started
 
@@ -51,13 +53,13 @@ Install the dependencies:
 npm install
 ```
 
-To run the affiliate products tool locally, get Janus credentials for the frontend account, then start its server and client with a CODE CAPI key:
+To run the affiliate products tool locally, get AWS credentials for the Frontend account from Janus and a CODE CAPI key, then start its server and client:
 
 ```
 CAPI_KEY=<a CODE CAPI key> npm run affiliate-products-dev
 ```
 
-The tool is then at http://localhost:5173. See the client's [README](packages/affiliate-products-client/README.md#running-locally) for more, including how to try the Composer embed.
+The tool is then at http://localhost:5173. See the client's [README](packages/affiliate-products-client/README.md#running-locally) for setup details and how to try the Composer embed.
 
 To serve it at https://affiliate-products.local.dev-gutools.co.uk too, as Composer's local dev build needs, set up nginx and a local certificate once (macOS, needs Homebrew and your password):
 
@@ -85,21 +87,27 @@ Areas to include:
  - What might surprise an engineer new to the project?
 -->
 
-The project consists of Typescript lambdas and DynamoDB tables.
+The project includes the Affiliate Products web tool, TypeScript lambdas, and DynamoDB tables. Crier content-update events are forwarded through EventBridge to keep article/product relationships current. A scheduled lambda updates prices using Amazon, Shopify and Skimlinks; changes to the pricing table trigger another lambda to publish the live-prices CSV consumed by the frontend.
+
+### Affiliate Products tool
+
+The tool consists of a React/Vite client and an Express server deployed as a Lambda behind API Gateway. It lists Filter articles from CAPI and reads their product prices from the pricing table. Editors can also use its Composer embed to inspect draft products, preview prices, and set prices manually. See the [client README](packages/affiliate-products-client/README.md) for the API, embed protocol, local development and deployment details.
 
 ### `product-directory-update-lambda`
 
-This lambda is responsible for handling updates that add or remove products within articles.  
-See its [README](packages/product-directory-update-lambda//README.md) for more detail.
+This lambda processes Crier updates to add or remove products and article relationships. Product removals are soft-deleted. See the [lambda README](packages/product-directory-update-lambda/README.md) for more detail.
 
 ### `product-price-update-lambda`
 
-This lambda is responsible for handling product price updates and it runs at a set interval triggered by an Eventbridge rule.
-See its [README](packages/product-price-update-lambda//README.md) for more detail.
+This lambda runs daily from an EventBridge rule and updates prices using the configured providers. See the [lambda README](packages/product-price-update-lambda/README.md) for provider configuration and metrics.
+
+### `product-prices-csv-lambda`
+
+This lambda responds to pricing-table changes and rewrites the live-prices CSV in the `aws-frontend-store` S3 bucket. The CSV is consumed by the frontend; neither of the directory update lambdas writes it directly. See the [lambda README](packages/product-prices-csv-lambda/README.md) for how it handles DynamoDB stream updates.
 
 ### Backfill
 
-The directory was initially populated using a backfill script that finds articles with a section of Filter or Filter US and sends these article IDs as a mock Crier event. See the script [README](packages/scripts/backfill/README.md) for more.
+The directory was initially populated using a backfill script that finds articles in The Filter and The Filter US and generates events to process them through the Crier update flow. See the [backfill README](packages/scripts/backfill/README.md) for prerequisites and instructions.
 
 ## 4. Useful Links
 
