@@ -4,7 +4,6 @@ import type { FaviconTheme } from '@guardian/stand/Favicon';
 import {
 	TopBar,
 	TopBarContainerLeft,
-	TopBarContainerRight,
 	TopBarItem,
 	TopBarToolName,
 } from '@guardian/stand/TopBar';
@@ -46,17 +45,11 @@ export const TopToolbar = ({
 			<TopBarItem theme={{ border: 'none' }}>{search}</TopBarItem>
 		</TopBarContainerLeft>
 		{userData && (
-			<TopBarContainerRight>
-				<TopBarItem>
-					<Avatar
-						src={userData.avatarUrl}
-						alt={`${userData.firstName} ${userData.lastName}`}
-						initials={
-							userData.firstName.charAt(0) + userData.lastName.charAt(0)
-						}
-					/>
-				</TopBarItem>
-			</TopBarContainerRight>
+			<Avatar
+				src={userData.avatarUrl}
+				alt={`${userData.firstName} ${userData.lastName}`}
+				initials={userData.firstName.charAt(0) + userData.lastName.charAt(0)}
+			/>
 		)}
 	</TopBar>
 );
