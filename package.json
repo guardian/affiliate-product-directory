@@ -34,5 +34,13 @@
 		"unrs-resolver@1.12.2": true,
 		"@parcel/watcher@2.6.0": true,
 		"esbuild@0.28.2": true
+	},
+	"overrideNotes": {
+		"@guardian/story-packages-model": "Depends on thrift ^0.15.0, which is vulnerable (GHSA-r67j-r569-jrwp, GHSA-526f-jxpj-jmg2). Pulled in via @guardian/content-api-models. Remove once story-packages-model depends on thrift >=0.23.0."
+	},
+	"overrides": {
+		"@guardian/story-packages-model": {
+			"thrift": "0.23.0"
+		}
 	}
 }
