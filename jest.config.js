@@ -46,7 +46,6 @@ export default {
 			transform: {
 				'^.+\\.tsx?$': 'ts-jest',
 			},
-			setupFilesAfterEnv: ['<rootDir>/packages/cdk/jest.setup.js'],
 			testMatch: ['<rootDir>/packages/cdk/**/*.test.ts'],
 		},
 		subpackage('common'),
