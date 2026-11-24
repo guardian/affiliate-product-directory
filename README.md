@@ -53,10 +53,10 @@ Install the dependencies:
 npm install
 ```
 
-To run the affiliate products tool locally, get AWS credentials for the Frontend account from Janus and a CODE CAPI key, then start its server and client:
+To run the affiliate products tool locally, get AWS credentials for the Frontend account from Janus, then start its server and client:
 
 ```
-CAPI_KEY=<a CODE CAPI key> npm run affiliate-products-dev
+npm run affiliate-products-dev
 ```
 
 The tool is then at http://localhost:5173. See the client's [README](packages/affiliate-products-client/README.md#running-locally) for setup details and how to try the Composer embed.

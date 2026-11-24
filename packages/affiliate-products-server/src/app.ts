@@ -39,20 +39,17 @@ const noAccessMessage =
 
 const readStage = ({
 	stage,
-	capiKey,
 	listDrafts,
 	dynamoService,
 	readSkimlinksDomains,
 }: {
 	stage: string;
-	capiKey: string;
 	listDrafts?: ListDrafts;
 	dynamoService: DynamoService;
 	readSkimlinksDomains: ReadSkimlinksDomains;
 }) => {
 	const capi = {
 		baseUrl: getCapiBaseUrl(stage),
-		apiKey: capiKey,
 		composerBaseUrl: getComposerBaseUrl(stage),
 		readSkimlinksDomains,
 	};
@@ -139,7 +136,6 @@ export function createApp({
 	clientDir,
 	auth,
 	stage,
-	capiKey,
 	listDrafts,
 	dynamoService,
 	readSkimlinksDomains,
@@ -148,15 +144,8 @@ export function createApp({
 	auth: Auth;
 	/** The stage whose CAPI, Composer and pricing table the articles come from by default. */
 	stage: string;
-	capiKey: string;
 	listDrafts?: ListDrafts;
 	dynamoService: DynamoService;
-	/** PROD's CAPI key, drafts and pricing table, used instead when asked for with prod=true. */
-	prod?: {
-		capiKey: string;
-		listDrafts?: ListDrafts;
-		dynamoService: DynamoService;
-	};
 	/** The Skimlinks merchants' domains, for sorting the links in articles. */
 	readSkimlinksDomains: ReadSkimlinksDomains;
 }) {
@@ -177,7 +166,6 @@ export function createApp({
 
 	const stageData = readStage({
 		stage,
-		capiKey,
 		listDrafts,
 		dynamoService,
 		readSkimlinksDomains,

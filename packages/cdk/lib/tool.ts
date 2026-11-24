@@ -2,7 +2,7 @@ import { GuCertificate } from '@guardian/cdk/lib/constructs/acm';
 import type { GuStack } from '@guardian/cdk/lib/constructs/core';
 import { GuCname } from '@guardian/cdk/lib/constructs/dns';
 import { GuApiLambda } from '@guardian/cdk/lib/patterns/api-lambda';
-import { type CfnParameter, Duration } from 'aws-cdk-lib';
+import { Duration } from 'aws-cdk-lib';
 import { EndpointType } from 'aws-cdk-lib/aws-apigateway';
 import { type Policy, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
@@ -19,11 +19,9 @@ export function createTool(
 	scope: GuStack,
 	{
 		domainName,
-		capiKeyParam,
 		policies,
 	}: {
 		domainName: string;
-		capiKeyParam: CfnParameter;
 		/** Policies attached to the tool Lambda's role. */
 		policies: Policy[];
 	},
@@ -36,9 +34,6 @@ export function createTool(
 		app,
 		fileName: `${app}.zip`,
 		handler: 'index.handler',
-		environment: {
-			CAPI_KEY: capiKeyParam.valueAsString,
-		},
 		runtime: Runtime.NODEJS_22_X,
 		architecture: Architecture.ARM_64,
 		monitoringConfiguration: { noMonitoring: true },

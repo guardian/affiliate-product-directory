@@ -9,6 +9,7 @@ import { ArticlesPageSchema, AuthResponseSchema } from '@common/tool-models';
 import { jest } from '@jest/globals';
 import { mockAmazonRefreshPrices } from '@mocks/AmazonPriceProviderMock';
 import { buildAuth, mockUser } from '@mocks/AuthMock';
+import { mockGetCapiKey } from '@mocks/CapiKeyMock';
 import {
 	mockGetProductPrice,
 	mockUpdateProducts,
@@ -21,6 +22,8 @@ import type { Auth, ListDrafts } from './types';
 
 let DynamoService: typeof DatabaseServiceModule.DynamoService;
 let createApp: typeof AppModule.createApp;
+
+mockGetCapiKey.mockImplementation(() => Promise.resolve('code-key'));
 
 describe('createApp', () => {
 	let clientDir: string;
@@ -202,7 +205,6 @@ describe('createApp', () => {
 			clientDir,
 			auth,
 			stage: 'CODE',
-			capiKey: 'code-key',
 			dynamoService,
 			readSkimlinksDomains,
 		});
@@ -325,7 +327,6 @@ describe('createApp', () => {
 				clientDir,
 				auth: loggedIn,
 				stage: 'CODE',
-				capiKey: 'code-key',
 				listDrafts,
 				dynamoService: pricingTable([pricedProduct]),
 				readSkimlinksDomains,
@@ -532,7 +533,6 @@ describe('createApp', () => {
 					clientDir,
 					auth: loggedIn,
 					stage: 'CODE',
-					capiKey: 'code-key',
 					dynamoService: pricingTable(),
 					readSkimlinksDomains: () => Promise.resolve(undefined),
 				}),
@@ -657,7 +657,6 @@ describe('createApp', () => {
 				clientDir: relativeClientDir,
 				auth: loggedIn,
 				stage: 'CODE',
-				capiKey: 'code-key',
 				dynamoService: pricingTable(),
 				readSkimlinksDomains,
 			}),

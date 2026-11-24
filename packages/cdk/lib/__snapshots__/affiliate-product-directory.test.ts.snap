@@ -4,7 +4,6 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
 {
   "Metadata": {
     "gu:cdk:constructs": [
-      "GuParameter",
       "GuDistributionBucketParameter",
       "GuScheduledLambda",
       "GuLambdaErrorPercentageAlarm",
@@ -64,10 +63,6 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
     "DistributionBucketName": {
       "Default": "/account/services/artifact.bucket",
       "Description": "SSM parameter containing the S3 bucket name holding distribution artifacts",
-      "Type": "AWS::SSM::Parameter::Value<String>",
-    },
-    "capiKey": {
-      "Default": "/TEST/frontend/affiliate-product-directory/capi-key",
       "Type": "AWS::SSM::Parameter::Value<String>",
     },
   },
@@ -557,9 +552,6 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         "Environment": {
           "Variables": {
             "APP": "affiliate-products-tool",
-            "CAPI_KEY": {
-              "Ref": "capiKey",
-            },
             "STACK": "frontend",
             "STAGE": "TEST",
           },
@@ -1665,6 +1657,9 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
             "Ref": "ProductPriceUpdateLambdaServiceRole34386223",
           },
           {
+            "Ref": "ProductDirectoryUpdateLambdaServiceRoleB5BDC4A1",
+          },
+          {
             "Ref": "AffiliateProductsToolServiceRole931B917D",
           },
         ],
@@ -1840,9 +1835,6 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         "Environment": {
           "Variables": {
             "APP": "product-directory-update-lambda",
-            "CAPI_KEY": {
-              "Ref": "capiKey",
-            },
             "STACK": "frontend",
             "STAGE": "TEST",
           },

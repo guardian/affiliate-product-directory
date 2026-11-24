@@ -1,7 +1,7 @@
 import type { GuStack } from '@guardian/cdk/lib/constructs/core';
 import { GuLambdaFunction } from '@guardian/cdk/lib/constructs/lambda';
 import { GuScheduledLambda } from '@guardian/cdk/lib/patterns/scheduled-lambda';
-import { type CfnParameter, Duration } from 'aws-cdk-lib';
+import { Duration } from 'aws-cdk-lib';
 import { Schedule } from 'aws-cdk-lib/aws-events';
 import type { Policy } from 'aws-cdk-lib/aws-iam';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
@@ -27,7 +27,6 @@ export interface CreateLambdasProps {
 	stage: string;
 	snsTopic: Topic;
 	alarmActionsEnabled: boolean;
-	capiKeyParam: CfnParameter;
 	bucketName: string;
 }
 
@@ -98,21 +97,12 @@ export function createPricesCsvLambda(
 
 export function createProductDirectoryUpdateLambda(
 	scope: GuStack,
-	{
-		appName,
-		stage,
-		snsTopic,
-		alarmActionsEnabled,
-		capiKeyParam,
-	}: CreateLambdasProps,
+	{ appName, stage, snsTopic, alarmActionsEnabled }: CreateLambdasProps,
 ): GuLambdaFunction {
 	return new GuLambdaFunction(scope, 'ProductDirectoryUpdateLambda', {
 		app: 'product-directory-update-lambda',
 		fileName: 'product-directory-update-lambda.zip',
 		handler: 'index.eventHandler',
-		environment: {
-			CAPI_KEY: capiKeyParam.valueAsString,
-		},
 		runtime: Runtime.NODEJS_22_X,
 		architecture: Architecture.ARM_64,
 		errorPercentageMonitoring: {

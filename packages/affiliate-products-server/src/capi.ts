@@ -1,3 +1,4 @@
+import { getCapiKey } from '@common/capiKey';
 import { extractProducts } from '@common/products';
 import { articlesPageSize, SectionSchema } from '@common/tool-models';
 import type { Article, Section } from '@common/tool-models';
@@ -19,18 +20,16 @@ export const getComposerBaseUrl = (stage: string) =>
 		: 'https://composer.code.dev-gutools.co.uk';
 
 // The fields of an article that the tool reads, and the body blocks its products are in.
-const articleQuery = (apiKey: string) => ({
+const articleQuery = {
 	'show-fields':
 		'internalComposerCode,byline,isLive,lastModified,livePricingEnabled',
 	// The body as structured elements, which the product links are read from.
 	'show-blocks': 'body',
-	'api-key': apiKey,
-});
+};
 
 /** Where the tool reads a stage's articles from. */
 interface CapiOptions {
 	baseUrl: string;
-	apiKey: string;
 	composerBaseUrl: string;
 	readSkimlinksDomains: ReadSkimlinksDomains;
 }
@@ -91,10 +90,13 @@ const toArticle = (
 
 /** CAPI's result for one item by its CAPI ID, or undefined if CAPI has no content with that ID. */
 const fetchItem = async (
-	{ baseUrl, apiKey }: Pick<CapiOptions, 'baseUrl' | 'apiKey'>,
+	{ baseUrl }: Pick<CapiOptions, 'baseUrl'>,
 	path: string,
 ): Promise<CapiResult | undefined> => {
-	const params = new URLSearchParams(articleQuery(apiKey));
+	const params = new URLSearchParams({
+		...articleQuery,
+		'api-key': await getCapiKey(),
+	});
 	const response = await fetch(`${baseUrl}/${path}?${params.toString()}`);
 	if (response.status === 404) {
 		return undefined;
@@ -127,7 +129,7 @@ export function createCapiArticle(options: CapiOptions): GetArticle {
  * with that ID.
  */
 export function createCapiArticleLinks(
-	options: Pick<CapiOptions, 'baseUrl' | 'apiKey'>,
+	options: Pick<CapiOptions, 'baseUrl'>,
 ): GetArticleLinks {
 	return async (path) => {
 		const content = await fetchItem(options, path);
@@ -147,9 +149,11 @@ const searchCapi = async (
 	params: Record<string, string>,
 	description: string,
 ) => {
-	const response = await fetch(
-		`${baseUrl}/search?${new URLSearchParams(params).toString()}`,
-	);
+	const query = new URLSearchParams({
+		...params,
+		'api-key': await getCapiKey(),
+	});
+	const response = await fetch(`${baseUrl}/search?${query.toString()}`);
 	if (!response.ok) {
 		// The URL isn't included, as it contains the API key.
 		throw new Error(`${description} failed with status ${response.status}`);
@@ -169,10 +173,7 @@ const livePricingCacheMs = 5 * 60 * 1000;
  * CAPI can't search by the livePricingEnabled field, so every article's field is read,
  * without its body.
  */
-const createLivePricingIds = ({
-	baseUrl,
-	apiKey,
-}: Pick<CapiOptions, 'baseUrl' | 'apiKey'>) => {
+const createLivePricingIds = ({ baseUrl }: Pick<CapiOptions, 'baseUrl'>) => {
 	const cache = new Map<string, { ids: string[]; expiresAt: number }>();
 	// The scans still running, so that requests for the same section share one rather than
 	// each reading every article.
@@ -188,7 +189,6 @@ const createLivePricingIds = ({
 					'page-size': String(scanPageSize),
 					page: String(page),
 					'show-fields': 'livePricingEnabled',
-					'api-key': apiKey,
 				},
 				`CAPI search for live pricing, page ${page}`,
 			);
@@ -231,7 +231,7 @@ const createLivePricingIds = ({
  * across the two.
  */
 export function createCapiArticles(options: CapiOptions): ListArticles {
-	const { baseUrl, apiKey, readSkimlinksDomains } = options;
+	const { baseUrl, readSkimlinksDomains } = options;
 	const listLivePricingIds = createLivePricingIds(options);
 
 	return async (page, section, onlyLivePricing = false) => {
@@ -247,7 +247,7 @@ export function createCapiArticles(options: CapiOptions): ListArticles {
 			'order-by': 'newest',
 			'page-size': String(articlesPageSize),
 			page: String(page),
-			...articleQuery(apiKey),
+			...articleQuery,
 		};
 		const [{ currentPage, pages, total, results }, skimlinksDomains] =
 			await Promise.all([
