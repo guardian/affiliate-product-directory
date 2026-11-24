@@ -1,6 +1,6 @@
 /* Implementation from recipes-backend */
 /* eslint @typescript-eslint/naming-convention: "off"  -- PollingAction uses a more CAPI-like convention*/
-import { getCapiKey } from '@common/config';
+import { getCapiKey } from '@common/capiKey';
 import type { Content } from '@guardian/content-api-models/v1/content';
 import { deserializeItemResponse } from './deserialize';
 
@@ -19,9 +19,9 @@ export interface PollingResult {
 	content?: Content;
 }
 
-function addCapiKeyParam(capiUrl: string): string {
+async function addCapiKeyParam(capiUrl: string): Promise<string> {
 	const url = new URL(capiUrl);
-	url.searchParams.set('api-key', getCapiKey());
+	url.searchParams.set('api-key', await getCapiKey());
 	return url.toString();
 }
 
@@ -32,7 +32,7 @@ function addCapiKeyParam(capiUrl: string): string {
  the deserialised content if it does.
  */
 export async function callCAPI(capiUrl: string): Promise<PollingResult> {
-	const response = await fetch(addCapiKeyParam(capiUrl));
+	const response = await fetch(await addCapiKeyParam(capiUrl));
 
 	switch (response.status) {
 		case 200: {

@@ -1,11 +1,14 @@
 import { ArticlesPageSchema } from '@common/tool-models';
 import { jest } from '@jest/globals';
-import {
+import '@mocks/CapiKeyMock';
+
+// Imported after the CAPI key's mock, which it reads the key from.
+const {
 	createCapiArticle,
 	createCapiArticleLinks,
 	createCapiArticles,
 	getComposerBaseUrl,
-} from './capi';
+} = await import('./capi');
 
 // The Skimlinks domains, read every time.
 const readSkimlinksDomains = () => Promise.resolve(new Set(['johnlewis.com']));
@@ -73,7 +76,6 @@ describe('createCapiArticles', () => {
 
 	const listArticles = createCapiArticles({
 		baseUrl: 'https://capi.example.com',
-		apiKey: 'test-key',
 		composerBaseUrl: 'https://composer.example.com',
 		readSkimlinksDomains,
 	});
@@ -153,7 +155,6 @@ describe('createCapiArticles', () => {
 		stubFetch(Response.json(searchResponse));
 		const withoutDomains = createCapiArticles({
 			baseUrl: 'https://capi.example.com',
-			apiKey: 'test-key',
 			composerBaseUrl: 'https://composer.example.com',
 			readSkimlinksDomains: () => Promise.resolve(undefined),
 		});
@@ -266,7 +267,6 @@ describe('createCapiArticle', () => {
 
 	const getArticle = createCapiArticle({
 		baseUrl: 'https://capi.example.com',
-		apiKey: 'test-key',
 		composerBaseUrl: 'https://composer.example.com',
 		readSkimlinksDomains,
 	});
@@ -319,7 +319,6 @@ describe('createCapiArticleLinks', () => {
 
 	const getArticleLinks = createCapiArticleLinks({
 		baseUrl: 'https://capi.example.com',
-		apiKey: 'test-key',
 	});
 
 	it("returns the article's web URL, headline and the links in its body", async () => {
@@ -355,7 +354,6 @@ describe('live pricing', () => {
 	const createListArticles = () =>
 		createCapiArticles({
 			baseUrl: 'https://capi.example.com',
-			apiKey: 'test-key',
 			composerBaseUrl: 'https://composer.example.com',
 			readSkimlinksDomains,
 		});

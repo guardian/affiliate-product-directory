@@ -27,5 +27,4 @@ export const getCapiBaseUrl = (stage: string) =>
 		? 'https://content.guardianapis.com'
 		: 'https://content.code.dev-guardianapis.com';
 
-export const getCapiKey = () => getEnvOrThrow('CAPI_KEY');
 export const getBucketName = () => getEnvOrThrow('BUCKET');

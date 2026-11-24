@@ -1,4 +1,3 @@
-import { getCapiKey } from '@common/config';
 import { DynamoService } from '@common/database-service';
 import { createApp } from './app';
 import { createSkimlinksDomains } from './skimlinksDomains';
@@ -29,14 +28,13 @@ const localAuth: Auth = {
 	loginUrl: '',
 };
 
-// Run with CAPI_KEY set to a CAPI key for that stage, and AWS credentials for the frontend
-// account to read the tables and the Skimlinks domains. The prices are from the same stage as the articles, as each
+// Run with AWS credentials for the frontend account to read the stage's CAPI key from
+// Parameter Store, the tables and the Skimlinks domains. The prices are from the same stage as the articles, as each
 // stage's directory is built from its CAPI.
 createApp({
 	clientDir: '../affiliate-products-client/build',
 	auth: localAuth,
 	stage,
-	capiKey: getCapiKey(),
 	dynamoService: new DynamoService(stage),
 	readSkimlinksDomains: createSkimlinksDomains(),
 }).listen(port, () => {

@@ -1,5 +1,5 @@
 import type { GuStackProps } from '@guardian/cdk/lib/constructs/core';
-import { GuParameter, GuStack } from '@guardian/cdk/lib/constructs/core';
+import { GuStack } from '@guardian/cdk/lib/constructs/core';
 import { type App, Duration } from 'aws-cdk-lib';
 import { StartingPosition } from 'aws-cdk-lib/aws-lambda';
 import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
@@ -22,10 +22,6 @@ export class AffiliateProductDirectory extends GuStack {
 		super(scope, id, props);
 		const { stage } = this;
 
-		const capiKeyParam = new GuParameter(this, 'capiKey', {
-			fromSSM: true,
-			default: `/${this.stage}/${this.stack}/${appName}/capi-key`,
-		});
 		const alarmActionsEnabled = stage === 'PROD';
 		const snsTopic = new Topic(this, 'ProductDirectorySnsTopic');
 
@@ -43,7 +39,6 @@ export class AffiliateProductDirectory extends GuStack {
 				stage,
 				snsTopic,
 				alarmActionsEnabled,
-				capiKeyParam,
 				bucketName,
 			});
 
@@ -106,6 +101,7 @@ export class AffiliateProductDirectory extends GuStack {
 			productPricingDynamoDBWritePolicy,
 			productArticleDynamoDBReadPolicy,
 			productArticleDynamoDBWritePolicy,
+			parameterStoreReadPolicy,
 			metricPutPolicy,
 		]);
 
@@ -136,10 +132,10 @@ export class AffiliateProductDirectory extends GuStack {
 
 		createTool(this, {
 			domainName: props.toolDomainName,
-			capiKeyParam,
 			// The products' prices, read from the pricing table on every request, and written
-			// to it. Previews also fetch live prices from the price providers, which read their
-			// switches and credentials from Parameter Store and record metrics.
+			// to it. The CAPI key is read from Parameter Store. Previews also fetch live prices
+			// from the price providers, which read their switches and credentials from there too
+			// and record metrics.
 			policies: [
 				productPricingDynamoDBReadPolicy,
 				productPricingDynamoDBWritePolicy,
