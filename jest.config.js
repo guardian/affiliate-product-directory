@@ -52,6 +52,7 @@ export default {
 		subpackage('product-directory-update-lambda'),
 		subpackage('product-price-update-lambda'),
 		subpackage('product-prices-csv-lambda'),
+		subpackage('price-report-lambda'),
 		subpackage('affiliate-products-server'),
 	],
 };

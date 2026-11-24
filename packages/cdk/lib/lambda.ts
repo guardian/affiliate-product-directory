@@ -3,7 +3,7 @@ import { GuLambdaFunction } from '@guardian/cdk/lib/constructs/lambda';
 import { GuScheduledLambda } from '@guardian/cdk/lib/patterns/scheduled-lambda';
 import { Duration } from 'aws-cdk-lib';
 import { Schedule } from 'aws-cdk-lib/aws-events';
-import type { Policy } from 'aws-cdk-lib/aws-iam';
+import { type Policy, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
 import type { Topic } from 'aws-cdk-lib/aws-sns';
 
@@ -19,6 +19,7 @@ export function createLambdas(scope: GuStack, props: CreateLambdasProps) {
 		priceUpdateLambda: createPriceUpdateLambda(scope, props),
 		pricesCsvLambda: createPricesCsvLambda(scope, props),
 		directoryUpdateLambda: createProductDirectoryUpdateLambda(scope, props),
+		priceReportLambda: createPriceReportLambda(scope, props),
 	};
 }
 
@@ -112,5 +113,31 @@ export function createProductDirectoryUpdateLambda(
 			snsTopicName: snsTopic.topicName,
 			actionsEnabled: alarmActionsEnabled,
 		},
+	});
+}
+
+export function createPriceReportLambda(
+	scope: GuStack,
+	{ appName, stage, snsTopic, alarmActionsEnabled }: CreateLambdasProps,
+): GuLambdaFunction {
+	const role = new Role(scope, 'price-report-lambda', {
+		roleName: `price-report-lambda-role-${stage}`,
+		assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
+	});
+
+	return new GuLambdaFunction(scope, 'ProductPriceReportLambda', {
+		app: 'price-report-lambda',
+		fileName: 'price-report-lambda.zip',
+		handler: 'index.eventHandler',
+		runtime: Runtime.NODEJS_22_X,
+		architecture: Architecture.ARM_64,
+		errorPercentageMonitoring: {
+			toleratedErrorPercentage: 1, // alarm on essentially any error
+			alarmName: `${appName}-price-report-lambda-${stage}-alarm`,
+			alarmDescription: `Something went wrong in the ${appName} price-report-lambda ${stage}. Check the logs`,
+			snsTopicName: snsTopic.topicName,
+			actionsEnabled: alarmActionsEnabled,
+		},
+		role: role,
 	});
 }
