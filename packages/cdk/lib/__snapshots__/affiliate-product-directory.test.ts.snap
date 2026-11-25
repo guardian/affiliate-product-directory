@@ -11,6 +11,8 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       "GuLambdaErrorPercentageAlarm",
       "GuLambdaFunction",
       "GuLambdaErrorPercentageAlarm",
+      "GuLambdaFunction",
+      "GuLambdaErrorPercentageAlarm",
       "GuDynamoTable",
       "GuDynamoTable",
       "GuDynamoDBReadPolicy",
@@ -2134,6 +2136,178 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
       },
       "Type": "AWS::IAM::Policy",
     },
+    "ProductPriceReportLambda71F762DD": {
+      "DependsOn": [
+        "pricereportlambdaDefaultPolicy7AFEF079",
+        "pricereportlambda8520907B",
+      ],
+      "Properties": {
+        "Architectures": [
+          "arm64",
+        ],
+        "Code": {
+          "S3Bucket": {
+            "Ref": "DistributionBucketName",
+          },
+          "S3Key": "frontend/TEST/price-report-lambda/price-report-lambda.zip",
+        },
+        "Environment": {
+          "Variables": {
+            "APP": "price-report-lambda",
+            "STACK": "frontend",
+            "STAGE": "TEST",
+          },
+        },
+        "Handler": "index.eventHandler",
+        "LoggingConfig": {
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
+        "Role": {
+          "Fn::GetAtt": [
+            "pricereportlambda8520907B",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs22.x",
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "price-report-lambda",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+        "Timeout": 30,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "ProductPriceReportLambdaErrorPercentageAlarmForLambda3DBC8CA2": {
+      "Properties": {
+        "ActionsEnabled": false,
+        "AlarmActions": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:aws:sns:eu-west-1:",
+                {
+                  "Ref": "AWS::AccountId",
+                },
+                ":",
+                {
+                  "Fn::GetAtt": [
+                    "ProductDirectorySnsTopic57D490ED",
+                    "TopicName",
+                  ],
+                },
+              ],
+            ],
+          },
+        ],
+        "AlarmDescription": "Something went wrong in the affiliate-product-directory price-report-lambda TEST. Check the logs",
+        "AlarmName": "affiliate-product-directory-price-report-lambda-TEST-alarm",
+        "ComparisonOperator": "GreaterThanThreshold",
+        "EvaluationPeriods": 1,
+        "Metrics": [
+          {
+            "Expression": "100*m1/m2",
+            "Id": "expr_1",
+            "Label": {
+              "Fn::Join": [
+                "",
+                [
+                  "Error % of ",
+                  {
+                    "Ref": "ProductPriceReportLambda71F762DD",
+                  },
+                ],
+              ],
+            },
+            "ReturnData": true,
+          },
+          {
+            "Id": "m1",
+            "MetricStat": {
+              "Metric": {
+                "Dimensions": [
+                  {
+                    "Name": "FunctionName",
+                    "Value": {
+                      "Ref": "ProductPriceReportLambda71F762DD",
+                    },
+                  },
+                ],
+                "MetricName": "Errors",
+                "Namespace": "AWS/Lambda",
+              },
+              "Period": 60,
+              "Stat": "Sum",
+            },
+            "ReturnData": false,
+          },
+          {
+            "Id": "m2",
+            "MetricStat": {
+              "Metric": {
+                "Dimensions": [
+                  {
+                    "Name": "FunctionName",
+                    "Value": {
+                      "Ref": "ProductPriceReportLambda71F762DD",
+                    },
+                  },
+                ],
+                "MetricName": "Invocations",
+                "Namespace": "AWS/Lambda",
+              },
+              "Period": 60,
+              "Stat": "Sum",
+            },
+            "ReturnData": false,
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-product-directory",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+        "Threshold": 1,
+        "TreatMissingData": "notBreaching",
+      },
+      "Type": "AWS::CloudWatch::Alarm",
+    },
     "ProductPriceUpdateLambda911BBAB1": {
       "DependsOn": [
         "ProductPriceUpdateLambdaServiceRoleDefaultPolicy583E597B",
@@ -3081,6 +3255,152 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
         "Roles": [
           {
             "Ref": "ProductPricesCsvLambdaServiceRole1DF7A75D",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "pricereportlambda8520907B": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+        "RoleName": "price-report-lambda-role-TEST",
+        "Tags": [
+          {
+            "Key": "App",
+            "Value": "affiliate-product-directory",
+          },
+          {
+            "Key": "gu:cdk:version",
+            "Value": "TEST",
+          },
+          {
+            "Key": "gu:repo",
+            "Value": "guardian/affiliate-product-directory",
+          },
+          {
+            "Key": "Stack",
+            "Value": "frontend",
+          },
+          {
+            "Key": "Stage",
+            "Value": "TEST",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "pricereportlambdaDefaultPolicy7AFEF079": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::",
+                      {
+                        "Ref": "DistributionBucketName",
+                      },
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::",
+                      {
+                        "Ref": "DistributionBucketName",
+                      },
+                      "/frontend/TEST/price-report-lambda/price-report-lambda.zip",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "ssm:GetParametersByPath",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:ssm:eu-west-1:",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":parameter/TEST/frontend/price-report-lambda",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "ssm:GetParameters",
+                "ssm:GetParameter",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:aws:ssm:eu-west-1:",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":parameter/TEST/frontend/price-report-lambda/*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "pricereportlambdaDefaultPolicy7AFEF079",
+        "Roles": [
+          {
+            "Ref": "pricereportlambda8520907B",
           },
         ],
       },

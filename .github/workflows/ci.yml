@@ -75,3 +75,5 @@ jobs:
               - packages/product-directory-update-lambda/dist/product-directory-update-lambda.zip
             affiliate-products-tool:
               - packages/affiliate-products-server/dist/affiliate-products-tool.zip
+            price-report-lambda:
+              - packages/price-report-lambda/dist/price-report-lambda.zip
