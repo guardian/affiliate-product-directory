@@ -10,7 +10,7 @@ export function getCapiKey(): Promise<string> {
 	if (!cachedCapiKey) {
 		const { stage, stack } = getConfig();
 		const name = `/${stage}/${stack}/${appName}/capi-key`;
-		cachedCapiKey = getParametersFromParameterStore([name], true).then(
+		cachedCapiKey = getParametersFromParameterStore([name]).then(
 			(parameters) => parameters[name]!,
 		);
 		// Not kept if the read fails, so the next call tries again.

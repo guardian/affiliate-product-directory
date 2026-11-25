@@ -36,25 +36,25 @@ describe('getParametersFromParameterStore', () => {
 		});
 	});
 
-	it('defaults WithDecryption to false', async () => {
+	it('defaults WithDecryption to true', async () => {
 		mockSend.mockResolvedValue({ Parameters: [] });
 
 		await getParametersFromParameterStore(['/a']);
 
 		expect(mockGetParametersCommand).toHaveBeenCalledWith({
 			Names: ['/a'],
-			WithDecryption: false,
+			WithDecryption: true,
 		});
 	});
 
-	it('passes WithDecryption through when requested', async () => {
+	it('turns decryption off when asked', async () => {
 		mockSend.mockResolvedValue({ Parameters: [] });
 
-		await getParametersFromParameterStore(['/a', '/b'], true);
+		await getParametersFromParameterStore(['/a', '/b'], false);
 
 		expect(mockGetParametersCommand).toHaveBeenCalledWith({
 			Names: ['/a', '/b'],
-			WithDecryption: true,
+			WithDecryption: false,
 		});
 	});
 

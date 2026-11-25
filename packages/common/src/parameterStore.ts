@@ -5,12 +5,13 @@ const ssmClient = new SSMClient({ region: 'eu-west-1' });
 /**
  *
  * @param names - SSM parameter store paths
- * @param withDecryption
+ * @param withDecryption - Whether to decrypt SecureString parameters. Ignored for String
+ * parameters, so it's on by default.
  * @returns Object of key-value pairs {SSM path => retrieved value}
  */
 export async function getParametersFromParameterStore(
 	names: string[],
-	withDecryption = false,
+	withDecryption = true,
 ): Promise<Record<string, string>> {
 	const response = await ssmClient.send(
 		new GetParametersCommand({ Names: names, WithDecryption: withDecryption }),
