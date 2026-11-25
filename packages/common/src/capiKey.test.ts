@@ -24,10 +24,9 @@ describe('getCapiKey', () => {
 		const { getCapiKey } = await loadModule();
 
 		await expect(getCapiKey()).resolves.toBe('test-capi-key');
-		expect(mockGetParametersFromParameterStore).toHaveBeenCalledWith(
-			[capiKeyName],
-			true,
-		);
+		expect(mockGetParametersFromParameterStore).toHaveBeenCalledWith([
+			capiKeyName,
+		]);
 	});
 
 	it('reads the key only once', async () => {
