@@ -3,7 +3,12 @@ import { GuLambdaFunction } from '@guardian/cdk/lib/constructs/lambda';
 import { GuScheduledLambda } from '@guardian/cdk/lib/patterns/scheduled-lambda';
 import { Duration } from 'aws-cdk-lib';
 import { Schedule } from 'aws-cdk-lib/aws-events';
-import { type Policy, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
+import {
+	ManagedPolicy,
+	type Policy,
+	Role,
+	ServicePrincipal,
+} from 'aws-cdk-lib/aws-iam';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
 import type { Topic } from 'aws-cdk-lib/aws-sns';
 
@@ -123,6 +128,11 @@ export function createPriceReportLambda(
 	const role = new Role(scope, 'price-report-lambda', {
 		roleName: `price-report-lambda-role-${stage}`,
 		assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
+		managedPolicies: [
+			ManagedPolicy.fromAwsManagedPolicyName(
+				'service-role/AWSLambdaBasicExecutionRole',
+			),
+		],
 	});
 
 	return new GuLambdaFunction(scope, 'ProductPriceReportLambda', {
