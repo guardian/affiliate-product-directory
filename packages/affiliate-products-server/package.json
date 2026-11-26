@@ -16,7 +16,7 @@
 		"@aws-sdk/client-s3": "^3.1173.0",
 		"@aws-sdk/lib-dynamodb": "^3.1173.0",
 		"@codegenie/serverless-express": "5.0.0",
-		"@guardian/pan-domain-node": "2.0.0",
+		"@guardian/pan-domain-node": "3.0.0",
 		"@guardian/permissions-client": "0.0.4",
 		"express": "5.3.0",
 		"zod": "4.6.6"
