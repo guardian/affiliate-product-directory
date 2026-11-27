@@ -32,7 +32,7 @@ WITH versioned_prices AS (
     region,
     LAG(price) OVER (PARTITION BY productMerchantUrl ORDER BY _fivetran_synced) AS previous_price,
     LAG(availability) OVER (PARTITION BY productMerchantUrl ORDER BY _fivetran_synced) AS previous_availability,
-  FROM datatech-fivetran.affiliate_product_directory_prod.affiliate-product-directory-pricing-PROD
+  FROM \`datatech-fivetran.affiliate_product_directory_prod.affiliate-product-directory-pricing-PROD\`
 )
 SELECT
   productMerchantUrl,
