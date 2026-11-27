@@ -21,7 +21,7 @@ export const QueryRecordSchema = z.object({
 
 export type QueryRecord = z.infer<typeof QueryRecordSchema>;
 
-export const query = (region: Region) => `
+export const query = (region: Region, stage: string) => `
 WITH versioned_prices AS (
   SELECT
     productMerchantUrl,
@@ -32,7 +32,7 @@ WITH versioned_prices AS (
     region,
     LAG(price) OVER (PARTITION BY productMerchantUrl ORDER BY _fivetran_synced) AS previous_price,
     LAG(availability) OVER (PARTITION BY productMerchantUrl ORDER BY _fivetran_synced) AS previous_availability,
-  FROM \`datatech-fivetran.affiliate_product_directory_prod.affiliate-product-directory-pricing-PROD\`
+  FROM \`datatech-fivetran.affiliate_product_directory_${stage.toLowerCase()}.affiliate-product-directory-pricing-${stage}\`
 )
 SELECT
   productMerchantUrl,
