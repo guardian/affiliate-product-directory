@@ -43,7 +43,7 @@ SELECT
   _fivetran_synced AS syncDate
 FROM versioned_prices
 WHERE _fivetran_synced >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
-  AND  updatedBy != 'manualOverride'
-  AND (previous_price != price OR previous_availability != availability)
+  AND updatedBy IS DISTINCT FROM 'manualOverride'
+  AND (previous_price IS DISTINCT FROM price OR previous_availability IS DISTINCT FROM availability)
   AND region = '${region}'
 ORDER BY _fivetran_synced DESC;`;
