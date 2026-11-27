@@ -33,14 +33,18 @@ export class AffiliateProductDirectory extends GuStack {
 
 		const bucketName = 'aws-frontend-store';
 
-		const { priceUpdateLambda, pricesCsvLambda, directoryUpdateLambda, priceReportLambda } =
-			createLambdas(this, {
-				appName,
-				stage,
-				snsTopic,
-				alarmActionsEnabled,
-				bucketName,
-			});
+		const {
+			priceUpdateLambda,
+			pricesCsvLambda,
+			directoryUpdateLambda,
+			priceReportLambda,
+		} = createLambdas(this, {
+			appName,
+			stage,
+			snsTopic,
+			alarmActionsEnabled,
+			bucketName,
+		});
 
 		const { productPricingTable, productArticleTable } = createDynamoTables(
 			this,
@@ -105,7 +109,10 @@ export class AffiliateProductDirectory extends GuStack {
 			metricPutPolicy,
 		]);
 
-		attachPoliciesToLambda(priceReportLambda, [parameterStoreReadPolicy,metricPutPolicy])
+		attachPoliciesToLambda(priceReportLambda, [
+			parameterStoreReadPolicy,
+			metricPutPolicy,
+		]);
 
 		const updatedPriceQueue = new Queue(this, 'ProductPricingUpdateQueue', {
 			queueName: `${appName}-pricing-update-${this.stage}`,
