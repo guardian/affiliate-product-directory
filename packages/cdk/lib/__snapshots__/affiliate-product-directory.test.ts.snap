@@ -1662,6 +1662,9 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
             "Ref": "ProductDirectoryUpdateLambdaServiceRoleB5BDC4A1",
           },
           {
+            "Ref": "pricereportlambda8520907B",
+          },
+          {
             "Ref": "AffiliateProductsToolServiceRole931B917D",
           },
         ],
@@ -3425,6 +3428,9 @@ exports[`The AffiliateProductDirectoryLambda stack matches the snapshot 1`] = `
           },
           {
             "Ref": "ProductDirectoryUpdateLambdaServiceRoleB5BDC4A1",
+          },
+          {
+            "Ref": "pricereportlambda8520907B",
           },
           {
             "Ref": "AffiliateProductsToolServiceRole931B917D",

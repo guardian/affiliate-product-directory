@@ -33,7 +33,7 @@ export class AffiliateProductDirectory extends GuStack {
 
 		const bucketName = 'aws-frontend-store';
 
-		const { priceUpdateLambda, pricesCsvLambda, directoryUpdateLambda } =
+		const { priceUpdateLambda, pricesCsvLambda, directoryUpdateLambda, priceReportLambda } =
 			createLambdas(this, {
 				appName,
 				stage,
@@ -104,6 +104,8 @@ export class AffiliateProductDirectory extends GuStack {
 			parameterStoreReadPolicy,
 			metricPutPolicy,
 		]);
+
+		attachPoliciesToLambda(priceReportLambda, [parameterStoreReadPolicy,metricPutPolicy])
 
 		const updatedPriceQueue = new Queue(this, 'ProductPricingUpdateQueue', {
 			queueName: `${appName}-pricing-update-${this.stage}`,

@@ -22,7 +22,7 @@ describe('QueryRecordSchema', () => {
 						{ v: '19.99' },
 						{ v: null },
 						{ v: 'in-stock' },
-						{ v: '1760000000' },
+						{ v: '1760000000000000' },
 					],
 				},
 			],
