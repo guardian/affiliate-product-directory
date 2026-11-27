@@ -23,7 +23,7 @@ export async function main(): Promise<void> {
 	// Let's start with just GB for now
 	const [rows] = await runQuery(
 		authClient,
-		`datatech-platform-${stage}`,
+		`datatech-platform-${stage.toLowerCase()}`,
 		query('GB', stage),
 	);
 	console.log('rows', rows);
