@@ -9,6 +9,10 @@
 		"build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outdir=dist",
 		"postbuild": "cd dist && zip -r price-report-lambda.zip ."
 	},
+	"dependencies": {
+		"@google-cloud/bigquery": "^7.9.3",
+		"zod": "4.6.6"
+	},
 	"devDependencies": {
 		"@types/aws-lambda": "^8.10.125",
 		"esbuild": "0.28.2"
