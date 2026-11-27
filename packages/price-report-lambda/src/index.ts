@@ -17,13 +17,14 @@ export async function main(): Promise<void> {
 	const config = getConfig();
 
 	const gcpConfig = await getGcpConfig(config);
+	const { stage } = config;
 	const authClient = await buildAuthClient(gcpConfig);
 
 	// Let's start with just GB for now
 	const [rows] = await runQuery(
 		authClient,
-		'datatech-fivetran',
-		query('GB', config.stage),
+		`datatech-platform-${stage}`,
+		query('GB', stage),
 	);
 	console.log('rows', rows);
 	const records = QueryRecordSchema.array().parse(rows);

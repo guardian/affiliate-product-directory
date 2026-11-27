@@ -4,8 +4,7 @@
 	"type": "module",
 	"scripts": {
 		"test": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" npx jest --detectOpenHandles --config ../../jest.config.js --selectProjects common",
-		"type-check": "tsc --noEmit -p tsconfig.json",
-		"start": "tsx --env-file=.env src/run-locally.ts"
+		"type-check": "tsc --noEmit -p tsconfig.json"
 	},
 	"devDependencies": {
 		"@aws-sdk/client-cloudwatch": "^3.1173.0",
